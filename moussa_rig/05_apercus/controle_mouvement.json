@@ -1,0 +1,14 @@
+[
+ {
+  "amplitude": 1.0,
+  "reconstructed_px_visible_worst": 1443,
+  "new_holes_px": 5,
+  "max_rigid_move_px": 10.3
+ },
+ {
+  "amplitude": 2.0,
+  "reconstructed_px_visible_worst": 3421,
+  "new_holes_px": 51,
+  "max_rigid_move_px": 20.61
+ }
+]
