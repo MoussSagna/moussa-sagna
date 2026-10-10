@@ -27,11 +27,10 @@ Lancer `npm run build && npm run preview`, ouvrir la page et regarder réellemen
 
 ## Pièges connus
 
-- Les constantes `SPRITE` de `src/game/hero/HeroLayer.ts` décrivent l'illustration actuelle. Si elle change, relancer `tools/prepare_hero.py` et reporter les valeurs qu'il affiche.
-- `src/game/hero/rigData.ts` et `public/assets/hero/rig-atlas.webp` sont générés par `tools/pack_rig.py` à partir de `moussa_rig/rig.json`. Ne pas les modifier à la main.
-- `AMPLITUDE` (dans `HeroLayer.ts`) ne doit pas dépasser 1 : au-delà, les calques du rig sortent de leurs zones de recouvrement et des trous apparaissent. Voir `moussa_rig/README.md`.
-- Ne pas retoucher `moussa_rig/00_maitre/` ni `moussa_rig/02_calques/` à la main : ils sont produits par `tools/prepare_rig.py`.
-- `rigMatrices` (`src/game/hero/rig.ts`) est le portage de `matrices()` de `tools/rig/simulate.py`. Si l'un change, l'autre doit suivre.
+- `src/game/hero/poseData.ts` et les atlas de `public/assets/hero/` sont générés par `tools/prepare_poses.py` à partir des illustrations de `art/`. Ne pas les modifier à la main.
+- Les polygones de découpe et les articulations, en haut de `tools/prepare_poses.py`, sont tracés à la main pour les illustrations actuelles : une autre image demande de les retracer.
+- Toutes les poses du personnage doivent garder la même vue (trois quarts à profil, tourné vers la droite) et la même taille de tête. Une pose dans une autre vue fait sauter le personnage au changement d'état.
+- Les illustrations générées portent parfois un logo de marque sur les baskets : `LOGOS`, dans `tools/prepare_poses.py`, l'efface. À vérifier pour chaque nouvelle image.
+- `moussa_rig/` est l'ancien rig de face. Le moteur ne l'utilise plus ; il est gardé comme source pour un éventuel écran de présentation.
 - La carte `depth.png` encode plusieurs informations par canal de couleur. Ne pas la recompresser en JPEG ni la redimensionner à la main.
-- La marche utilise un second rig, de profil (`art/hero-walk-source.png`). Ses polygones de découpe et ses articulations, dans `tools/prepare_walk.py`, sont tracés à la main pour cette illustration : une autre image demande de les retracer.
 - Les personnages d'autres éditeurs (Ryu, M. Bison…) sont protégés : pour un site public, préférer des adversaires originaux.

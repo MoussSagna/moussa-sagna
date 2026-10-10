@@ -6,16 +6,16 @@
 - [x] Stage Tokyo Underground : profondeur, ciel, écrans, lanternes, métro, brume, sol mouillé, pluie, pétales.
 - [x] Carton de titre et travelling d'ouverture.
 - [x] Personnage en position neutre, animé à partir d'une seule illustration.
-- [x] Marche avant et arrière de profil, avec un second rig aux jambes articulées (à juger en mouvement).
-- [x] Fondu avec pivot entre la pose neutre de face et la marche de profil.
+- [x] Garde, pose intermédiaire et marche dans la même vue, à partir de trois illustrations découpées en calques (à juger en mouvement).
+- [ ] Illustration du milieu du pas (jambes qui se croisent) pour assouplir la marche.
 - [ ] Pose de transition dessinée (trois quarts) entre la face et le profil.
-- [x] Personnage découpé en 17 calques et animé en direct par un rig (respiration, tête, bras, rubans).
+- [x] Ancien rig de face en 17 calques (`moussa_rig/`), remplacé dans le stage par les poses de trois quarts.
 
 ## Ensuite
 
 1. **Structure du portfolio** : écran titre, menu principal, puis les sections (projets, parcours, à propos, contact) en HTML par-dessus ou à côté de la scène. Ajouter **Zustand** à ce moment-là pour l'écran courant.
 2. **Transitions entre écrans** : séquences chorégraphiées avec **GSAP**.
-3. **Autres animations du personnage** : garde, coups, sauts. Le rig en calques le permet, mais ses zones cachées ne sont prolongées que pour une respiration : il faudra les repeindre à la main, séparer les jambes du calque `lower`, et décrire chaque animation par ses propres courbes plutôt que par le seul cycle de respiration.
+3. **Autres animations du personnage** : accroupi, saut, coups, touché. Une illustration par état, toujours dans la même vue, découpée par `tools/prepare_poses.py`.
 4. **Sprites et moteur de combat** : à partir de plusieurs personnages et de nombreuses frames, passer le rendu des sprites sur **PixiJS**. Le décor en shader peut rester tel quel.
 5. **Adversaire** : un personnage original.
 6. **Mobile** : cadrage adapté, commandes tactiles, effets allégés.

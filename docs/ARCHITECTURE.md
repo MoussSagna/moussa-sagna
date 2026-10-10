@@ -7,7 +7,7 @@ L'écran du stage empile trois canvas dans un même conteneur, pilotés par une 
 | Ordre | Plan | Fichier | Technique |
 | --- | --- | --- | --- |
 | 1 (fond) | Décor | `src/game/stage/StageBackdrop.ts` | WebGL, un shader plein écran |
-| 2 | Personnage | `src/game/hero/HeroLayer.ts` | WebGL, un quad par calque du rig, plus le reflet et l'ombre |
+| 2 | Personnage | `src/game/hero/HeroLayer.ts` | WebGL, un quad par calque de la pose, plus le reflet et l'ombre |
 | 3 (devant) | Météo | `src/game/stage/WeatherLayer.ts` | Canvas 2D |
 
 Par-dessus, React affiche le carton de titre et l'étiquette du stage en HTML (`src/components/StageScreen.tsx`).
@@ -34,29 +34,39 @@ Les lanternes, les néons et le trajet du métro sont positionnés par leurs coo
 
 ## Le personnage
 
-Le personnage est un rig de 17 calques (voir `moussa_rig/README.md`), animé en direct : il n'y a ni planche de frames ni animation pré-rendue.
+Le personnage est fait de trois illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
 
-- **Données** : `tools/pack_rig.py` range les calques dans un atlas (`rig-atlas.webp`) et génère `src/game/hero/rigData.ts` à partir de `moussa_rig/rig.json`, qui reste la seule source des pivots et du mouvement.
-- **Transformations** : `rigMatrices` (`src/game/hero/rig.ts`) calcule une matrice par calque à chaque image. C'est le portage de `matrices()` de `tools/rig/simulate.py`, qui sert de référence : cycle de 4 secondes, tout en sinus, phase propre à chaque calque. Un calque en mode `matrix` hérite de toute la transformation de son parent ; en mode `point`, il suit seulement le déplacement de son pivot.
-- **Dessin** : un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice ; le fragment shader retrouve le pixel d'origine dans la toile du rig (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.
-- **Reflet et ombre** : le personnage entier est d'abord dessiné une fois dans une texture hors écran, qui sert au reflet. Dessiner les calques un par un à 20 % d'opacité ferait apparaître leurs zones de recouvrement.
+| Pose | Illustration | Rôle |
+| --- | --- | --- |
+| `guard` | `art/hero-guard.png` | état neutre : garde, poings levés |
+| `step` | `art/hero-step.png` | pose intermédiaire, affichée un instant entre la garde et la marche |
+| `walk` | `art/hero-walk.png` | marche, jambes et bras articulés |
 
-`AMPLITUDE` (dans `HeroLayer.ts`) règle l'ampleur du mouvement. Elle est plafonnée à 1 : au-delà, les calques sortent de leurs zones de recouvrement et des trous apparaissent. « Réduire les mouvements » la ramène à 0,35.
+- **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas (`guard.webp`, `step.webp`, `walk.webp`) et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
+- **Dessin** : `HeroLayer` dessine un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice du calque ; le fragment shader retrouve le pixel d'origine dans la toile (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.
+- **Alignement** : chaque pose a un point d'appui (milieu des pieds, ligne des semelles). Les trois sont posés au même endroit du sol, placé par `PLACEMENT`, et suivent la caméra du décor avec la profondeur du sol.
+- **Reflet et ombre** : le personnage entier est d'abord dessiné une fois dans une texture hors écran, qui sert au reflet.
 
-À l'arrêt, les pieds ne bougent pas. Le personnage est placé par `PLACEMENT` et suit la caméra du décor avec la profondeur du sol.
+### La garde
+
+`guardMatrices` (`src/game/hero/poseRig.ts`) : le corps se tasse légèrement vers la ligne du sol (les semelles ne bougent pas), le buste respire en s'agrandissant autour de la taille, la tête et les rubans suivent avec un retard. La tête est un calque dessiné une seconde fois par-dessus le buste, ce qui lui permet de bouger sans laisser de trou. `GUARD` règle les durées et les amplitudes ; « Réduire les mouvements » les ramène à 35 %.
 
 ### La marche
 
-À l'arrêt, le personnage est de face ; dès qu'il marche, `HeroLayer` dessine un second rig, de profil, à la place du premier. Le passage dure 0,2 seconde (`TURN`) : les deux rigs sont rendus hors écran, puis fondus l'un dans l'autre en se resserrant sur l'axe du corps, comme un personnage qui pivote. Avec « Réduire les mouvements », il ne reste que le fondu.
+`walkMatrices` calcule la pose pour une phase du cycle. Chaque cheville suit une trajectoire par rapport à la hanche : elle recule au sol à vitesse constante, puis revient en l'air. La cuisse et le tibia sont placés par cinématique inverse (deux os, genou vers l'avant). Le pied a son propre angle : talon qui se pose, pied à plat, talon qui se lève. Le bassin monte quand une jambe passe à la verticale, le buste se penche un peu et les bras balancent à l'opposé des jambes.
 
-- **Données** : `tools/prepare_walk.py` détoure `art/hero-walk-source.png` (fond vert), le découpe en 13 calques (tête, rubans, buste, hanche, deux bras, et pour chaque jambe cuisse, tibia et pied), rebouche les zones cachées par des aplats, et écrit `walk-atlas.webp` et `src/game/hero/walkData.ts` (calques et articulations).
-- **Squelette** : `walkMatrices` (`src/game/hero/walkRig.ts`) calcule la pose pour une phase du cycle. Chaque cheville suit une trajectoire par rapport à la hanche : elle recule au sol à vitesse constante, puis revient en l'air. La cuisse et le tibia sont ensuite placés par cinématique inverse (deux os, genou vers l'avant). Le pied a son propre angle : talon qui se pose, pied à plat, talon qui se lève.
-- **Haut du corps** : le bassin monte quand une jambe passe à la verticale, le buste se penche un peu, les bras balancent à l'opposé des jambes et les rubans ondulent dans le shader.
-- **Déplacement** : le corps avance à `WALK_SPEED`, la vitesse exacte du pied posé, pour que les appuis ne patinent pas. Jouer le cycle à l'envers donne la marche arrière.
+Le corps avance à `WALK_SPEED`, la vitesse exacte du pied posé, pour que les appuis ne patinent pas. Jouer le cycle à l'envers donne la marche arrière. `GAIT` règle la durée du cycle, la foulée, la levée des pieds et le balancement des bras.
 
-`GAIT` (dans `walkRig.ts`) règle la durée du cycle, la foulée, la levée des pieds et le balancement des bras. `StageEngine.walk` reçoit la direction (1, -1 ou 0) ; `App.tsx` la pilote au clavier et avec deux boutons à maintenir.
+### Les changements d'état
 
-Limites : les membres sont des pièces rigides qui tournent, donc les plis du pantalon ne se redessinent pas et le genou marque un angle quand il plie. Les parties cachées (haut de la cuisse éloignée, buste sous le bras) sont des aplats sans détail. La jambe éloignée, dessinée plus longue que l'autre, est réduite de 10 %.
+`HeroLayer.update` ne saute jamais directement de la garde à la marche : il affiche la pose `step` pendant `STEP_SECONDS`, puis la pose d'arrivée. Ce sont des coupes franches entre trois dessins proches, comme dans une animation dessinée, sans fondu. `StageEngine.walk` reçoit la direction (1, -1 ou 0) ; `App.tsx` la pilote au clavier et avec deux boutons à maintenir.
+
+### Limites
+
+- Les membres de la marche sont des pièces rigides qui tournent : les plis du pantalon ne se redessinent pas et le genou marque un angle quand il plie.
+- Les parties cachées (haut de la cuisse éloignée, buste sous le bras) sont des aplats sans détail.
+- Il manque une illustration du milieu du pas (jambes qui se croisent), le moment où le découpage est le plus faible.
+- En garde, les jambes et les bras ne sont pas articulés.
 
 ## Ajouter un plan
 
