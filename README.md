@@ -2,7 +2,7 @@
 
 Portfolio de Moussa Sagna, développeur frontend, présenté comme un jeu de combat 2D dans l'esprit de *Guilty Gear Strive*.
 
-Premier écran en place : le stage **Tokyo Underground**, animé et en profondeur, avec le personnage en position neutre. Il marche avec les flèches gauche et droite (ou Q et D).
+Premier écran en place : le stage **Tokyo Underground**, animé et en profondeur, avec le personnage en garde. Il marche avec les flèches gauche et droite (ou Q et D).
 
 ## Démarrer
 
@@ -27,7 +27,7 @@ Aucune bibliothèque de jeu n'est installée pour l'instant : le premier écran 
 ## Organisation
 
 ```
-art/             illustration d'origine du personnage
+art/             illustrations du personnage (une par pose)
 public/assets/   images du stage et du personnage
 src/game/        moteur de rendu, indépendant de React
 src/components/  écrans et interface React

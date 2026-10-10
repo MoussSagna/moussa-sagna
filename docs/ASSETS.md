@@ -4,49 +4,39 @@ Les scripts de `tools/` demandent Python 3 avec `pillow`, `numpy`, `opencv-pytho
 
 ## Ce qu'il faut fournir
 
-**Un personnage**
-- une seule image en pied, dans la pose voulue ;
-- au moins 1000 px de haut ;
-- sur fond transparent, ou à défaut sur un fond clair et uni (le faux damier de transparence fonctionne, un fond sombre non) ;
-- les tissus libres (bandeau, lanières) bien détachés du corps.
+**Une pose du personnage**
+- une seule image en pied, 1024 × 1536, une seule pose ;
+- fond vert uni `#00FF00`, sans ombre, sans dégradé ni faux damier, et aucun vert sur le personnage ;
+- la même vue que les autres poses (trois quarts à profil, tourné vers la droite) et la même taille de tête ;
+- les jambes écartées, qui ne se chevauchent pas sous le genou, et les mains écartées du corps ;
+- les rubans du bandeau vers l'arrière, détachés du corps ;
+- aucun logo de marque sur les baskets.
 
 **Un décor**
 - une image large (16:9 environ), sans personnage ni texte incrusté.
 
-## Personnage
-
-Le personnage affiché est le rig en calques de `moussa_rig/`. Trois scripts le préparent, dans cet ordre.
-
-### 1. Calques : `tools/prepare_rig.py`
+## Personnage : `tools/prepare_poses.py`
 
 ```bash
-python3 tools/prepare_rig.py moussa_rigging_stage/00_MOUSSA_MASTER_UNTOUCHED.png
+python3 tools/prepare_poses.py [--debug dossier]
 ```
 
-Le script répare une copie du maître, la découpe en 17 calques avec zones de recouvrement, simule la respiration pour contrôler trous et raccords, et écrit le tout dans `moussa_rig/`. L'organisation des calques, les pivots et ce qui reste à faire sont décrits dans `moussa_rig/README.md`. À relancer seulement si l'illustration ou la découpe change.
+Le script lit `art/hero-guard.png`, `art/hero-step.png` et `art/hero-walk.png`. Pour chacune il retire le fond vert, efface les logos des baskets (`LOGOS`), découpe le personnage d'après des polygones tracés à la main, rebouche les zones cachées par des aplats de la couleur du tissu, et écrit :
 
-### 2. Atlas et données : `tools/pack_rig.py`
+- `public/assets/hero/guard.webp`, `step.webp`, `walk.webp` : un atlas par pose, en WebP sans perte, de côtés en puissances de deux pour que le moteur puisse générer les mipmaps ;
+- `src/game/hero/poseData.ts` : pour chaque pose, ses calques (place dans l'atlas et dans la toile, parent, pivot), ses articulations et son point d'appui.
 
-```bash
-python3 tools/pack_rig.py
-```
+Avec `--debug`, il écrit aussi une planche des calques de chaque pose pour contrôler la découpe.
 
-Le script lit `moussa_rig/rig.json` et `moussa_rig/02_calques/`, recadre chaque calque sur sa boîte englobante avec 8 pixels de marge transparente, et écrit :
+Découpe actuelle :
 
-- `public/assets/hero/rig-atlas.webp` : l'atlas, en WebP sans perte, 2048 × 2048 pour que le moteur puisse générer les mipmaps ;
-- `src/game/hero/rigData.ts` : pour chaque calque, sa place dans l'atlas et dans la toile, son parent, son pivot et son mouvement.
+- **garde** : rubans (deux calques), bas du corps, buste, tête ;
+- **pose intermédiaire** : un seul calque ;
+- **marche** : rubans (deux calques), tête, buste, hanche, bassin, deux bras, et cuisse, tibia et pied pour chaque jambe.
 
-`rigData.ts` est généré : pour changer un pivot ou une amplitude, modifier `rig.json` (ou `tools/rig/simulate.py`, qui l'écrit) puis relancer le script.
+Pour une nouvelle illustration, il faut retracer ses polygones et ses articulations en haut du script, puis contrôler la planche de `--debug`.
 
-### 3. Jambes et ancrage : `tools/prepare_hero.py`
-
-```bash
-python3 tools/prepare_hero.py
-```
-
-Le script écrit la carte des jambes (`hero-legs.png`) dans le repère de la toile du rig et affiche les mesures à reporter dans `SPRITE`, dans `src/game/hero/HeroLayer.ts`. Les articulations des jambes (hanche, genou, cheville), en haut du script, sont propres à l'illustration actuelle.
-
-`art/hero-source.png` est l'ancienne illustration sur fond clair, utilisée avant le rig. Elle n'est plus lue par aucun script et n'est pas dans le même repère que le maître : elle est resserrée d'environ 5 % en largeur.
+`moussa_rig/`, `tools/prepare_rig.py` et `tools/rig/` sont l'ancien rig de face, que le moteur n'utilise plus. `art/hero-source.png` est l'illustration de face d'origine.
 
 ## Décor : `tools/prepare_stage.py`
 
@@ -61,5 +51,6 @@ Une estimation automatique de la profondeur a été essayée et donnait un résu
 ## Ne pas faire
 
 - Recompresser les cartes en JPEG ou les redimensionner dans un éditeur : chaque canal porte une information précise.
-- Recompresser l'atlas avec perte ou modifier `rigData.ts` à la main.
+- Recompresser un atlas avec perte ou modifier `poseData.ts` à la main.
+- Mélanger des poses dessinées sous des angles différents : le personnage saute à chaque changement d'état.
 - Utiliser des planches de frames générées par IA telles quelles : les poses diffèrent trop d'une image à l'autre et l'animation tremble.
