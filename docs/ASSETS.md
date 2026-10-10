@@ -39,6 +39,14 @@ Le script écrit `public/assets/stage/stage.webp` et `depth.png`. La carte est *
 
 Une estimation automatique de la profondeur a été essayée et donnait un résultat trop flou sur une illustration de ce style.
 
+## Rig en calques : `tools/prepare_rig.py`
+
+```bash
+python3 tools/prepare_rig.py moussa_rigging_stage/00_MOUSSA_MASTER_UNTOUCHED.png
+```
+
+Le script répare une copie du maître, la découpe en 17 calques avec zones de recouvrement, simule la respiration pour contrôler trous et raccords, et écrit le tout dans `moussa_rig/`. L'organisation des calques, les pivots et ce qui reste à faire sont décrits dans `moussa_rig/README.md`. Ces calques ne sont pas encore utilisés par le moteur.
+
 ## Ne pas faire
 
 - Recompresser les cartes en JPEG ou les redimensionner dans un éditeur : chaque canal porte une information précise.

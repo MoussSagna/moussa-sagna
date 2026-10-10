@@ -1,0 +1,240 @@
+[
+ {
+  "name": "rb_long",
+  "z": 1,
+  "file": "02_calques/01_rb_long.png",
+  "bbox": [
+   45,
+   163,
+   455,
+   425
+  ],
+  "visible_px": 14017,
+  "overlap_true_px": 0,
+  "reconstructed_px": 4029
+ },
+ {
+  "name": "rb_mid",
+  "z": 2,
+  "file": "02_calques/02_rb_mid.png",
+  "bbox": [
+   16,
+   284,
+   362,
+   651
+  ],
+  "visible_px": 18659,
+  "overlap_true_px": 0,
+  "reconstructed_px": 5166
+ },
+ {
+  "name": "rb_low",
+  "z": 3,
+  "file": "02_calques/03_rb_low.png",
+  "bbox": [
+   45,
+   543,
+   286,
+   869
+  ],
+  "visible_px": 13241,
+  "overlap_true_px": 0,
+  "reconstructed_px": 2589
+ },
+ {
+  "name": "rb_bottom",
+  "z": 4,
+  "file": "02_calques/04_rb_bottom.png",
+  "bbox": [
+   132,
+   715,
+   320,
+   1037
+  ],
+  "visible_px": 11198,
+  "overlap_true_px": 0,
+  "reconstructed_px": 3576
+ },
+ {
+  "name": "rb_hip",
+  "z": 5,
+  "file": "02_calques/05_rb_hip.png",
+  "bbox": [
+   254,
+   802,
+   411,
+   1065
+  ],
+  "visible_px": 5059,
+  "overlap_true_px": 0,
+  "reconstructed_px": 5979
+ },
+ {
+  "name": "rb_right",
+  "z": 6,
+  "file": "02_calques/06_rb_right.png",
+  "bbox": [
+   819,
+   816,
+   971,
+   1102
+  ],
+  "visible_px": 6060,
+  "overlap_true_px": 0,
+  "reconstructed_px": 4410
+ },
+ {
+  "name": "rb_top",
+  "z": 7,
+  "file": "02_calques/07_rb_top.png",
+  "bbox": [
+   362,
+   54,
+   569,
+   218
+  ],
+  "visible_px": 6189,
+  "overlap_true_px": 0,
+  "reconstructed_px": 4585
+ },
+ {
+  "name": "rb_knot",
+  "z": 8,
+  "file": "02_calques/08_rb_knot.png",
+  "bbox": [
+   414,
+   122,
+   563,
+   226
+  ],
+  "visible_px": 2034,
+  "overlap_true_px": 0,
+  "reconstructed_px": 5509
+ },
+ {
+  "name": "lower",
+  "z": 9,
+  "file": "02_calques/09_lower.png",
+  "bbox": [
+   140,
+   588,
+   1010,
+   1513
+  ],
+  "visible_px": 375768,
+  "overlap_true_px": 0,
+  "reconstructed_px": 8864
+ },
+ {
+  "name": "torso",
+  "z": 10,
+  "file": "02_calques/10_torso.png",
+  "bbox": [
+   398,
+   138,
+   798,
+   723
+  ],
+  "visible_px": 64729,
+  "overlap_true_px": 0,
+  "reconstructed_px": 19211
+ },
+ {
+  "name": "arm_r",
+  "z": 11,
+  "file": "02_calques/11_arm_r.png",
+  "bbox": [
+   765,
+   554,
+   946,
+   830
+  ],
+  "visible_px": 22368,
+  "overlap_true_px": 0,
+  "reconstructed_px": 2029
+ },
+ {
+  "name": "jacket",
+  "z": 12,
+  "file": "02_calques/12_jacket.png",
+  "bbox": [
+   349,
+   160,
+   806,
+   706
+  ],
+  "visible_px": 76640,
+  "overlap_true_px": 12127,
+  "reconstructed_px": 11227
+ },
+ {
+  "name": "arm_l",
+  "z": 13,
+  "file": "02_calques/13_arm_l.png",
+  "bbox": [
+   257,
+   538,
+   424,
+   848
+  ],
+  "visible_px": 32333,
+  "overlap_true_px": 0,
+  "reconstructed_px": 2935
+ },
+ {
+  "name": "sleeve_r",
+  "z": 14,
+  "file": "02_calques/14_sleeve_r.png",
+  "bbox": [
+   730,
+   308,
+   850,
+   596
+  ],
+  "visible_px": 12695,
+  "overlap_true_px": 0,
+  "reconstructed_px": 0
+ },
+ {
+  "name": "sleeve_l",
+  "z": 15,
+  "file": "02_calques/15_sleeve_l.png",
+  "bbox": [
+   209,
+   216,
+   440,
+   643
+  ],
+  "visible_px": 53297,
+  "overlap_true_px": 0,
+  "reconstructed_px": 0
+ },
+ {
+  "name": "head",
+  "z": 16,
+  "file": "02_calques/16_head.png",
+  "bbox": [
+   533,
+   109,
+   686,
+   256
+  ],
+  "visible_px": 7309,
+  "overlap_true_px": 1935,
+  "reconstructed_px": 2749
+ },
+ {
+  "name": "hair",
+  "z": 17,
+  "file": "02_calques/17_hair.png",
+  "bbox": [
+   514,
+   5,
+   774,
+   205
+  ],
+  "visible_px": 28505,
+  "overlap_true_px": 0,
+  "reconstructed_px": 0
+ }
+]
