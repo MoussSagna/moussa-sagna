@@ -1,0 +1,112 @@
+@import 'tailwindcss';
+
+/* Direction artistique : nuit de Tokyo sous la pluie, rouge sang, sakura, violet néon. */
+@theme {
+  --color-ink: #08060d;
+  --color-panel: #16121d;
+  --color-line: #f4efe9;
+  --color-muted: #b8afc4;
+  --color-blood: #e8262d;
+  --color-sakura: #ff8fc0;
+  --color-violet: #8b6bff;
+  --font-display: Anton, 'Arial Narrow', Impact, sans-serif;
+  --font-body: 'Barlow Semi Condensed', 'Arial Narrow', system-ui, sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink);
+  color: var(--color-line);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-sakura);
+  outline-offset: 3px;
+}
+
+/* ---------- Carton de titre du stage ---------- */
+.stage-bar {
+  transition: transform 0.9s cubic-bezier(0.7, 0, 0.2, 1);
+}
+.stage-bar-top {
+  transform: translateY(-101%);
+}
+.stage-bar-bottom {
+  transform: translateY(101%);
+}
+.is-intro .stage-bar {
+  transform: none;
+}
+
+.stage-card {
+  transform: translateY(-50%);
+  opacity: 0;
+}
+.is-intro .stage-card {
+  animation: stage-card-in 3.2s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+.stage-slash {
+  transform: skewX(-30deg) scaleX(0);
+  transform-origin: left;
+  clip-path: polygon(0 30%, 8% 0, 37% 22%, 61% 4%, 100% 34%, 96% 82%, 70% 100%, 31% 76%, 5% 100%);
+}
+.is-intro .stage-slash {
+  animation: stage-slash 0.5s cubic-bezier(0.7, 0, 0.2, 1) 0.55s both;
+}
+.stage-flash {
+  opacity: 0;
+}
+.is-intro .stage-flash {
+  animation: stage-flash 0.5s ease-out 0.35s both;
+}
+.stage-tag {
+  transition: opacity 0.6s 0.2s;
+}
+.is-intro .stage-tag {
+  opacity: 0;
+  transition: none;
+}
+
+@keyframes stage-card-in {
+  0% {
+    opacity: 0;
+    transform: translate(-12%, -50%) skewX(-18deg);
+  }
+  12%,
+  78% {
+    opacity: 1;
+    transform: translateY(-50%);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(8%, -50%) skewX(-12deg);
+  }
+}
+@keyframes stage-slash {
+  to {
+    transform: skewX(-30deg) scaleX(1);
+  }
+}
+@keyframes stage-flash {
+  0% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-intro .stage-card,
+  .is-intro .stage-slash,
+  .is-intro .stage-flash {
+    animation-duration: 0.01ms;
+  }
+}
