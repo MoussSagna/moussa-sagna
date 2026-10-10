@@ -7,7 +7,8 @@
 - [x] Carton de titre et travelling d'ouverture.
 - [x] Personnage en position neutre, animé à partir d'une seule illustration.
 - [x] Marche avant et arrière de profil, avec un second rig aux jambes articulées (à juger en mouvement).
-- [ ] Pose de transition entre la pose neutre de face et la marche de profil.
+- [x] Fondu avec pivot entre la pose neutre de face et la marche de profil.
+- [ ] Pose de transition dessinée (trois quarts) entre la face et le profil.
 - [x] Personnage découpé en 17 calques et animé en direct par un rig (respiration, tête, bras, rubans).
 
 ## Ensuite

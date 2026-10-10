@@ -47,7 +47,7 @@ Le personnage est un rig de 17 calques (voir `moussa_rig/README.md`), animé en 
 
 ### La marche
 
-À l'arrêt, le personnage est de face ; dès qu'il marche, `HeroLayer` dessine un second rig, de profil, à la place du premier. Le changement est immédiat, sans pose de transition.
+À l'arrêt, le personnage est de face ; dès qu'il marche, `HeroLayer` dessine un second rig, de profil, à la place du premier. Le passage dure 0,2 seconde (`TURN`) : les deux rigs sont rendus hors écran, puis fondus l'un dans l'autre en se resserrant sur l'axe du corps, comme un personnage qui pivote. Avec « Réduire les mouvements », il ne reste que le fondu.
 
 - **Données** : `tools/prepare_walk.py` détoure `art/hero-walk-source.png` (fond vert), le découpe en 13 calques (tête, rubans, buste, hanche, deux bras, et pour chaque jambe cuisse, tibia et pied), rebouche les zones cachées par des aplats, et écrit `walk-atlas.webp` et `src/game/hero/walkData.ts` (calques et articulations).
 - **Squelette** : `walkMatrices` (`src/game/hero/walkRig.ts`) calcule la pose pour une phase du cycle. Chaque cheville suit une trajectoire par rapport à la hanche : elle recule au sol à vitesse constante, puis revient en l'air. La cuisse et le tibia sont ensuite placés par cinématique inverse (deux os, genou vers l'avant). Le pied a son propre angle : talon qui se pose, pied à plat, talon qui se lève.

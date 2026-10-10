@@ -39,6 +39,12 @@ const RIBBON_MARGIN = 40
  */
 const WALK_OFFSET = { x: SPRITE.anchorX * SPRITE.width - 605, y: SPRITE.feetY * SPRITE.height - WALK_RIG.soleNear }
 
+/**
+ * Passage entre la pose de face et la marche de profil : les deux rigs sont rendus hors écran puis
+ * fondus l'un dans l'autre, en se resserrant sur l'axe du corps comme un personnage qui pivote.
+ */
+const TURN = { seconds: 0.2, squash: 0.62 }
+
 /** Ce qu'il faut pour dessiner un calque, quel que soit le rig dont il vient. */
 interface Piece {
   box: [number, number, number, number]
@@ -70,9 +76,13 @@ export class HeroLayer {
   private layer: Program<(typeof LAYER_UNIFORMS)[number]> | null = null
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
+  /** Cibles hors écran du fondu, une par rig, sur les unités de texture 3 et 4. */
+  private turnTargets: (WebGLFramebuffer | null)[] = []
   private x = PLACEMENT.x
   private phase = 0
   private moving = false
+  /** 0 = pose de face, 1 = marche de profil ; entre les deux, le fondu. */
+  private turn = 0
 
   constructor(canvas: HTMLCanvasElement) {
     this.gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: true })
@@ -96,23 +106,25 @@ export class HeroLayer {
     ])
     if (!loaded.every(Boolean)) return false
 
-    // texture hors écran du reflet, sur l'unité 2
-    gl.activeTexture(gl.TEXTURE2)
-    const texture = gl.createTexture()
-    gl.bindTexture(gl.TEXTURE_2D, texture)
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, REFLECTION.width, REFLECTION.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-    this.target = gl.createFramebuffer()
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.target)
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0)
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+    // textures hors écran : le reflet sur l'unité 2, les deux rigs du fondu sur les unités 3 et 4
+    const makeTarget = (unit: number, width: number, height: number) => {
+      gl.activeTexture(gl.TEXTURE0 + unit)
+      const texture = gl.createTexture()
+      gl.bindTexture(gl.TEXTURE_2D, texture)
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+      const target = gl.createFramebuffer()
+      gl.bindFramebuffer(gl.FRAMEBUFFER, target)
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0)
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+      return target
+    }
+    this.target = makeTarget(2, REFLECTION.width, REFLECTION.height)
+    this.turnTargets = [makeTarget(3, VIEW.width, VIEW.height), makeTarget(4, VIEW.width, VIEW.height)]
 
-    gl.useProgram(layer)
-    gl.useProgram(flat)
-    gl.uniform1i(this.flat.u.uTex, 2)
     this.ready = true
     return true
   }
@@ -123,6 +135,8 @@ export class HeroLayer {
     const moving = direction !== 0 && !blocked
     if (moving && !this.moving) this.phase = 0
     this.moving = moving
+    const step = frame.delta / TURN.seconds
+    this.turn = Math.max(0, Math.min(1, this.turn + (moving ? step : -step)))
     if (!moving) return
     this.phase = (((this.phase + (direction * frame.delta) / GAIT.period) % 1) + 1) % 1
     // le corps avance à la vitesse du pied posé ; jouer le cycle à l'envers donne la marche arrière
@@ -149,19 +163,20 @@ export class HeroLayer {
     const top = sy - SPRITE.feetY * h
 
     const amplitude = Math.min(1, AMPLITUDE) * (calm ? CALM_AMPLITUDE : 1)
-    const pieces = this.moving ? this.walkPieces(frame.time, calm) : this.idlePieces(frame.time, amplitude)
-    const atlas = this.moving ? WALK_RIG.atlasSize : RIG.atlasSize
-    const unit = this.moving ? 1 : 0
+    const idle = { pieces: this.idlePieces(frame.time, amplitude), atlas: RIG.atlasSize, unit: 0 }
+    const walk = { pieces: this.walkPieces(frame.time, calm), atlas: WALK_RIG.atlasSize, unit: 1 }
+    const turning = this.turn > 0 && this.turn < 1
+    const main = this.turn >= 0.5 ? walk : idle
 
-    const drawLayers = (vx: number, vy: number, vz: number, vw: number) => {
+    const drawLayers = (rig: typeof idle, vx: number, vy: number, vz: number, vw: number) => {
       gl.useProgram(layer.program)
       gl.enableVertexAttribArray(layer.attribute)
       gl.vertexAttribPointer(layer.attribute, 2, gl.FLOAT, false, 0, 0)
       const u = layer.u
       gl.uniform4f(u.uView, vx, vy, vz, vw)
-      gl.uniform1i(u.uTex, unit)
-      gl.uniform2f(u.uAtlasSize, atlas[0], atlas[1])
-      for (const piece of pieces) {
+      gl.uniform1i(u.uTex, rig.unit)
+      gl.uniform2f(u.uAtlasSize, rig.atlas[0], rig.atlas[1])
+      for (const piece of rig.pieces) {
         const m = piece.matrix
         const margin = piece.bend[0] > 0 ? RIBBON_MARGIN : 0
         const [bx, by, bw, bh] = piece.box
@@ -175,14 +190,22 @@ export class HeroLayer {
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
       }
     }
+    /** Rend un rig entier dans une cible hors écran qui couvre la zone VIEW de la toile. */
+    const renderTo = (target: WebGLFramebuffer | null, width: number, height: number, rig: typeof idle) => {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, target)
+      gl.viewport(0, 0, width, height)
+      gl.clear(gl.COLOR_BUFFER_BIT)
+      drawLayers(rig, 2 / VIEW.width, 2 / VIEW.height, -1 - (2 * VIEW.x) / VIEW.width, -1 - (2 * VIEW.y) / VIEW.height)
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+      gl.viewport(0, 0, frame.width, frame.height)
+    }
 
-    // 1. le personnage entier, une fois, dans la texture du reflet
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.target)
-    gl.viewport(0, 0, REFLECTION.width, REFLECTION.height)
-    gl.clear(gl.COLOR_BUFFER_BIT)
-    drawLayers(2 / VIEW.width, 2 / VIEW.height, -1 - (2 * VIEW.x) / VIEW.width, -1 - (2 * VIEW.y) / VIEW.height)
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
-    gl.viewport(0, 0, frame.width, frame.height)
+    // 1. le personnage entier, une fois, dans la texture du reflet (et les deux rigs pendant le fondu)
+    renderTo(this.target, REFLECTION.width, REFLECTION.height, main)
+    if (turning) {
+      renderTo(this.turnTargets[0], VIEW.width, VIEW.height, idle)
+      renderTo(this.turnTargets[1], VIEW.width, VIEW.height, walk)
+    }
 
     // 2. reflet (retourné et écrasé sous les pieds) et ombre
     gl.useProgram(flat.program)
@@ -192,22 +215,43 @@ export class HeroLayer {
     const py = (h / SPRITE.height) * REFLECTION.squash
     const feet = SPRITE.feetY * SPRITE.height
     const mirrorTop = sy + (feet - VIEW.y - VIEW.height) * py
+    const centerX = (left + (VIEW.x + VIEW.width / 2) * px) * 2 - 1
+    gl.uniform1i(flat.u.uTex, 2)
     gl.uniform1f(flat.u.uShadow, 0)
     gl.uniform1f(flat.u.uAlpha, REFLECTION.alpha)
-    gl.uniform4f(
-      flat.u.uRect,
-      (left + (VIEW.x + VIEW.width / 2) * px) * 2 - 1,
-      1 - (mirrorTop + (VIEW.height * py) / 2) * 2,
-      VIEW.width * px,
-      VIEW.height * py,
-    )
+    gl.uniform4f(flat.u.uRect, centerX, 1 - (mirrorTop + (VIEW.height * py) / 2) * 2, VIEW.width * px, VIEW.height * py)
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     gl.uniform1f(flat.u.uShadow, 1)
     gl.uniform4f(flat.u.uRect, sx * 2 - 1, 1 - (sy - h * 0.006) * 2, h * 0.313 * (frame.height / frame.width), h * 0.031)
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
     // 3. le personnage, calque par calque, du fond vers le premier plan
-    drawLayers((2 * w) / SPRITE.width, (-2 * h) / SPRITE.height, 2 * left - 1, 1 - 2 * top)
+    if (!turning) {
+      drawLayers(main, (2 * w) / SPRITE.width, (-2 * h) / SPRITE.height, 2 * left - 1, 1 - 2 * top)
+      return
+    }
+    // pendant le fondu : le rig qui s'en va d'abord, celui qui arrive par-dessus, chacun resserré sur l'axe du corps
+    const k = this.turn * this.turn * (3 - 2 * this.turn)
+    const axis = sx * 2 - 1
+    const pyFull = h / SPRITE.height
+    const centerY = 1 - (top + (VIEW.y + VIEW.height / 2) * pyFull) * 2
+    const drawRig = (unit: number, alpha: number, squash: number) => {
+      gl.uniform1i(flat.u.uTex, unit)
+      gl.uniform1f(flat.u.uAlpha, alpha)
+      // hauteur négative : la cible hors écran est stockée tête en bas
+      gl.uniform4f(flat.u.uRect, axis + (centerX - axis) * squash, centerY, VIEW.width * px * squash, -VIEW.height * pyFull)
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    }
+    gl.uniform1f(flat.u.uShadow, 0)
+    const squashIdle = calm ? 1 : 1 - (1 - TURN.squash) * k
+    const squashWalk = calm ? 1 : TURN.squash + (1 - TURN.squash) * k
+    // les deux fondus se chevauchent, pour que le décor ne transparaisse pas à travers le personnage
+    const ramp = (x: number) => {
+      const c = Math.max(0, Math.min(1, x))
+      return c * c * (3 - 2 * c)
+    }
+    drawRig(3, 1 - ramp((this.turn - 0.35) / 0.65), squashIdle)
+    drawRig(4, ramp(this.turn / 0.65), squashWalk)
   }
 
   /** Pose neutre de face : respiration, tête, manches et rubans. */
