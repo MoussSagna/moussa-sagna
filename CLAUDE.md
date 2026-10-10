@@ -27,6 +27,10 @@ Lancer `npm run build && npm run preview`, ouvrir la page et regarder réellemen
 
 ## Pièges connus
 
-- Les constantes `SPRITE` de `src/game/hero/HeroLayer.ts` décrivent l'illustration actuelle. Si l'image change, relancer `tools/prepare_hero.py` et reporter les valeurs qu'il affiche.
-- Les cartes (`depth.png`, `hero-map.png`) encodent plusieurs informations par canal de couleur. Ne pas les recompresser en JPEG ni les redimensionner à la main.
+- Les constantes `SPRITE` de `src/game/hero/HeroLayer.ts` décrivent l'illustration actuelle. Si elle change, relancer `tools/prepare_hero.py` et reporter les valeurs qu'il affiche.
+- `src/game/hero/rigData.ts` et `public/assets/hero/rig-atlas.webp` sont générés par `tools/pack_rig.py` à partir de `moussa_rig/rig.json`. Ne pas les modifier à la main.
+- `AMPLITUDE` (dans `HeroLayer.ts`) ne doit pas dépasser 1 : au-delà, les calques du rig sortent de leurs zones de recouvrement et des trous apparaissent. Voir `moussa_rig/README.md`.
+- Ne pas retoucher `moussa_rig/00_maitre/` ni `moussa_rig/02_calques/` à la main : ils sont produits par `tools/prepare_rig.py`.
+- `rigMatrices` (`src/game/hero/rig.ts`) est le portage de `matrices()` de `tools/rig/simulate.py`. Si l'un change, l'autre doit suivre.
+- Les cartes (`depth.png`, `hero-legs.png`) encodent plusieurs informations par canal de couleur. Ne pas les recompresser en JPEG ni les redimensionner à la main.
 - Les personnages d'autres éditeurs (Ryu, M. Bison…) sont protégés : pour un site public, préférer des adversaires originaux.

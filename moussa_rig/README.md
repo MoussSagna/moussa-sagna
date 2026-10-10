@@ -2,7 +2,7 @@
 
 Ce dossier contient l'illustration de Moussa découpée en 17 calques, prête pour une animation de respiration avec rubans. Il est produit par `tools/prepare_rig.py` à partir du maître, qui n'est jamais modifié.
 
-**État : séparation et recouvrements faits et testés, animation finale non produite.** La boucle fournie dans `05_apercus/` est un test de validation en 24 images, pas les 60 images définitives. Voir « Ce qui reste à faire » avant de valider.
+**État : les calques sont utilisés par le moteur du portfolio, qui les anime en direct.** La boucle fournie dans `05_apercus/` est le test de validation en 24 images qui a servi de référence. Le passage des calques au moteur est décrit dans `docs/ARCHITECTURE.md` et `docs/ASSETS.md`.
 
 ## Contenu
 
@@ -99,18 +99,17 @@ Non vérifié :
 
 - la boucle animée (`test_boucle_24_images.webp` et `.gif`) n'a pas été regardée en mouvement, seulement image par image ;
 - `moussa_rig.ora` n'a pas été ouvert dans Krita, seule sa structure a été contrôlée ;
-- rien n'a été testé dans le moteur du portfolio ni à sa taille d'affichage réelle.
+- le rendu dans le moteur n'est pas couvert par ces contrôles : voir la pull request d'intégration.
 
 ## Ce qui reste à faire
 
-1. **Regarder la boucle de test en mouvement** et valider ou corriger les amplitudes de `rig.json`.
-2. **Repeindre à la main les zones reconstruites si l'animation doit bouger davantage.** Les pixels de niveau 80 des masques suffisent pour une respiration, pas pour un coup ou une rotation franche. Les plus sommaires : le torse sous la veste (19 211 px), le haut du pantalon sous le débardeur et les gants (8 864 px), la capuche sous la tête (11 227 px).
-3. **Défaut connu, poing droit** : à amplitude doublée, un éclat rouge de quelques pixels apparaît sous le poing droit (lanière reconstruite). Invisible à amplitude normale.
-4. **Rubans croisés non séparés** : `rb_mid` contient deux brins qui se croisent. Les séparer demanderait de redessiner la partie cachée de l'un des deux.
-5. **Lanières du pantalon** : la lanière à boucle de droite et les chaînes restent dans `lower`, donc fixes.
-6. **Choix à confirmer** : la zone entre le gant gauche et le bas de la veste (autour de 395, 705) a été traitée comme un vide laissant voir le fond. Si c'était du débardeur blanc, il faut la reboucher.
-7. **Débardeur** : les blancs rebouchés sont une interpolation, les valeurs d'origine sont perdues. Le résultat est propre mais pas garanti identique à l'illustration avant détourage.
-8. **Production des 60 images et intégration au moteur** : pas commencées, en attente de validation.
+1. **Repeindre à la main les zones reconstruites si l'animation doit bouger davantage.** Les pixels de niveau 80 des masques suffisent pour une respiration, pas pour un coup ou une rotation franche. Les plus sommaires : le torse sous la veste (19 211 px), le haut du pantalon sous le débardeur et les gants (8 864 px), la capuche sous la tête (11 227 px).
+2. **Défaut connu, poing droit** : à amplitude doublée, un éclat rouge de quelques pixels apparaît sous le poing droit (lanière reconstruite). Invisible à amplitude normale.
+3. **Rubans croisés non séparés** : `rb_mid` contient deux brins qui se croisent. Les séparer demanderait de redessiner la partie cachée de l'un des deux.
+4. **Lanières du pantalon** : la lanière à boucle de droite et les chaînes restent dans `lower`, donc fixes.
+5. **Choix à confirmer** : la zone entre le gant gauche et le bas de la veste (autour de 395, 705) a été traitée comme un vide laissant voir le fond. Si c'était du débardeur blanc, il faut la reboucher.
+6. **Débardeur** : les blancs rebouchés sont une interpolation, les valeurs d'origine sont perdues. Le résultat est propre mais pas garanti identique à l'illustration avant détourage.
+7. **Autres animations** : le rig ne décrit que la pose neutre. Garde, coups et sauts demanderont de nouvelles courbes et des zones cachées repeintes.
 
 ## Régénérer
 

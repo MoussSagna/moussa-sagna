@@ -48,7 +48,7 @@ export function loadTexture(
   gl: WebGLRenderingContext,
   unit: number,
   src: string,
-  options: { alpha?: boolean; premultiply?: boolean } = {},
+  options: { alpha?: boolean; premultiply?: boolean; mipmap?: boolean } = {},
 ): Promise<boolean> {
   return new Promise((resolve) => {
     const image = new Image()
@@ -59,10 +59,12 @@ export function loadTexture(
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, options.premultiply ? 1 : 0)
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, options.mipmap ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR)
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
       const format = options.alpha ? gl.RGBA : gl.RGB
       gl.texImage2D(gl.TEXTURE_2D, 0, format, format, gl.UNSIGNED_BYTE, image)
+      // les mipmaps demandent une image dont les côtés sont des puissances de deux
+      if (options.mipmap) gl.generateMipmap(gl.TEXTURE_2D)
       resolve(true)
     }
     image.onerror = () => resolve(false)

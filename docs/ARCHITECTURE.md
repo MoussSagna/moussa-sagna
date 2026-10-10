@@ -7,7 +7,7 @@ L'écran du stage empile trois canvas dans un même conteneur, pilotés par une 
 | Ordre | Plan | Fichier | Technique |
 | --- | --- | --- | --- |
 | 1 (fond) | Décor | `src/game/stage/StageBackdrop.ts` | WebGL, un shader plein écran |
-| 2 | Personnage | `src/game/hero/HeroLayer.ts` | WebGL, trois quads (reflet, ombre, personnage) |
+| 2 | Personnage | `src/game/hero/HeroLayer.ts` | WebGL, un quad par calque du rig, plus le reflet et l'ombre |
 | 3 (devant) | Météo | `src/game/stage/WeatherLayer.ts` | Canvas 2D |
 
 Par-dessus, React affiche le carton de titre et l'étiquette du stage en HTML (`src/components/StageScreen.tsx`).
@@ -34,23 +34,28 @@ Les lanternes, les néons et le trajet du métro sont positionnés par leurs coo
 
 ## Le personnage
 
-Une seule illustration (`hero.webp`) est déformée en direct ; il n'y a pas de planche de frames. La carte `hero-map.png` dit quoi bouge :
+Le personnage est un rig de 17 calques (voir `moussa_rig/README.md`), animé en direct : il n'y a ni planche de frames ni animation pré-rendue.
 
-- **rouge** : tissus libres (bandeau, lanières), qui ondulent de plus en plus fort en s'éloignant du corps ;
-- **vert** : haut du corps, pour la respiration ;
-- **bleu** : tête, qui suit avec un léger retard.
+- **Données** : `tools/pack_rig.py` range les calques dans un atlas (`rig-atlas.webp`) et génère `src/game/hero/rigData.ts` à partir de `moussa_rig/rig.json`, qui reste la seule source des pivots et du mouvement.
+- **Transformations** : `rigMatrices` (`src/game/hero/rig.ts`) calcule une matrice par calque à chaque image. C'est le portage de `matrices()` de `tools/rig/simulate.py`, qui sert de référence : cycle de 4 secondes, tout en sinus, phase propre à chaque calque. Un calque en mode `matrix` hérite de toute la transformation de son parent ; en mode `point`, il suit seulement le déplacement de son pivot.
+- **Dessin** : un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice ; le fragment shader retrouve le pixel d'origine dans la toile du rig (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.
+- **Reflet et ombre** : le personnage entier est d'abord dessiné une fois dans une texture hors écran, qui sert au reflet. Dessiner les calques un par un à 20 % d'opacité ferait apparaître leurs zones de recouvrement.
+
+`AMPLITUDE` (dans `HeroLayer.ts`) règle l'ampleur du mouvement. Elle est plafonnée à 1 : au-delà, les calques sortent de leurs zones de recouvrement et des trous apparaissent. « Réduire les mouvements » la ramène à 0,35.
 
 À l'arrêt, les pieds ne bougent pas. Le personnage est placé par `PLACEMENT` et suit la caméra du décor avec la profondeur du sol.
 
 ### La marche
 
-La marche est un pas glissé, obtenu par la même déformation. Une seconde carte, `hero-legs.png`, donne le poids de chaque jambe (rouge = jambe arrière, vert = jambe avant) : 0 à la hanche, 1 à la cheville et sur tout le pied, qui reste donc rigide.
+La marche est un pas glissé. Les deux jambes sont dans le seul calque `lower`, déformé dans le fragment shader. La carte `hero-legs.png`, dans le repère de la toile du rig, donne le poids de chaque jambe (rouge = jambe arrière, vert = jambe avant) : 0 à la hanche, 1 à la cheville et sur tout le pied, qui reste donc rigide.
 
-`HeroLayer.update` fait avancer un cycle (`WALK` règle la durée, la foulée, la levée du pied et la flexion du genou) : chaque pied avance en l'air pendant une moitié du cycle, puis recule au sol pendant l'autre. Le corps avance exactement de ce que le pied au sol recule, ce qui évite que les pieds patinent. Jouer le cycle à l'envers donne la marche arrière.
+`HeroLayer.update` fait avancer un cycle (`WALK` règle la durée, la foulée, la levée du pied et la flexion du genou, en pixels de la toile) : chaque pied avance en l'air pendant une moitié du cycle, puis recule au sol pendant l'autre. Le corps avance exactement de ce que le pied au sol recule, ce qui évite que les pieds patinent. Jouer le cycle à l'envers donne la marche arrière.
+
+Le balancement vertical et l'inclinaison du buste sont une transformation appliquée à la racine du rig : tous les calques qui dépendent du bassin la suivent, et le calque `lower` l'applique lui-même partout sauf sur les pieds. Les pointes des rubans traînent derrière.
 
 `StageEngine.walk` reçoit la direction (1, -1 ou 0) ; `App.tsx` la pilote au clavier et avec deux boutons à maintenir.
 
-Limite : cette technique plie l'image, elle ne redessine rien. La foulée doit rester courte, et les coups ou les sauts demanderont de vraies frames ou un squelette (voir la feuille de route).
+Limites : les jambes sont pliées, pas redessinées, donc la foulée doit rester courte. Les rubans `rb_hip` et `rb_right` suivent le bassin, pas la cuisse sur laquelle ils reposent. Les coups et les sauts demanderont de nouvelles poses du rig, avec des zones cachées repeintes (voir la feuille de route).
 
 ## Ajouter un plan
 

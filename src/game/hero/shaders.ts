@@ -1,29 +1,49 @@
-// Shaders du personnage : une seule illustration déformée en direct.
-// Carte uMap : r = tissus libres (bandeau, lanières), g = haut du corps (respiration), b = tête.
-// Carte uLegs : r = jambe arrière, g = jambe avant ; 0 à la hanche, 1 à la cheville et sur le pied.
-export const HERO_VERTEX = `attribute vec2 a;uniform vec4 uRect;uniform float uFlip;varying vec2 v;void main(){v=a*.5+.5;v.y=1.-v.y;vec2 p=a;if(uFlip>.5)p.y=-p.y;gl_Position=vec4(uRect.xy+p*uRect.zw,0.,1.);}`
+// Shaders du personnage. Les coordonnées sont en pixels de la toile du rig (1024 × 1536).
+// Chaque calque est un quad : le vertex shader applique la transformation du calque, le fragment
+// shader retrouve le pixel d'origine et y ajoute les déformations (rubans, jambes), comme warp()
+// dans tools/rig/simulate.py.
+export const LAYER_VERTEX = `attribute vec2 a;
+uniform vec4 uQuad;                             // rectangle dessiné, en pixels de la toile
+uniform vec3 uMx,uMy;                           // transformation du calque
+uniform vec4 uView;                             // toile -> écran : p*xy+zw
+varying vec2 vC;
+void main(){vC=uQuad.xy+a*uQuad.zw;vec3 h=vec3(vC,1.);gl_Position=vec4(vec2(dot(uMx,h),dot(uMy,h))*uView.xy+uView.zw,0.,1.);}`
 
-export const HERO_FRAGMENT = `precision mediump float;
-varying vec2 v; uniform sampler2D uTex,uMap,uLegs; uniform float uT,uAlpha,uMode,uCalm,uChest,uCx,uBob,uLean,uWalk;
+export const LAYER_FRAGMENT = `#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+varying vec2 vC; uniform sampler2D uTex,uLegs;
+uniform vec4 uBox;                              // rectangle du calque dans la toile
+uniform vec2 uAtlas,uAtlasSize,uCanvas;
+uniform vec4 uBend;                             // amplitude, longueur, angle de phase, traîne de marche
+uniform vec4 uAxis;                             // xy = axe racine -> pointe, zw = racine
+uniform float uLegsOn;
 uniform vec3 uBack,uFront;                      // par jambe : x = avancée du pied, y = levée, z = flexion du genou
+uniform vec3 uBody;                             // x = balancement vertical, y = inclinaison en haut, z = hauteur des pieds
 void main(){
-  if(uMode>1.5){float r=length((v-.5)*2.);gl_FragColor=vec4(0.,0.,0.,1.)*smoothstep(1.,.15,r)*.6;return;}
-  vec3 m=texture2D(uMap,v).rgb;                 // r = tissus libres, g = haut du corps, b = tête
-  float k=1.-.65*uCalm, br=sin(uT*1.9);
-  vec2 d=vec2(0.);
-  d.y-=m.g*.0052*br*k;                                                        // la cage thoracique monte et descend
-  d.x+=(v.x-uCx)*m.g*.014*br*k*exp(-pow((v.y-uChest)/.11,2.));                // le torse se gonfle
-  d.x+=pow(max(0.,1.-v.y),1.5)*.0065*sin(uT*.95)*k;                           // léger balancement, pieds ancrés
-  d.y-=m.b*.003*sin(uT*1.9-.8)*k; d.x+=m.b*.0015*sin(uT*.95-.5)*k;            // la tête suit avec un temps de retard
-  float w=m.r;                                                                // bandeau et pans de tissu : ondes qui partent du corps
-  d+=w*vec2(.024*sin(uT*2.6+v.x*9.+v.y*5.),.018*sin(uT*3.2+v.x*12.+1.3))*k;
-  d+=w*w*vec2(.009*sin(uT*5.3+v.y*22.),.006*sin(uT*4.4+v.x*26.))*k;
+  vec2 c=vC;
+  // rubans : déplacement perpendiculaire à l'axe, nul à la racine, maximal à la pointe
+  float s=clamp(dot(c-uAxis.zw,uAxis.xy)/uBend.y,0.,1.3);
+  c+=uBend.x*s*s*sin(uBend.z-2.2*s)*vec2(uAxis.y,-uAxis.x);
+  c.x+=uBend.w*s*s;                             // en marche, la pointe traîne derrière
   // marche : chaque jambe se plie de la hanche (poids 0) au pied (poids 1, rigide)
-  vec2 lg=texture2D(uLegs,v).rg; float wb=lg.r, wf=lg.g, wl=max(wb,wf);
-  d+=wb*vec2(uBack.x,-uBack.y)+4.*wb*(1.-wb)*vec2(uBack.z,-uBack.y*.35);
+  vec2 lg=texture2D(uLegs,c/uCanvas).rg*uLegsOn; float wb=lg.r, wf=lg.g, wl=max(wb,wf);
+  vec2 d=wb*vec2(uBack.x,-uBack.y)+4.*wb*(1.-wb)*vec2(uBack.z,-uBack.y*.35);
   d+=wf*vec2(uFront.x,-uFront.y)+4.*wf*(1.-wf)*vec2(uFront.z,-uFront.y*.35);
-  d.y+=uBob*(1.-wl);                                                          // le corps monte et descend, pas les pieds
-  d.x+=uLean*pow(max(0.,1.-v.y),1.2)*(1.-wl);                                 // buste penché dans le sens de la marche
-  d.x-=w*.03*uWalk;                                                           // le bandeau traîne derrière
-  gl_FragColor=texture2D(uTex,v-d)*uAlpha;
+  d+=(1.-wl)*vec2(uBody.y*(uBody.z-c.y)/uBody.z,uBody.x)*uLegsOn;   // le bassin suit le corps, pas les pieds
+  vec2 q=c-d-uBox.xy;
+  float inside=step(0.,q.x)*step(0.,q.y)*step(q.x,uBox.z)*step(q.y,uBox.w);
+  gl_FragColor=texture2D(uTex,(uAtlas+q)/uAtlasSize)*inside;
+}`
+
+// Reflet (le personnage rendu hors écran, retourné) et ombre au sol.
+export const FLAT_VERTEX = `attribute vec2 a;uniform vec4 uRect;varying vec2 v;void main(){v=a;gl_Position=vec4(uRect.xy+(a*2.-1.)*uRect.zw,0.,1.);}`
+
+export const FLAT_FRAGMENT = `precision mediump float;
+varying vec2 v; uniform sampler2D uTex; uniform float uAlpha,uShadow;
+void main(){
+  if(uShadow>.5){float r=length((v-.5)*2.);gl_FragColor=vec4(0.,0.,0.,1.)*smoothstep(1.,.15,r)*.6;return;}
+  gl_FragColor=texture2D(uTex,v)*uAlpha;
 }`

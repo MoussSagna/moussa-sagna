@@ -13,25 +13,40 @@ Les scripts de `tools/` demandent Python 3 avec `pillow`, `numpy`, `opencv-pytho
 **Un décor**
 - une image large (16:9 environ), sans personnage ni texte incrusté.
 
-## Personnage : `tools/prepare_hero.py`
+## Personnage
+
+Le personnage affiché est le rig en calques de `moussa_rig/`. Trois scripts le préparent, dans cet ordre.
+
+### 1. Calques : `tools/prepare_rig.py`
 
 ```bash
-python3 tools/prepare_hero.py art/hero-source.png
+python3 tools/prepare_rig.py moussa_rigging_stage/00_MOUSSA_MASTER_UNTOUCHED.png
 ```
 
-L'illustration d'origine est conservée dans `art/hero-source.png`.
+Le script répare une copie du maître, la découpe en 17 calques avec zones de recouvrement, simule la respiration pour contrôler trous et raccords, et écrit le tout dans `moussa_rig/`. L'organisation des calques, les pivots et ce qui reste à faire sont décrits dans `moussa_rig/README.md`. À relancer seulement si l'illustration ou la découpe change.
 
-Le script :
+### 2. Atlas et données : `tools/pack_rig.py`
 
-1. détoure le personnage (le fond est la zone claire reliée aux bords de l'image) ;
-2. ajoute une marge pour que le bandeau puisse onduler sans être coupé ;
-3. calcule la carte de mouvement (`hero-map.png`) et la carte des jambes (`hero-legs.png`) ;
-4. écrit ces trois fichiers dans `public/assets/hero/` ;
-5. affiche les mesures à reporter dans `SPRITE`, dans `src/game/hero/HeroLayer.ts`.
+```bash
+python3 tools/pack_rig.py
+```
 
-Les réglages en haut du script sont propres à l'illustration actuelle et sont à revoir pour une autre image : les rectangles des gants (exclus de l'ondulation), les hauteurs des hanches, des épaules et de la tête, et les articulations des jambes (hanche, genou, cheville).
+Le script lit `moussa_rig/rig.json` et `moussa_rig/02_calques/`, recadre chaque calque sur sa boîte englobante avec 8 pixels de marge transparente, et écrit :
 
-Une version de l'illustration exportée avec un fond transparent a été écartée : le blanc du t-shirt et des rubans y avait été supprimé avec le fond, ce qui laissait des trous.
+- `public/assets/hero/rig-atlas.webp` : l'atlas, en WebP sans perte, 2048 × 2048 pour que le moteur puisse générer les mipmaps ;
+- `src/game/hero/rigData.ts` : pour chaque calque, sa place dans l'atlas et dans la toile, son parent, son pivot et son mouvement.
+
+`rigData.ts` est généré : pour changer un pivot ou une amplitude, modifier `rig.json` (ou `tools/rig/simulate.py`, qui l'écrit) puis relancer le script.
+
+### 3. Jambes et ancrage : `tools/prepare_hero.py`
+
+```bash
+python3 tools/prepare_hero.py
+```
+
+Le script écrit la carte des jambes (`hero-legs.png`) dans le repère de la toile du rig et affiche les mesures à reporter dans `SPRITE`, dans `src/game/hero/HeroLayer.ts`. Les articulations des jambes (hanche, genou, cheville), en haut du script, sont propres à l'illustration actuelle.
+
+`art/hero-source.png` est l'ancienne illustration sur fond clair, utilisée avant le rig. Elle n'est plus lue par aucun script et n'est pas dans le même repère que le maître : elle est resserrée d'environ 5 % en largeur.
 
 ## Décor : `tools/prepare_stage.py`
 
@@ -43,15 +58,8 @@ Le script écrit `public/assets/stage/stage.webp` et `depth.png`. La carte est *
 
 Une estimation automatique de la profondeur a été essayée et donnait un résultat trop flou sur une illustration de ce style.
 
-## Rig en calques : `tools/prepare_rig.py`
-
-```bash
-python3 tools/prepare_rig.py moussa_rigging_stage/00_MOUSSA_MASTER_UNTOUCHED.png
-```
-
-Le script répare une copie du maître, la découpe en 17 calques avec zones de recouvrement, simule la respiration pour contrôler trous et raccords, et écrit le tout dans `moussa_rig/`. L'organisation des calques, les pivots et ce qui reste à faire sont décrits dans `moussa_rig/README.md`. Ces calques ne sont pas encore utilisés par le moteur.
-
 ## Ne pas faire
 
 - Recompresser les cartes en JPEG ou les redimensionner dans un éditeur : chaque canal porte une information précise.
+- Recompresser l'atlas avec perte ou modifier `rigData.ts` à la main.
 - Utiliser des planches de frames générées par IA telles quelles : les poses diffèrent trop d'une image à l'autre et l'animation tremble.
