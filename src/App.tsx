@@ -1,12 +1,16 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { StageScreen } from './components/StageScreen'
 import type { StageOptions } from './game/types'
 
 const prefersCalm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+/** Touches de déplacement. Q et A couvrent les claviers AZERTY et QWERTY. */
+const KEYS: Record<string, number> = { arrowright: 1, d: 1, arrowleft: -1, q: -1, a: -1 }
+
 function App() {
   const [options, setOptions] = useState<StageOptions>({ rain: true, petals: true, calm: prefersCalm })
   const [introKey, setIntroKey] = useState(0)
+  const [walk, setWalk] = useState(0)
   const [note, setNote] = useState('Bouge la souris sur le décor pour sentir la profondeur.')
 
   const onUnavailable = useCallback(() => {
@@ -14,12 +18,52 @@ function App() {
   }, [])
   const toggle = (key: keyof StageOptions) => setOptions((current) => ({ ...current, [key]: !current[key] }))
 
+  useEffect(() => {
+    const held = new Set<string>()
+    const sync = () => {
+      let direction = 0
+      for (const key of held) direction = KEYS[key]
+      setWalk(direction)
+    }
+    const down = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase()
+      if (!(key in KEYS) || event.ctrlKey || event.metaKey || event.altKey) return
+      const target = event.target
+      // on ne détourne les touches que hors des champs de saisie de texte
+      const typing = (target instanceof HTMLInputElement && target.type !== 'checkbox') || target instanceof HTMLTextAreaElement
+      if (typing) return
+      event.preventDefault()
+      held.add(key)
+      sync()
+    }
+    const up = (event: KeyboardEvent) => {
+      held.delete(event.key.toLowerCase())
+      sync()
+    }
+    const release = () => {
+      held.clear()
+      sync()
+    }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    window.addEventListener('blur', release)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+      window.removeEventListener('blur', release)
+    }
+  }, [])
+
   return (
     <main className="mx-auto flex max-w-[1500px] flex-col gap-3.5 px-4 pt-4 pb-8">
       <h1 className="sr-only">Moussa Sagna, développeur frontend</h1>
-      <StageScreen options={options} introKey={introKey} onUnavailable={onUnavailable} />
+      <StageScreen options={options} introKey={introKey} walk={walk} onUnavailable={onUnavailable} />
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-muted">
+        <div className="flex gap-2">
+          <HoldButton label="Reculer" onHold={(held) => setWalk(held ? -1 : 0)} />
+          <HoldButton label="Avancer" onHold={(held) => setWalk(held ? 1 : 0)} />
+        </div>
         <button
           type="button"
           onClick={() => setIntroKey((key) => key + 1)}
@@ -30,9 +74,37 @@ function App() {
         <Toggle label="Pluie" checked={options.rain} onChange={() => toggle('rain')} />
         <Toggle label="Pétales" checked={options.petals} onChange={() => toggle('petals')} />
         <Toggle label="Réduire les mouvements" checked={options.calm} onChange={() => toggle('calm')} />
-        <p className="m-0 text-[15px]">{note}</p>
       </div>
+      <p className="m-0 text-[15px] text-muted">
+        Maintiens <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">←</kbd>{' '}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">→</kbd> ou{' '}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Q</kbd>{' '}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd> pour marcher. {note}
+      </p>
     </main>
+  )
+}
+
+/** Bouton à maintenir : la marche dure tant que le doigt ou la souris reste appuyé. */
+function HoldButton({ label, onHold }: { label: string; onHold: (held: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId)
+        onHold(true)
+      }}
+      onPointerUp={() => onHold(false)}
+      onPointerCancel={() => onHold(false)}
+      onKeyDown={(event) => {
+        if (event.key === ' ' || event.key === 'Enter') onHold(true)
+      }}
+      onKeyUp={() => onHold(false)}
+      onBlur={() => onHold(false)}
+      className="min-h-11 -skew-x-[10deg] cursor-pointer touch-none border-2 border-[#3a3145] bg-panel px-4 font-display text-[17px] tracking-wide text-line uppercase italic select-none hover:border-line"
+    >
+      {label}
+    </button>
   )
 }
 

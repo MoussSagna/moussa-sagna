@@ -6,12 +6,13 @@
 - [x] Stage Tokyo Underground : profondeur, ciel, écrans, lanternes, métro, brume, sol mouillé, pluie, pétales.
 - [x] Carton de titre et travelling d'ouverture.
 - [x] Personnage en position neutre, animé à partir d'une seule illustration.
+- [x] Marche avant et arrière en pas glissé (premier essai, à juger en mouvement).
 
 ## Ensuite
 
 1. **Structure du portfolio** : écran titre, menu principal, puis les sections (projets, parcours, à propos, contact) en HTML par-dessus ou à côté de la scène. Ajouter **Zustand** à ce moment-là pour l'écran courant.
 2. **Transitions entre écrans** : séquences chorégraphiées avec **GSAP**.
-3. **Autres animations du personnage** : marche, garde, coups. La déformation d'une image ne suffit plus ; il faut soit des frames dessinées et cohérentes, soit un squelette (Spine, Live2D). À décider selon les illustrations disponibles.
+3. **Autres animations du personnage** : garde, coups, sauts. La déformation d'une image ne suffit plus ; il faut soit des frames dessinées et cohérentes, soit un squelette (Spine, Live2D). À décider selon les illustrations disponibles.
 4. **Sprites et moteur de combat** : à partir de plusieurs personnages et de nombreuses frames, passer le rendu des sprites sur **PixiJS**. Le décor en shader peut rester tel quel.
 5. **Adversaire** : un personnage original.
 6. **Mobile** : cadrage adapté, commandes tactiles, effets allégés.

@@ -40,9 +40,17 @@ Une seule illustration (`hero.webp`) est déformée en direct ; il n'y a pas de 
 - **vert** : haut du corps, pour la respiration ;
 - **bleu** : tête, qui suit avec un léger retard.
 
-Les pieds ne bougent pas. Le personnage est placé par `PLACEMENT` et suit la caméra du décor avec la profondeur du sol.
+À l'arrêt, les pieds ne bougent pas. Le personnage est placé par `PLACEMENT` et suit la caméra du décor avec la profondeur du sol.
 
-Limite : cette technique ne change pas la pose. Les coups, la marche ou les sauts demanderont de vraies frames ou un squelette (voir la feuille de route).
+### La marche
+
+La marche est un pas glissé, obtenu par la même déformation. Une seconde carte, `hero-legs.png`, donne le poids de chaque jambe (rouge = jambe arrière, vert = jambe avant) : 0 à la hanche, 1 à la cheville et sur tout le pied, qui reste donc rigide.
+
+`HeroLayer.update` fait avancer un cycle (`WALK` règle la durée, la foulée, la levée du pied et la flexion du genou) : chaque pied avance en l'air pendant une moitié du cycle, puis recule au sol pendant l'autre. Le corps avance exactement de ce que le pied au sol recule, ce qui évite que les pieds patinent. Jouer le cycle à l'envers donne la marche arrière.
+
+`StageEngine.walk` reçoit la direction (1, -1 ou 0) ; `App.tsx` la pilote au clavier et avec deux boutons à maintenir.
+
+Limite : cette technique plie l'image, elle ne redessine rien. La foulée doit rester courte, et les coups ou les sauts demanderont de vraies frames ou un squelette (voir la feuille de route).
 
 ## Ajouter un plan
 

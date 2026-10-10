@@ -1,7 +1,7 @@
 """Prépare le personnage : détourage, marge, carte de mouvement.
 
 Usage : python3 tools/prepare_hero.py image.png
-Écrit public/assets/hero/hero.webp et hero-map.png, puis affiche les mesures
+Écrit public/assets/hero/hero.webp, hero-map.png et hero-legs.png, puis affiche les mesures
 à reporter dans SPRITE (src/game/hero/HeroLayer.ts).
 
 Les réglages ci-dessous sont en pixels de l'image d'origine et valent pour
@@ -20,6 +20,11 @@ SHOES_TOP = 1240          # sous cette ligne, rien n'ondule
 SHOULDERS_Y, HIPS_Y = 380, 690   # la respiration va de 1 (épaules) à 0 (hanches)
 HEAD = (610, 135, 170)    # centre x, centre y, rayon
 CHEST = (600, 450)        # centre du torse
+# Jambes : hanche, genou, cheville. « back » est la jambe arrière (à gauche à l'écran), « front » la jambe avant.
+LEG_BACK = [(500, 770), (395, 1070), (320, 1310)]
+LEG_FRONT = [(700, 770), (765, 1070), (840, 1310)]
+LEG_SPLIT_X = 600         # limite entre les deux jambes
+LEG_FADE = (780, 920)     # au-dessus, le bassin ne suit pas les jambes
 PAD_LEFT, PAD_TOP, PAD_RIGHT, PAD_BOTTOM = 110, 60, 60, 12
 OUTPUT_HEIGHT = 1100
 OUT = Path(__file__).resolve().parent.parent / 'public' / 'assets' / 'hero'
@@ -99,6 +104,34 @@ def main(path: str) -> None:
     Image.fromarray(c).resize((w, h), Image.LANCZOS).save(OUT / 'hero.webp', quality=92, method=6)
     maps = (np.clip(np.dstack([cloth, breath, head]), 0, 1) * 255).astype(np.uint8)
     Image.fromarray(cv2.resize(maps, (w // 2, h // 2), interpolation=cv2.INTER_AREA)).save(OUT / 'hero-map.png')
+
+    # jambes : poids 0 à la hanche, 1 à la cheville et sur tout le pied (le pied reste rigide)
+    def leg_weight(joints) -> np.ndarray:
+        pts = [np.array([tx(x), ty(y)], float) for x, y in joints]
+        lengths = [np.linalg.norm(pts[i + 1] - pts[i]) for i in range(2)]
+        best_d = np.full((H, W), 1e9)
+        best_s = np.zeros((H, W))
+        start = 0.0
+        for i in range(2):
+            a, b = pts[i], pts[i + 1]
+            ab = b - a
+            t = ((X - a[0]) * ab[0] + (Y - a[1]) * ab[1]) / (ab @ ab)
+            if i == 0:
+                t = np.clip(t, 0, 1)
+            else:
+                t = np.clip(t, 0, None)  # au-delà de la cheville : le pied
+            d = np.hypot(X - (a[0] + ab[0] * np.clip(t, 0, 1)), Y - (a[1] + ab[1] * np.clip(t, 0, 1)))
+            s_here = (start + np.clip(t, 0, 1) * lengths[i]) / sum(lengths)
+            closer = d < best_d
+            best_d = np.where(closer, d, best_d)
+            best_s = np.where(closer, s_here, best_s)
+            start += lengths[i]
+        return smoothstep(0.05, 0.95, best_s) * smoothstep(ty(LEG_FADE[0]), ty(LEG_FADE[1]), Y)
+
+    side = smoothstep(tx(LEG_SPLIT_X) - 6, tx(LEG_SPLIT_X) + 6, X)   # 0 = jambe arrière, 1 = jambe avant
+    legs = np.dstack([leg_weight(LEG_BACK) * (1 - side), leg_weight(LEG_FRONT) * side, np.zeros((H, W))])
+    legs = cv2.GaussianBlur(legs.astype(np.float32), (0, 0), 5)
+    Image.fromarray(cv2.resize((np.clip(legs, 0, 1) * 255).astype(np.uint8), (w // 2, h // 2), interpolation=cv2.INTER_AREA)).save(OUT / 'hero-legs.png')
 
     feet = np.where(opaque[int(ty(SHOES_TOP + 60)):].any(axis=0))[0]
     print('SPRITE = {', f'width: {w}, height: {h},',

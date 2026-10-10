@@ -11,11 +11,13 @@ interface Props {
   options: StageOptions
   /** Change de valeur pour rejouer l'intro. */
   introKey: number
+  /** Déplacement du personnage : 1 vers l'avant, -1 vers l'arrière, 0 à l'arrêt. */
+  walk: number
   onUnavailable?: () => void
 }
 
 /** L'écran du stage : décor animé, personnage en position neutre, météo et carton de titre. */
-export function StageScreen({ options, introKey, onUnavailable }: Props) {
+export function StageScreen({ options, introKey, walk, onUnavailable }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLCanvasElement>(null)
   const hero = useRef<HTMLCanvasElement>(null)
@@ -47,6 +49,10 @@ export function StageScreen({ options, introKey, onUnavailable }: Props) {
   useEffect(() => {
     if (engine.current) engine.current.options = options
   }, [options])
+
+  useEffect(() => {
+    if (engine.current) engine.current.walk = walk
+  }, [walk])
 
   useEffect(() => {
     if (introKey > 0) engine.current?.replayIntro()

@@ -16,18 +16,22 @@ Les scripts de `tools/` demandent Python 3 avec `pillow`, `numpy`, `opencv-pytho
 ## Personnage : `tools/prepare_hero.py`
 
 ```bash
-python3 tools/prepare_hero.py chemin/vers/image.png
+python3 tools/prepare_hero.py art/hero-source.png
 ```
+
+L'illustration d'origine est conservée dans `art/hero-source.png`.
 
 Le script :
 
 1. détoure le personnage (le fond est la zone claire reliée aux bords de l'image) ;
 2. ajoute une marge pour que le bandeau puisse onduler sans être coupé ;
-3. calcule la carte de mouvement (`hero-map.png`) ;
-4. écrit `public/assets/hero/hero.webp` et `hero-map.png` ;
+3. calcule la carte de mouvement (`hero-map.png`) et la carte des jambes (`hero-legs.png`) ;
+4. écrit ces trois fichiers dans `public/assets/hero/` ;
 5. affiche les mesures à reporter dans `SPRITE`, dans `src/game/hero/HeroLayer.ts`.
 
-Deux réglages sont propres à l'illustration actuelle et sont à revoir pour une autre image : les rectangles des gants (exclus de l'ondulation) et les hauteurs des hanches, des épaules et de la tête, en haut du script.
+Les réglages en haut du script sont propres à l'illustration actuelle et sont à revoir pour une autre image : les rectangles des gants (exclus de l'ondulation), les hauteurs des hanches, des épaules et de la tête, et les articulations des jambes (hanche, genou, cheville).
+
+Une version de l'illustration exportée avec un fond transparent a été écartée : le blanc du t-shirt et des rubans y avait été supprimé avec le fond, ce qui laissait des trous.
 
 ## Décor : `tools/prepare_stage.py`
 
