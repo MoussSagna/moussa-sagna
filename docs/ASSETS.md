@@ -38,7 +38,7 @@ Le script lit `moussa_rig/rig.json` et `moussa_rig/02_calques/`, recadre chaque 
 
 `rigData.ts` est généré : pour changer un pivot ou une amplitude, modifier `rig.json` (ou `tools/rig/simulate.py`, qui l'écrit) puis relancer le script.
 
-### 3. Jambes et ancrage : `tools/prepare_hero.py`
+### 3. Ancrage : `tools/prepare_hero.py`
 
 ```bash
 python3 tools/prepare_hero.py
