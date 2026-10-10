@@ -6,7 +6,8 @@
 - [x] Stage Tokyo Underground : profondeur, ciel, écrans, lanternes, métro, brume, sol mouillé, pluie, pétales.
 - [x] Carton de titre et travelling d'ouverture.
 - [x] Personnage en position neutre, animé à partir d'une seule illustration.
-- [x] Marche avant et arrière en pas glissé (premier essai, à juger en mouvement).
+- [x] Marche avant et arrière de profil, avec un second rig aux jambes articulées (à juger en mouvement).
+- [ ] Pose de transition entre la pose neutre de face et la marche de profil.
 - [x] Personnage découpé en 17 calques et animé en direct par un rig (respiration, tête, bras, rubans).
 
 ## Ensuite

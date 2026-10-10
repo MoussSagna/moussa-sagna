@@ -47,15 +47,16 @@ Le personnage est un rig de 17 calques (voir `moussa_rig/README.md`), animé en 
 
 ### La marche
 
-La marche est un pas glissé. Les deux jambes sont dans le seul calque `lower`, déformé dans le fragment shader. La carte `hero-legs.png`, dans le repère de la toile du rig, donne le poids de chaque jambe (rouge = jambe arrière, vert = jambe avant) : 0 à la hanche, 1 à la cheville et sur tout le pied, qui reste donc rigide.
+À l'arrêt, le personnage est de face ; dès qu'il marche, `HeroLayer` dessine un second rig, de profil, à la place du premier. Le changement est immédiat, sans pose de transition.
 
-`HeroLayer.update` fait avancer un cycle (`WALK` règle la durée, la foulée, la levée du pied et la flexion du genou, en pixels de la toile) : chaque pied avance en l'air pendant une moitié du cycle, puis recule au sol pendant l'autre. Le corps avance exactement de ce que le pied au sol recule, ce qui évite que les pieds patinent. Jouer le cycle à l'envers donne la marche arrière.
+- **Données** : `tools/prepare_walk.py` détoure `art/hero-walk-source.png` (fond vert), le découpe en 13 calques (tête, rubans, buste, hanche, deux bras, et pour chaque jambe cuisse, tibia et pied), rebouche les zones cachées par des aplats, et écrit `walk-atlas.webp` et `src/game/hero/walkData.ts` (calques et articulations).
+- **Squelette** : `walkMatrices` (`src/game/hero/walkRig.ts`) calcule la pose pour une phase du cycle. Chaque cheville suit une trajectoire par rapport à la hanche : elle recule au sol à vitesse constante, puis revient en l'air. La cuisse et le tibia sont ensuite placés par cinématique inverse (deux os, genou vers l'avant). Le pied a son propre angle : talon qui se pose, pied à plat, talon qui se lève.
+- **Haut du corps** : le bassin monte quand une jambe passe à la verticale, le buste se penche un peu, les bras balancent à l'opposé des jambes et les rubans ondulent dans le shader.
+- **Déplacement** : le corps avance à `WALK_SPEED`, la vitesse exacte du pied posé, pour que les appuis ne patinent pas. Jouer le cycle à l'envers donne la marche arrière.
 
-Le balancement vertical et l'inclinaison du buste sont une transformation appliquée à la racine du rig : tous les calques qui dépendent du bassin la suivent, et le calque `lower` l'applique lui-même partout sauf sur les pieds. Les pointes des rubans traînent derrière.
+`GAIT` (dans `walkRig.ts`) règle la durée du cycle, la foulée, la levée des pieds et le balancement des bras. `StageEngine.walk` reçoit la direction (1, -1 ou 0) ; `App.tsx` la pilote au clavier et avec deux boutons à maintenir.
 
-`StageEngine.walk` reçoit la direction (1, -1 ou 0) ; `App.tsx` la pilote au clavier et avec deux boutons à maintenir.
-
-Limites : les jambes sont pliées, pas redessinées, donc la foulée doit rester courte. Les rubans `rb_hip` et `rb_right` suivent le bassin, pas la cuisse sur laquelle ils reposent. Les coups et les sauts demanderont de nouvelles poses du rig, avec des zones cachées repeintes (voir la feuille de route).
+Limites : les membres sont des pièces rigides qui tournent, donc les plis du pantalon ne se redessinent pas et le genou marque un angle quand il plie. Les parties cachées (haut de la cuisse éloignée, buste sous le bras) sont des aplats sans détail. La jambe éloignée, dessinée plus longue que l'autre, est réduite de 10 %.
 
 ## Ajouter un plan
 

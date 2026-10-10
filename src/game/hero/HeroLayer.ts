@@ -3,11 +3,13 @@ import type { Camera, FrameInfo } from '../types'
 import { IDENTITY, rigMatrices } from './rig'
 import type { Affine } from './rig'
 import { RIG } from './rigData'
+import { WALK_RIG } from './walkData'
+import { GAIT, WALK_SPEED, walkMatrices } from './walkRig'
 import { FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from './shaders'
 
 const LAYER_UNIFORMS = [
-  'uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uLegs', 'uBox', 'uAtlas', 'uAtlasSize', 'uCanvas',
-  'uBend', 'uAxis', 'uLegsOn', 'uBack', 'uFront', 'uBody',
+  'uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas', 'uAtlasSize',
+  'uBend', 'uAxis',
 ] as const
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 
@@ -28,31 +30,29 @@ const SIZE = PLACEMENT.bodyHeight / SPRITE.bodyHeight
 const AMPLITUDE = 1
 const CALM_AMPLITUDE = 0.35
 
-/**
- * Pas glissé. Les longueurs sont en pixels de la toile du rig.
- * Un cycle = un pas de la jambe avant puis un pas de la jambe arrière.
- */
-const WALK = { period: 0.8, stride: 63, lift: 35, knee: 15, bob: 6.3, lean: 8, trail: 12 }
+/** Marge autour du quad d'un ruban ondulé dans le shader, pour que rien ne soit coupé. */
+const RIBBON_MARGIN = 40
 
-/** Marge autour du quad d'un calque déformé dans le shader, pour que rien ne soit coupé. */
-const MARGIN = { ribbon: 40, legs: 80 }
-const LEGS_LAYER = 'lower'
+/**
+ * Décalage qui pose le rig de profil au même endroit que la pose neutre : le milieu de ses appuis
+ * sur l'ancrage, et ses semelles sur la ligne des pieds.
+ */
+const WALK_OFFSET = { x: SPRITE.anchorX * SPRITE.width - 605, y: SPRITE.feetY * SPRITE.height - WALK_RIG.soleNear }
+
+/** Ce qu'il faut pour dessiner un calque, quel que soit le rig dont il vient. */
+interface Piece {
+  box: [number, number, number, number]
+  atlas: [number, number]
+  matrix: Affine
+  /** Ondulation : amplitude, longueur, angle de phase. Amplitude 0 pour un calque rigide. */
+  bend: [number, number, number]
+  axis: [number, number]
+  pivot: [number, number]
+}
 
 /** Le reflet est rendu une fois hors écran, dans cette zone de la toile (un peu plus large qu'elle). */
 const VIEW = { x: -48, y: -16, width: 1120, height: 1568 }
 const REFLECTION = { width: 560, height: 784, alpha: 0.2, squash: 0.5 }
-
-/** Position d'un pied dans le cycle : il avance en l'air pendant la première moitié, puis recule au sol. */
-function footAt(phase: number): [number, number, number] {
-  const p = ((phase % 1) + 1) % 1
-  if (p < 0.5) {
-    const u = p / 0.5
-    const ease = u * u * (3 - 2 * u)
-    const arc = Math.sin(Math.PI * u)
-    return [WALK.stride * (ease - 0.5), WALK.lift * arc, WALK.knee * arc]
-  }
-  return [WALK.stride * (0.5 - (p - 0.5) / 0.5), 0, 0]
-}
 
 interface Program<T extends string> {
   program: WebGLProgram
@@ -60,7 +60,10 @@ interface Program<T extends string> {
   u: Record<T, WebGLUniformLocation | null>
 }
 
-/** Le personnage : un rig de calques animé en direct (respiration, rubans, marche). */
+/**
+ * Le personnage : deux rigs de calques animés en direct. Le rig de face respire à l'arrêt,
+ * le rig de profil marche.
+ */
 export class HeroLayer {
   ready = false
   private gl: WebGLRenderingContext | null
@@ -69,9 +72,7 @@ export class HeroLayer {
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
   private phase = 0
-  /** 0 = à l'arrêt, 1 = en pleine marche ; lissé pour que les jambes reviennent en douceur. */
-  private walking = 0
-  private direction = 1
+  private moving = false
 
   constructor(canvas: HTMLCanvasElement) {
     this.gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: true })
@@ -91,7 +92,7 @@ export class HeroLayer {
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
     const loaded = await Promise.all([
       loadTexture(gl, 0, asset('hero/rig-atlas.webp'), { alpha: true, premultiply: true, mipmap: true }),
-      loadTexture(gl, 1, asset('hero/hero-legs.png')),
+      loadTexture(gl, 1, asset('hero/walk-atlas.webp'), { alpha: true, premultiply: true, mipmap: true }),
     ])
     if (!loaded.every(Boolean)) return false
 
@@ -110,10 +111,6 @@ export class HeroLayer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
 
     gl.useProgram(layer)
-    gl.uniform1i(this.layer.u.uTex, 0)
-    gl.uniform1i(this.layer.u.uLegs, 1)
-    gl.uniform2f(this.layer.u.uAtlasSize, RIG.atlasSize[0], RIG.atlasSize[1])
-    gl.uniform2f(this.layer.u.uCanvas, RIG.canvas[0], RIG.canvas[1])
     gl.useProgram(flat)
     gl.uniform1i(this.flat.u.uTex, 2)
     this.ready = true
@@ -122,17 +119,15 @@ export class HeroLayer {
 
   /** Fait avancer le cycle de marche. `direction` : 1 vers l'avant, -1 vers l'arrière, 0 à l'arrêt. */
   update(frame: FrameInfo, direction: number): void {
-    const dt = frame.delta
     const blocked = (direction > 0 && this.x >= PLACEMENT.maxX) || (direction < 0 && this.x <= PLACEMENT.minX)
-    const active = direction !== 0 && !blocked
-    this.walking += ((active ? 1 : 0) - this.walking) * Math.min(1, dt * 9)
-    if (!active) return
-    this.direction = direction
-    this.phase = (((this.phase + (direction * dt) / WALK.period) % 1) + 1) % 1
-    // le pied au sol recule d'une foulée par demi-cycle : le corps avance d'autant, donc rien ne patine
+    const moving = direction !== 0 && !blocked
+    if (moving && !this.moving) this.phase = 0
+    this.moving = moving
+    if (!moving) return
+    this.phase = (((this.phase + (direction * frame.delta) / GAIT.period) % 1) + 1) % 1
+    // le corps avance à la vitesse du pied posé ; jouer le cycle à l'envers donne la marche arrière
     const pixel = (SIZE / SPRITE.height) * (frame.height / frame.width)
-    const speed = ((2 * WALK.stride) / WALK.period) * pixel
-    this.x = Math.max(PLACEMENT.minX, Math.min(PLACEMENT.maxX, this.x + direction * speed * dt))
+    this.x = Math.max(PLACEMENT.minX, Math.min(PLACEMENT.maxX, this.x + direction * WALK_SPEED * pixel * frame.delta))
   }
 
   draw(frame: FrameInfo, camera: Camera, calm: boolean): void {
@@ -153,17 +148,10 @@ export class HeroLayer {
     const left = sx - SPRITE.anchorX * w
     const top = sy - SPRITE.feetY * h
 
-    // marche : le corps monte, descend et se penche ; tout ce qui dépend du bassin suit
-    const amount = this.walking
-    const front = footAt(this.phase)
-    const back = footAt(this.phase + 0.5)
-    const bob = WALK.bob * Math.cos(4 * Math.PI * this.phase) * amount
-    const lean = WALK.lean * amount * this.direction
-    const feet = SPRITE.feetY * SPRITE.height
-    const body: Affine = [1, 0, -lean / feet, 1, lean, bob]
     const amplitude = Math.min(1, AMPLITUDE) * (calm ? CALM_AMPLITUDE : 1)
-    const matrices = rigMatrices(frame.time, amplitude, body)
-    const cycle = frame.time / RIG.cycleSeconds
+    const pieces = this.moving ? this.walkPieces(frame.time, calm) : this.idlePieces(frame.time, amplitude)
+    const atlas = this.moving ? WALK_RIG.atlasSize : RIG.atlasSize
+    const unit = this.moving ? 1 : 0
 
     const drawLayers = (vx: number, vy: number, vz: number, vw: number) => {
       gl.useProgram(layer.program)
@@ -171,31 +159,21 @@ export class HeroLayer {
       gl.vertexAttribPointer(layer.attribute, 2, gl.FLOAT, false, 0, 0)
       const u = layer.u
       gl.uniform4f(u.uView, vx, vy, vz, vw)
-      gl.uniform3f(u.uFront, front[0] * amount, front[1] * amount, front[2] * amount)
-      gl.uniform3f(u.uBack, back[0] * amount, back[1] * amount, back[2] * amount)
-      gl.uniform3f(u.uBody, bob, lean, feet)
-      RIG.layers.forEach((item, index) => {
-        const legs = item.name === LEGS_LAYER
-        // le calque des jambes garde les pieds au sol : sa déformation est faite dans le shader
-        const m = legs ? IDENTITY : matrices[index]
-        const margin = legs ? MARGIN.legs : item.bend > 0 ? MARGIN.ribbon : 0
-        const [bx, by, bw, bh] = item.box
+      gl.uniform1i(u.uTex, unit)
+      gl.uniform2f(u.uAtlasSize, atlas[0], atlas[1])
+      for (const piece of pieces) {
+        const m = piece.matrix
+        const margin = piece.bend[0] > 0 ? RIBBON_MARGIN : 0
+        const [bx, by, bw, bh] = piece.box
         gl.uniform4f(u.uQuad, bx - margin, by - margin, bw + 2 * margin, bh + 2 * margin)
         gl.uniform3f(u.uMx, m[0], m[2], m[4])
         gl.uniform3f(u.uMy, m[1], m[3], m[5])
         gl.uniform4f(u.uBox, bx, by, bw, bh)
-        gl.uniform2f(u.uAtlas, item.atlas[0], item.atlas[1])
-        gl.uniform4f(
-          u.uBend,
-          amplitude * item.bend,
-          item.length,
-          2 * Math.PI * (cycle - item.phase),
-          item.bend > 0 ? WALK.trail * amount * this.direction : 0,
-        )
-        gl.uniform4f(u.uAxis, item.axis[0], item.axis[1], item.pivot[0], item.pivot[1])
-        gl.uniform1f(u.uLegsOn, legs ? 1 : 0)
+        gl.uniform2f(u.uAtlas, piece.atlas[0], piece.atlas[1])
+        gl.uniform4f(u.uBend, piece.bend[0], piece.bend[1], piece.bend[2], 0)
+        gl.uniform4f(u.uAxis, piece.axis[0], piece.axis[1], piece.pivot[0], piece.pivot[1])
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
-      })
+      }
     }
 
     // 1. le personnage entier, une fois, dans la texture du reflet
@@ -212,6 +190,7 @@ export class HeroLayer {
     gl.vertexAttribPointer(flat.attribute, 2, gl.FLOAT, false, 0, 0)
     const px = w / SPRITE.width
     const py = (h / SPRITE.height) * REFLECTION.squash
+    const feet = SPRITE.feetY * SPRITE.height
     const mirrorTop = sy + (feet - VIEW.y - VIEW.height) * py
     gl.uniform1f(flat.u.uShadow, 0)
     gl.uniform1f(flat.u.uAlpha, REFLECTION.alpha)
@@ -229,5 +208,36 @@ export class HeroLayer {
 
     // 3. le personnage, calque par calque, du fond vers le premier plan
     drawLayers((2 * w) / SPRITE.width, (-2 * h) / SPRITE.height, 2 * left - 1, 1 - 2 * top)
+  }
+
+  /** Pose neutre de face : respiration, tête, manches et rubans. */
+  private idlePieces(time: number, amplitude: number): Piece[] {
+    const matrices = rigMatrices(time, amplitude, IDENTITY)
+    const cycle = time / RIG.cycleSeconds
+    return RIG.layers.map((item, index) => ({
+      box: item.box,
+      atlas: item.atlas,
+      matrix: matrices[index],
+      bend: [amplitude * item.bend, item.length, 2 * Math.PI * (cycle - item.phase)],
+      axis: item.axis,
+      pivot: item.pivot,
+    }))
+  }
+
+  /** Marche de profil : os des jambes et des bras, rubans qui ondulent derrière. */
+  private walkPieces(time: number, calm: boolean): Piece[] {
+    const matrices = walkMatrices(this.phase)
+    return WALK_RIG.layers.map((item, index) => {
+      const m = matrices[index]
+      const ribbon = item.name === 'ribbons'
+      return {
+        box: item.box,
+        atlas: item.atlas,
+        matrix: [m[0], m[1], m[2], m[3], m[4] + WALK_OFFSET.x, m[5] + WALK_OFFSET.y],
+        bend: [ribbon ? GAIT.ribbonBend * (calm ? CALM_AMPLITUDE : 1) : 0, GAIT.ribbonLength, time * 7],
+        axis: GAIT.ribbonAxis,
+        pivot: item.pivot,
+      }
+    })
   }
 }

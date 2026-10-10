@@ -44,7 +44,7 @@ Le script lit `moussa_rig/rig.json` et `moussa_rig/02_calques/`, recadre chaque 
 python3 tools/prepare_hero.py
 ```
 
-Le script écrit la carte des jambes (`hero-legs.png`) dans le repère de la toile du rig et affiche les mesures à reporter dans `SPRITE`, dans `src/game/hero/HeroLayer.ts`. Les articulations des jambes (hanche, genou, cheville), en haut du script, sont propres à l'illustration actuelle.
+Le script affiche les mesures à reporter dans `SPRITE`, dans `src/game/hero/HeroLayer.ts`.
 
 `art/hero-source.png` est l'ancienne illustration sur fond clair, utilisée avant le rig. Elle n'est plus lue par aucun script et n'est pas dans le même repère que le maître : elle est resserrée d'environ 5 % en largeur.
 
@@ -57,6 +57,16 @@ python3 tools/prepare_stage.py chemin/vers/decor.png
 Le script écrit `public/assets/stage/stage.webp` et `depth.png`. La carte est **tracée à la main** : le script contient les polygones de chaque plan (ciel, ville, viaduc, temple, cerisier, rambarde, sol) et des écrans, en coordonnées de l'image d'origine (1672 × 941). Un nouveau décor demande de redessiner ces polygones.
 
 Une estimation automatique de la profondeur a été essayée et donnait un résultat trop flou sur une illustration de ce style.
+
+## Rig de marche : `tools/prepare_walk.py`
+
+```bash
+python3 tools/prepare_walk.py [--debug dossier]
+```
+
+Le script part de `art/hero-walk-source.png`, une illustration de profil sur fond vert uni (1024 × 1536). Il retire le fond, découpe le personnage en 13 calques d'après des polygones tracés à la main, rebouche les zones cachées par des aplats de la couleur du tissu, puis écrit `public/assets/hero/walk-atlas.webp` et `src/game/hero/walkData.ts`. Avec `--debug`, il écrit aussi une planche des calques pour contrôler la découpe.
+
+Pour une nouvelle illustration de profil : fond vert uni sans ombre, jambes écartées qui ne se chevauchent pas sous le genou, mains écartées du corps. Il faut alors retracer `POLY`, `FILL` et `JOINTS` en haut du script.
 
 ## Ne pas faire
 

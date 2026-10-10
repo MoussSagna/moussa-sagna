@@ -32,5 +32,6 @@ Lancer `npm run build && npm run preview`, ouvrir la page et regarder réellemen
 - `AMPLITUDE` (dans `HeroLayer.ts`) ne doit pas dépasser 1 : au-delà, les calques du rig sortent de leurs zones de recouvrement et des trous apparaissent. Voir `moussa_rig/README.md`.
 - Ne pas retoucher `moussa_rig/00_maitre/` ni `moussa_rig/02_calques/` à la main : ils sont produits par `tools/prepare_rig.py`.
 - `rigMatrices` (`src/game/hero/rig.ts`) est le portage de `matrices()` de `tools/rig/simulate.py`. Si l'un change, l'autre doit suivre.
-- Les cartes (`depth.png`, `hero-legs.png`) encodent plusieurs informations par canal de couleur. Ne pas les recompresser en JPEG ni les redimensionner à la main.
+- La carte `depth.png` encode plusieurs informations par canal de couleur. Ne pas la recompresser en JPEG ni la redimensionner à la main.
+- La marche utilise un second rig, de profil (`art/hero-walk-source.png`). Ses polygones de découpe et ses articulations, dans `tools/prepare_walk.py`, sont tracés à la main pour cette illustration : une autre image demande de les retracer.
 - Les personnages d'autres éditeurs (Ryu, M. Bison…) sont protégés : pour un site public, préférer des adversaires originaux.
