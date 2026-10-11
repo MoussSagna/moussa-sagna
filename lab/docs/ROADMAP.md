@@ -8,6 +8,10 @@
 - [x] Personnage en garde de trois quarts : respiration, léger rebond sur les appuis, tête et rubans animés.
 - [x] Marche avant et arrière, jambes et bras articulés à partir d'une seule illustration, avec une pose intermédiaire au départ et à l'arrêt.
 - [x] Dash avant et dash arrière au double appui, avec images fantômes.
+- [x] Accroupi maintenu, avec une pose à mi-descente.
+- [x] Parade debout et parade accroupie, maintenues à la main (à juger en mouvement).
+- [x] Saut vertical en quatre dessins, avec ombre et reflet qui suivent la hauteur (à juger en mouvement).
+- [x] Un seul atlas lié à la fois : plus de limite au nombre de poses.
 - [x] Logos de marque effacés sur les baskets de la garde et de la marche.
 
 ## Essais abandonnés
@@ -21,13 +25,16 @@
 - [ ] Effacer le logo des baskets sur la pose intermédiaire (`../art/hero-step.png`).
 - [ ] Adoucir le pli du genou de la marche et articuler l'avant-bras.
 - [ ] Articuler les bras et les jambes de la garde.
+- [ ] Accroupi : animer séparément la tête et les rubans.
+- [ ] Alléger le chargement : environ 12 Mo d'atlas sont téléchargés au démarrage.
+- [ ] Parade : la déclencher en reculant au moment d'un coup, quand il y aura un adversaire.
 - [ ] Dashs : animer les rubans, ajouter un élan et une réception, et ne plus amorcer la marche au premier des deux appuis.
 
 ## Ensuite
 
 1. **Structure du portfolio** : écran titre, menu principal, puis les sections (projets, parcours, à propos, contact) en HTML par-dessus ou à côté de la scène. Ajouter **Zustand** à ce moment-là pour l'écran courant.
 2. **Transitions entre écrans** : séquences chorégraphiées avec **GSAP**.
-3. **Autres animations du personnage** : accroupi, saut, coups, touché, et une pose d'élan et de réception pour les dashs. Une illustration par état, toujours dans la même vue, découpée par `tools/prepare_poses.py`.
+3. **Autres animations du personnage** : sauts avant et arrière, coups, touché, et une pose d'élan et de réception pour les dashs. Une illustration par état, toujours dans la même vue, découpée par `tools/prepare_poses.py`.
 4. **Sprites et moteur de combat** : à partir de plusieurs personnages et de nombreuses frames, passer le rendu des sprites sur **PixiJS**. Le décor en shader peut rester tel quel.
 5. **Adversaire** : un personnage original.
 6. **Mobile** : cadrage adapté, commandes tactiles, effets allégés.

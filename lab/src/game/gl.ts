@@ -43,13 +43,22 @@ export function uniforms<T extends string>(
   return out
 }
 
-/** Charge une image dans une unité de texture. Résout `false` si l'image est introuvable. */
-export function loadTexture(
+interface TextureOptions {
+  alpha?: boolean
+  premultiply?: boolean
+  mipmap?: boolean
+}
+
+/**
+ * Charge une image dans une texture et la laisse liée à l'unité `unit`.
+ * Résout `null` si l'image est introuvable.
+ */
+export function createTexture(
   gl: WebGLRenderingContext,
   unit: number,
   src: string,
-  options: { alpha?: boolean; premultiply?: boolean; mipmap?: boolean } = {},
-): Promise<boolean> {
+  options: TextureOptions = {},
+): Promise<WebGLTexture | null> {
   return new Promise((resolve) => {
     const image = new Image()
     image.onload = () => {
@@ -65,11 +74,16 @@ export function loadTexture(
       gl.texImage2D(gl.TEXTURE_2D, 0, format, format, gl.UNSIGNED_BYTE, image)
       // les mipmaps demandent une image dont les côtés sont des puissances de deux
       if (options.mipmap) gl.generateMipmap(gl.TEXTURE_2D)
-      resolve(true)
+      resolve(texture)
     }
-    image.onerror = () => resolve(false)
+    image.onerror = () => resolve(null)
     image.src = src
   })
+}
+
+/** Charge une image dans une unité de texture, où elle reste. Résout `false` si l'image est introuvable. */
+export async function loadTexture(gl: WebGLRenderingContext, unit: number, src: string, options: TextureOptions = {}): Promise<boolean> {
+  return (await createTexture(gl, unit, src, options)) !== null
 }
 
 export const asset = (path: string): string => `${import.meta.env.BASE_URL}assets/${path}`

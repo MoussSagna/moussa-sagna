@@ -6,6 +6,12 @@ const prefersCalm = window.matchMedia('(prefers-reduced-motion: reduce)').matche
 
 /** Touches de déplacement. Q et A couvrent les claviers AZERTY et QWERTY. */
 const KEYS: Record<string, number> = { arrowright: 1, d: 1, arrowleft: -1, q: -1, a: -1 }
+/** Touches qui font s'accroupir tant qu'elles sont maintenues. */
+const CROUCH_KEYS = new Set(['arrowdown', 's'])
+/** Touches qui font parer tant qu'elles sont maintenues. */
+const BLOCK_KEYS = new Set([' '])
+/** Touches qui lancent un saut. Z et W couvrent les claviers AZERTY et QWERTY. */
+const JUMP_KEYS = new Set(['arrowup', 'z', 'w'])
 /** Deux appuis sur la même direction en moins de ce délai (millisecondes) déclenchent un dash. */
 const DOUBLE_TAP_MS = 260
 
@@ -13,6 +19,9 @@ function App() {
   const [options, setOptions] = useState<StageOptions>({ rain: true, petals: true, calm: prefersCalm })
   const [introKey, setIntroKey] = useState(0)
   const [walk, setWalk] = useState(0)
+  const [crouch, setCrouch] = useState(false)
+  const [block, setBlock] = useState(false)
+  const [jump, setJump] = useState(0)
   const [dash, setDash] = useState({ id: 0, direction: 1 })
   const lastTap = useRef({ direction: 0, at: 0 })
   const [note, setNote] = useState('Bouge la souris sur le décor pour sentir la profondeur.')
@@ -21,8 +30,7 @@ function App() {
     setNote("Le décor animé n'a pas pu se charger : il reste fixe, seules la pluie et les pétales bougent.")
   }, [])
   /** Un appui sur une direction : le second appui rapproché dans le même sens lance un dash. */
-  const tap = useCallback((direction: number) => {
-    const now = performance.now()
+  const tap = useCallback((direction: number, now = performance.now()) => {
     const last = lastTap.current
     if (last.direction === direction && now - last.at < DOUBLE_TAP_MS) {
       setDash((current) => ({ id: current.id + 1, direction }))
@@ -41,18 +49,35 @@ function App() {
     const held = new Set<string>()
     const sync = () => {
       let direction = 0
-      for (const key of held) direction = KEYS[key]
+      let down = false
+      let guard = false
+      for (const key of held) {
+        if (CROUCH_KEYS.has(key)) down = true
+        else if (BLOCK_KEYS.has(key)) guard = true
+        else direction = KEYS[key]
+      }
       setWalk(direction)
+      setCrouch(down)
+      setBlock(guard)
     }
     const down = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase()
-      if (!(key in KEYS) || event.ctrlKey || event.metaKey || event.altKey) return
+      const posture = CROUCH_KEYS.has(key) || BLOCK_KEYS.has(key)
+      const jumping = JUMP_KEYS.has(key)
+      if ((!(key in KEYS) && !posture && !jumping) || event.ctrlKey || event.metaKey || event.altKey) return
       const target = event.target
       // on ne détourne les touches que hors des champs de saisie de texte
       const typing = (target instanceof HTMLInputElement && target.type !== 'checkbox') || target instanceof HTMLTextAreaElement
-      if (typing) return
+      // Espace garde son rôle habituel sur un bouton ou une case à cocher qui a le focus
+      const control = key === ' ' && (target instanceof HTMLButtonElement || target instanceof HTMLInputElement)
+      if (typing || control) return
       event.preventDefault()
-      if (!event.repeat) tap(KEYS[key])
+      if (jumping) {
+        if (!event.repeat) setJump((count) => count + 1)
+        return
+      }
+      // l'heure de l'événement, pas celle de son traitement : le double appui reste détecté quand l'affichage rame
+      if (!event.repeat && !posture) tap(KEYS[key], event.timeStamp)
       held.add(key)
       sync()
     }
@@ -77,12 +102,15 @@ function App() {
   return (
     <main className="mx-auto flex max-w-[1500px] flex-col gap-3.5 px-4 pt-4 pb-8">
       <h1 className="sr-only">Moussa Sagna, développeur frontend</h1>
-      <StageScreen options={options} introKey={introKey} walk={walk} dash={dash} onUnavailable={onUnavailable} />
+      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} block={block} dash={dash} jump={jump} onUnavailable={onUnavailable} />
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-muted">
         <div className="flex gap-2">
           <HoldButton label="Reculer" onHold={(held) => hold(-1, held)} />
           <HoldButton label="Avancer" onHold={(held) => hold(1, held)} />
+          <HoldButton label="S'accroupir" onHold={setCrouch} />
+          <HoldButton label="Parer" onHold={setBlock} />
+          <HoldButton label="Sauter" onHold={(held) => held && setJump((count) => count + 1)} />
         </div>
         <button
           type="button"
@@ -99,7 +127,12 @@ function App() {
         Maintiens <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">←</kbd>{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">→</kbd> ou{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Q</kbd>{' '}
-        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd> pour marcher, appuie deux fois vite pour un dash. {note}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd> pour marcher, appuie deux fois vite pour un dash, maintiens{' '}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↓</kbd> ou{' '}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">S</kbd> pour t'accroupir,{' '}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Espace</kbd> pour parer,{' '}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↑</kbd> ou{' '}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Z</kbd> pour sauter. {note}
       </p>
     </main>
   )

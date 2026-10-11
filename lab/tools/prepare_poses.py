@@ -1,7 +1,8 @@
 """Découpe les illustrations du personnage (garde, transition, marche) en calques pour le moteur.
 
 Usage (depuis lab/) : python3 tools/prepare_poses.py [--debug dossier]
-Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png et hero-dash-back.png
+Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png, hero-dash-back.png,
+hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png et les quatre hero-jump-*.png
 (fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
@@ -28,11 +29,23 @@ LOGOS = dict(
     walk=[[(108, 1293), (136, 1293), (216, 1335), (216, 1359), (180, 1359), (108, 1318)],
           [(765, 1400), (800, 1370), (848, 1370), (848, 1398), (820, 1426), (770, 1432)]],
     step=[],
+    crouchStep=[],
+    crouch=[],
+    blockStep=[],
+    block=[],
+    crouchBlock=[],
+    jumpStart=[],
+    jumpRise=[],
+    jumpPeak=[],
+    jumpLand=[[(155, 1275), (195, 1285), (200, 1325), (165, 1325)]],
     dashForward=[],
     dashBack=[],
 )
+# Logos en relief, tracés en traits pâles sur le blanc : dans chaque polygone, tout pixel clair devient blanc.
+FAINT_LOGOS = dict(jumpStart=[[(150, 1228), (188, 1226), (204, 1262), (205, 1296), (150, 1296)]])
 # Poses en un seul calque : le point d'appui horizontal est donné à la main (l'aplomb des hanches).
-SINGLE = dict(step=None, dashForward=560, dashBack=360)
+SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=None, blockStep=None, block=None, crouchBlock=None,
+              jumpStart=None, jumpRise=520, jumpPeak=520, jumpLand=None)
 
 # ---------- marche : articulations et polygones. « near » = côté proche (jambe avant, bras arrière) ----------
 WALK_JOINTS = dict(
@@ -90,7 +103,10 @@ def poly(points) -> np.ndarray:
     return m.astype(bool)
 
 
-FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png', dashForward='hero-dash-forward.png', dashBack='hero-dash-back.png')
+FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png', dashForward='hero-dash-forward.png', dashBack='hero-dash-back.png',
+             crouchStep='hero-crouch-step.png', crouch='hero-crouch.png',
+             blockStep='hero-block-step.png', block='hero-block.png', crouchBlock='hero-crouch-block.png',
+             jumpStart='hero-jump-start.png', jumpRise='hero-jump-rise.png', jumpPeak='hero-jump-peak.png', jumpLand='hero-jump-land.png')
 
 
 def load(name: str) -> np.ndarray:
@@ -102,6 +118,9 @@ def load(name: str) -> np.ndarray:
         dark = zone & (rgb.max(axis=2) < 120)
         dark = cv2.dilate(dark.astype(np.uint8), np.ones((5, 5), np.uint8)).astype(bool) & zone
         rgb[dark] = WHITE
+    for points in FAINT_LOGOS.get(name, []):
+        zone = poly(points)
+        rgb[zone & (rgb.max(axis=2) > 150)] = WHITE
     f = rgb.astype(np.float32)
     r, g, b = f[..., 0], f[..., 1], f[..., 2]
     alpha = 1 - np.clip((g - np.maximum(r, b) - 40) / 150, 0, 1)
@@ -110,6 +129,11 @@ def load(name: str) -> np.ndarray:
     col = np.clip((f - (1 - a) * bg) / a, 0, 255)
     col[..., 1] = np.minimum(col[..., 1], np.maximum(col[..., 0], col[..., 2]))
     alpha[alpha < 0.06] = 0
+    # poussières : un pixel isolé du fond suffit à agrandir le rectangle d'un calque jusqu'au bord de l'image
+    count, labels, stats, _ = cv2.connectedComponentsWithStats((alpha > 0).astype(np.uint8), connectivity=8)
+    for i in range(1, count):
+        if stats[i, cv2.CC_STAT_AREA] < 30:
+            alpha[labels == i] = 0
     return np.dstack([col, alpha * 255]).astype(np.uint8)
 
 

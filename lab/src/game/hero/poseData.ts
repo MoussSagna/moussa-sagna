@@ -108,4 +108,112 @@ export const POSES = {
       { name: 'body', parent: -1, pivot: [512, 768], box: [9, 169, 1023, 1186], atlas: [0, 0] },
     ] as PoseLayer[],
   },
+  crouchStep: {
+    file: 'hero/crouchStep.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [524, 1435] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [33, 192, 971, 1252], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  crouch: {
+    file: 'hero/crouch.webp',
+    atlasSize: [1024, 1024] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [548, 1416] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [1, 440, 994, 986], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  blockStep: {
+    file: 'hero/blockStep.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [518, 1455] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [24, 89, 977, 1375], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  block: {
+    file: 'hero/block.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [519, 1456] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [4, 51, 1002, 1414], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  crouchBlock: {
+    file: 'hero/crouchBlock.webp',
+    atlasSize: [1024, 1024] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [553, 1389] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [4, 425, 999, 974], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  jumpStart: {
+    file: 'hero/jumpStart.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [509, 1381] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [22, 310, 958, 1080], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  jumpRise: {
+    file: 'hero/jumpRise.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [520, 1474] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [31, 37, 936, 1446], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  jumpPeak: {
+    file: 'hero/jumpPeak.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [520, 1355] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [4, 85, 997, 1279], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  jumpLand: {
+    file: 'hero/jumpLand.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [530, 1418] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [3, 54, 982, 1373], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
 }

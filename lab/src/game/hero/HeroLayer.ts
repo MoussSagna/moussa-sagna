@@ -1,7 +1,7 @@
-import { asset, createProgram, loadTexture, uniforms } from '../gl'
+import { asset, createProgram, createTexture, uniforms } from '../gl'
 import type { Camera, FrameInfo } from '../types'
 import { CANVAS, POSES } from './poseData'
-import { BENDS, GAIT, WALK_SPEED, guardMatrices, walkMatrices } from './poseRig'
+import { BENDS, GAIT, WALK_SPEED, guardMatrices, heldMatrix, scaleAbout, walkMatrices } from './poseRig'
 import type { Affine } from './poseRig'
 import { FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from './shaders'
 
@@ -9,7 +9,7 @@ const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas'
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -22,6 +22,15 @@ const FEET: Record<PoseName, [number, number]> = {
   step: POSES.step.anchor,
   dashForward: POSES.dashForward.anchor,
   dashBack: POSES.dashBack.anchor,
+  crouchStep: POSES.crouchStep.anchor,
+  crouch: POSES.crouch.anchor,
+  blockStep: POSES.blockStep.anchor,
+  block: POSES.block.anchor,
+  crouchBlock: POSES.crouchBlock.anchor,
+  jumpStart: POSES.jumpStart.anchor,
+  jumpRise: POSES.jumpRise.anchor,
+  jumpPeak: POSES.jumpPeak.anchor,
+  jumpLand: POSES.jumpLand.anchor,
   // en marche, c'est la hanche qui est à l'aplomb du point d'appui
   walk: [POSES.walk.joints.hip_near[0], POSES.walk.anchor[1]],
 }
@@ -30,10 +39,42 @@ const FEET: Record<PoseName, [number, number]> = {
  * Agrandissement de chaque pose autour de ses pieds, pour que la tête garde la taille de celle de la garde.
  * Les illustrations de dash sont dessinées plus petit : valeurs mesurées sur la hauteur de la tête.
  */
-const POSE_SCALE: Record<PoseName, number> = { guard: 1, step: 1, walk: 1, dashForward: 1.07, dashBack: 1.15 }
+const POSE_SCALE: Record<PoseName, number> = {
+  guard: 1, step: 1, walk: 1, dashForward: 1.07, dashBack: 1.15, crouchStep: 1, crouch: 1, blockStep: 1, block: 1, crouchBlock: 1,
+  jumpStart: 1, jumpRise: 1, jumpPeak: 0.93, jumpLand: 1,
+}
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
 const STEP_SECONDS = 0.09
+/** Durée de la pose à mi-descente entre la garde et l'accroupi, en secondes. */
+const CROUCH_STEP_SECONDS = 0.07
+/** Durée de la pose de passage entre la garde et la parade debout, en secondes. */
+const BLOCK_STEP_SECONDS = 0.05
+
+/**
+ * Saut vertical. Durées en secondes, hauteur en pixels de la toile (du sol au point le plus haut des pieds).
+ * `tuck` : part de la montée après laquelle le corps se regroupe ; avant, il est encore en extension.
+ * Un seul dessin couvre presque tout le vol : c'est sa déformation continue qui donne le mouvement.
+ */
+const JUMP = {
+  start: 0.1,
+  /** Montée puis retombée : la retombée est plus courte, le personnage tombe plus vite qu'il ne monte. */
+  rise: 0.4,
+  fall: 0.27,
+  land: 0.14,
+  height: 600,
+  tuck: 0.26,
+  /** Déformation du dessin : tassement à l'impulsion et à la réception, étirement à pleine vitesse. */
+  squash: 0.09,
+  stretch: 0.07,
+}
+
+/** Poses tenues en un seul calque, qui respirent d'un bloc. */
+const HELD: PoseName[] = ['crouch', 'block', 'crouchBlock']
+
+/** Unités de texture : l'atlas de la pose affichée, puis la texture du reflet. */
+const ATLAS_UNIT = 0
+const REFLECTION_UNIT = 1
 const CALM_AMPLITUDE = 0.35
 
 /**
@@ -73,7 +114,11 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: 'guard' | 'step' | 'walk' | 'dash' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand'> | 'dash' | 'jump' = 'guard'
+  /** Temps écoulé depuis le début du saut en cours. */
+  private jumpTime = 0
+  /** L'atlas de chaque pose. Un seul est lié à la fois, celui de la pose affichée. */
+  private atlases = new Map<PoseName, WebGLTexture>()
   /** Dash en cours : sens, position de départ et temps écoulé. */
   private dashing = { direction: 1, from: PLACEMENT.x, time: 0 }
   /** Temps restant dans la pose intermédiaire. */
@@ -96,14 +141,17 @@ export class HeroLayer {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW)
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-    // un atlas par pose, sur les premières unités de texture
+    // un atlas par pose ; ils ne restent pas liés, pour ne pas dépendre du nombre d'unités de texture du navigateur
     const loaded = await Promise.all(
-      POSE_NAMES.map((name, unit) => loadTexture(gl, unit, asset(POSES[name].file), { alpha: true, premultiply: true, mipmap: true })),
+      POSE_NAMES.map((name) => createTexture(gl, ATLAS_UNIT, asset(POSES[name].file), { alpha: true, premultiply: true, mipmap: true })),
     )
-    if (!loaded.every(Boolean)) return false
+    for (const [index, texture] of loaded.entries()) {
+      if (!texture) return false
+      this.atlases.set(POSE_NAMES[index], texture)
+    }
 
-    // texture hors écran du reflet, sur l'unité qui suit
-    gl.activeTexture(gl.TEXTURE0 + POSE_NAMES.length)
+    // texture hors écran du reflet, sur sa propre unité
+    gl.activeTexture(gl.TEXTURE0 + REFLECTION_UNIT)
     const texture = gl.createTexture()
     gl.bindTexture(gl.TEXTURE_2D, texture)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, REFLECTION.width, REFLECTION.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
@@ -117,16 +165,54 @@ export class HeroLayer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
 
     gl.useProgram(flat)
-    gl.uniform1i(this.flat.u.uTex, POSE_NAMES.length)
+    gl.uniform1i(this.flat.u.uTex, REFLECTION_UNIT)
     this.ready = true
     return true
   }
 
-  /** Lance un dash : 1 vers l'avant, -1 vers l'arrière. Sans effet pendant un dash. */
+  /** Lance un dash : 1 vers l'avant, -1 vers l'arrière. Possible seulement depuis la garde ou la marche. */
   dash(direction: number): void {
-    if (this.pose === 'dash' || direction === 0) return
+    const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
+    if (!free || direction === 0) return
     this.pose = 'dash'
     this.dashing = { direction: Math.sign(direction), from: this.x, time: 0 }
+  }
+
+  /** Lance un saut vertical. Possible seulement depuis la garde ou la marche. */
+  jump(): void {
+    const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
+    if (!free) return
+    this.pose = 'jump'
+    this.jumpTime = 0
+  }
+
+  /**
+   * Dessin, hauteur des pieds (pixels de la toile) et déformation (largeur, hauteur) à l'instant courant du saut.
+   * Le dessin se tasse pendant l'impulsion, s'étire quand il va vite, reprend sa forme au sommet,
+   * puis s'écrase à la réception avant de se redresser.
+   */
+  private jumpState(): { name: PoseName; lift: number; sx: number; sy: number } {
+    const t = this.jumpTime - JUMP.start
+    if (t < 0) {
+      const p = 1 + t / JUMP.start
+      const squash = JUMP.squash * p * p
+      return { name: 'jumpStart', lift: 0, sx: 1 + squash * 0.5, sy: 1 - squash }
+    }
+    if (t >= JUMP.rise + JUMP.fall) {
+      const q = Math.min(1, (t - JUMP.rise - JUMP.fall) / JUMP.land)
+      const squash = JUMP.squash * (1 - q) ** 2
+      return { name: 'jumpLand', lift: 0, sx: 1 + squash * 0.5, sy: 1 - squash }
+    }
+    // deux demi-paraboles qui se rejoignent au sommet ; vitesse verticale : 1 au décollage, 0 au sommet, 1 à la retombée
+    const rising = t < JUMP.rise
+    const speed = rising ? 1 - t / JUMP.rise : (t - JUMP.rise) / JUMP.fall
+    const stretch = JUMP.stretch * speed * speed
+    return {
+      name: rising && t / JUMP.rise < JUMP.tuck ? 'jumpRise' : 'jumpPeak',
+      lift: JUMP.height * (1 - speed * speed),
+      sx: 1 - stretch * 0.6,
+      sy: 1 + stretch,
+    }
   }
 
   /** Position du personnage `time` secondes après le début du dash en cours. */
@@ -137,8 +223,12 @@ export class HeroLayer {
     return Math.max(PLACEMENT.minX, Math.min(PLACEMENT.maxX, this.dashing.from + this.dashing.direction * move.distance * eased))
   }
 
-  /** Fait avancer l'état du personnage. `direction` : 1 vers l'avant, -1 vers l'arrière, 0 à l'arrêt. */
-  update(frame: FrameInfo, direction: number): void {
+  /**
+   * Fait avancer l'état du personnage. `direction` : 1 vers l'avant, -1 vers l'arrière, 0 à l'arrêt.
+   * `crouch` et `block` : s'accroupir et parer tant que c'est vrai. Accroupi ou en parade, le personnage
+   * ne se déplace pas.
+   */
+  update(frame: FrameInfo, direction: number, crouch: boolean, block: boolean): void {
     if (this.pose === 'dash') {
       this.dashing.time += frame.delta
       this.x = this.dashX(this.dashing.time)
@@ -146,8 +236,40 @@ export class HeroLayer {
       if (this.dashing.time < move.seconds) return
       this.pose = 'guard'
     }
+    if (this.pose === 'jump') {
+      this.jumpTime += frame.delta
+      if (this.jumpTime < JUMP.start + JUMP.rise + JUMP.fall + JUMP.land) return
+      this.pose = 'guard'
+    }
+    // poses de passage : elles durent un instant, puis on arrive selon ce qui est encore demandé
+    if (this.pose === 'crouchStep' || this.pose === 'blockStep') {
+      this.stepLeft -= frame.delta
+      if (this.stepLeft > 0) return
+      if (this.pose === 'crouchStep') this.pose = crouch ? 'crouch' : 'guard'
+      else this.pose = block && !crouch ? 'block' : 'guard'
+      return
+    }
+    const pass = (pose: 'crouchStep' | 'blockStep') => {
+      this.pose = pose
+      this.stepLeft = pose === 'crouchStep' ? CROUCH_STEP_SECONDS : BLOCK_STEP_SECONDS
+    }
+    // accroupi : la parade basse se prend et se quitte sans pose de passage
+    if (this.pose === 'crouch' || this.pose === 'crouchBlock') {
+      if (!crouch) pass('crouchStep')
+      else this.pose = block ? 'crouchBlock' : 'crouch'
+      return
+    }
+    if (this.pose === 'block') {
+      if (!block || crouch) pass('blockStep')
+      return
+    }
+    if (this.pose === 'guard' && (crouch || block)) {
+      pass(crouch ? 'crouchStep' : 'blockStep')
+      return
+    }
     const blocked = (direction > 0 && this.x >= PLACEMENT.maxX) || (direction < 0 && this.x <= PLACEMENT.minX)
-    const moving = direction !== 0 && !blocked
+    // demander l'accroupi ou la parade en marchant arrête d'abord la marche : le personnage repasse par la garde
+    const moving = direction !== 0 && !blocked && !crouch && !block
     // garde <-> pose intermédiaire <-> marche : on ne saute jamais directement d'un bout à l'autre
     if (this.pose === 'step') {
       this.stepLeft -= frame.delta
@@ -184,23 +306,42 @@ export class HeroLayer {
     const left = sx - (GROUND[0] / CANVAS[0]) * w
     const top = sy - (GROUND[1] / CANVAS[1]) * h
 
-    const name: PoseName = this.pose !== 'dash' ? this.pose : this.dashing.direction > 0 ? 'dashForward' : 'dashBack'
+    const jump = this.pose === 'jump' ? this.jumpState() : null
+    const lift = jump ? jump.lift : 0
+    const name: PoseName =
+      this.pose === 'jump'
+        ? (jump?.name ?? 'guard')
+        : this.pose === 'dash'
+          ? this.dashing.direction > 0
+            ? 'dashForward'
+            : 'dashBack'
+          : this.pose
     const pose = POSES[name]
     const amplitude = calm ? CALM_AMPLITUDE : 1
-    const matrices: Affine[] | null =
-      name === 'guard' ? guardMatrices(frame.time, amplitude) : name === 'walk' ? walkMatrices(this.phase) : null
     const feet = FEET[name]
     const scale = POSE_SCALE[name]
+    const matrices: Affine[] | null =
+      name === 'guard'
+        ? guardMatrices(frame.time, amplitude)
+        : name === 'walk'
+          ? walkMatrices(this.phase)
+          : HELD.includes(name)
+            ? [heldMatrix(POSES[name].anchor, frame.time, amplitude)]
+            : jump
+              ? [scaleAbout(feet, 1 + (jump.sx - 1) * amplitude, 1 + (jump.sy - 1) * amplitude)]
+              : null
     const bends = BENDS[name]
 
-    const drawLayers = (vx: number, vy: number, vz: number, vw: number, alpha = 1) => {
+    const drawLayers = (vx: number, vy: number, vz: number, vw: number, alpha = 1, raise = 0) => {
       gl.useProgram(layer.program)
       gl.enableVertexAttribArray(layer.attribute)
       gl.vertexAttribPointer(layer.attribute, 2, gl.FLOAT, false, 0, 0)
       const u = layer.u
       gl.uniform4f(u.uView, vx, vy, vz, vw)
       gl.uniform1f(u.uAlpha, alpha)
-      gl.uniform1i(u.uTex, POSE_NAMES.indexOf(name))
+      gl.activeTexture(gl.TEXTURE0 + ATLAS_UNIT)
+      gl.bindTexture(gl.TEXTURE_2D, this.atlases.get(name) ?? null)
+      gl.uniform1i(u.uTex, ATLAS_UNIT)
       gl.uniform2f(u.uAtlasSize, pose.atlasSize[0], pose.atlasSize[1])
       pose.layers.forEach((item, index) => {
         const m = matrices ? matrices[index] : null
@@ -212,7 +353,7 @@ export class HeroLayer {
         const mx = [m ? m[0] : 1, m ? m[2] : 0, (m ? m[4] : 0) - feet[0]]
         const my = [m ? m[1] : 0, m ? m[3] : 1, (m ? m[5] : 0) - feet[1]]
         gl.uniform3f(u.uMx, mx[0] * scale, mx[1] * scale, mx[2] * scale + GROUND[0])
-        gl.uniform3f(u.uMy, my[0] * scale, my[1] * scale, my[2] * scale + GROUND[1])
+        gl.uniform3f(u.uMy, my[0] * scale, my[1] * scale, my[2] * scale + GROUND[1] - raise)
         gl.uniform4f(u.uBox, bx, by, bw, bh)
         gl.uniform2f(u.uAtlas, item.atlas[0], item.atlas[1])
         gl.uniform4f(u.uBend, bend ? bend.amplitude * amplitude : 0, bend ? bend.length : 1, frame.time * (name === 'walk' ? 7 : 2.4) + index, 0)
@@ -235,9 +376,11 @@ export class HeroLayer {
     gl.vertexAttribPointer(flat.attribute, 2, gl.FLOAT, false, 0, 0)
     const px = w / CANVAS[0]
     const py = (h / CANVAS[1]) * REFLECTION.squash
-    const mirrorTop = sy + (GROUND[1] - VIEW.y - VIEW.height) * py
+    // en l'air, le reflet s'éloigne des pieds et s'estompe, et l'ombre rétrécit
+    const air = lift / JUMP.height
+    const mirrorTop = sy + (GROUND[1] - VIEW.y - VIEW.height + lift) * py
     gl.uniform1f(flat.u.uShadow, 0)
-    gl.uniform1f(flat.u.uAlpha, REFLECTION.alpha)
+    gl.uniform1f(flat.u.uAlpha, REFLECTION.alpha * (1 - 0.6 * air))
     gl.uniform4f(
       flat.u.uRect,
       (left + (VIEW.x + VIEW.width / 2) * px) * 2 - 1,
@@ -247,7 +390,7 @@ export class HeroLayer {
     )
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     gl.uniform1f(flat.u.uShadow, 1)
-    gl.uniform4f(flat.u.uRect, sx * 2 - 1, 1 - (sy - h * 0.006) * 2, h * 0.313 * (frame.height / frame.width), h * 0.031)
+    gl.uniform4f(flat.u.uRect, sx * 2 - 1, 1 - (sy - h * 0.006) * 2, h * 0.313 * (1 - 0.45 * air) * (frame.height / frame.width), h * 0.031 * (1 - 0.45 * air))
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
     // 3. pendant un dash, des images fantômes à ses positions précédentes (la pose n'a qu'un calque, donc pas de recouvrement)
@@ -260,6 +403,6 @@ export class HeroLayer {
     }
 
     // 4. le personnage, calque par calque, du fond vers le premier plan
-    drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * left - 1, 1 - 2 * top)
+    drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * left - 1, 1 - 2 * top, 1, lift)
   }
 }
