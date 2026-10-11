@@ -36,30 +36,41 @@ function HoldButton({ label, onHold }: { label: string; onHold: (held: boolean) 
 export function Training() {
   usePageTitle('Arène · Mode entraînement');
   const [walk, setWalk] = useState(0);
+  const [crouch, setCrouch] = useState(false);
+  const [block, setBlock] = useState(false);
+  const [jump, setJump] = useState(0);
+  const [attack, setAttack] = useState(0);
   return (
     <div className="page page--training">
       <div className="page__inner">
         <PageHead
           eyebrow="Arène · Mode entraînement"
           title="Premiers pas dans l’arène"
-          lead="Moussa se tient en garde dans l’arène, rendue en temps réel ci-dessous. Il marche et il dashe. Le reste du mode entraînement (sauts, coups, adversaire) n’est pas encore développé."
+          lead="Moussa se tient en garde dans l’arène, rendue en temps réel ci-dessous. Il marche, dashe, s’accroupit, pare, saute et enchaîne deux coups de poing. Il n’a pas encore d’adversaire : les coups ne touchent rien."
         />
 
         <figure className="arena-frame rise" style={{ animationDelay: '240ms' }}>
           <div className="arena-frame__screen">
             <Suspense fallback={<p className="arena-frame__loading">Chargement de l’arène…</p>}>
-              <ArenaCanvas walk={walk} />
+              <ArenaCanvas walk={walk} crouch={crouch} block={block} jump={jump} attack={attack} />
             </Suspense>
           </div>
           <figcaption className="arena-frame__caption">
-            <span className="status">Jouable · marche et dash</span>
+            <span className="status">Jouable</span>
             <span>Stage 01 · Tokyo Underground · rendu Phaser</span>
           </figcaption>
           <div className="arena-controls">
             <HoldButton label="Reculer" onHold={(held) => setWalk(held ? -1 : 0)} />
             <HoldButton label="Avancer" onHold={(held) => setWalk(held ? 1 : 0)} />
+            <HoldButton label="S’accroupir" onHold={setCrouch} />
+            <HoldButton label="Parer" onHold={setBlock} />
+            <HoldButton label="Sauter" onHold={(held) => held && setJump((count) => count + 1)} />
+            <HoldButton label="Attaquer" onHold={(held) => held && setAttack((count) => count + 1)} />
             <p className="arena-controls__hint">
-              Maintiens <kbd>←</kbd> <kbd>→</kbd> ou <kbd>Q</kbd> <kbd>D</kbd> pour marcher, appuie deux fois vite pour un dash.
+              Maintiens <kbd>←</kbd> <kbd>→</kbd> ou <kbd>Q</kbd> <kbd>D</kbd> pour marcher, appuie deux fois vite pour
+              un dash. Maintiens <kbd>↓</kbd> ou <kbd>S</kbd> pour t’accroupir, <kbd>Espace</kbd> pour parer.{' '}
+              <kbd>↑</kbd> ou <kbd>Z</kbd> pour sauter, <kbd>J</kbd> pour attaquer : un appui pour le coup léger, un
+              second pour enchaîner le coup moyen.
             </p>
           </div>
         </figure>

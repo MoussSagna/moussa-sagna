@@ -1,6 +1,6 @@
 # Tokyo Underground — le portfolio Phaser
 
-Le site de Moussa Sagna qui sera mis en ligne : un portfolio présenté comme un jeu de combat 2D. Les pages sont en React ; l'arène, sur `/entrainement`, est une scène Phaser où Moussa se tient en garde, marche et dashe.
+Le site de Moussa Sagna qui sera mis en ligne : un portfolio présenté comme un jeu de combat 2D. Les pages sont en React ; l'arène, sur `/entrainement`, est une scène Phaser où Moussa se tient en garde, marche, dashe, s'accroupit, pare, saute et donne des coups de poing.
 
 Ce dossier est l'un des deux projets du dépôt. Le décor et les animations du personnage sont mis au point dans [`../lab/`](../lab/README.md), puis reportés ici (voir « Reporter une nouveauté du lab »).
 
@@ -31,11 +31,22 @@ Il n'y a pas de script de lint.
 | `/projets/:slug` | Étude de cas d'un projet |
 | `/a-propos` | À propos |
 | `/parcours` | Expérience |
-| `/entrainement` | Arène Phaser jouable : Moussa en garde, marche et dash au clavier ou aux boutons |
+| `/entrainement` | Arène Phaser jouable, au clavier ou aux boutons |
 | `/contact` | Contact |
 | toute autre adresse | Page de secours |
 
-Dans l'arène : maintenir ← → (ou Q et D) pour marcher, appuyer deux fois vite sur la même direction pour un dash. Les boutons « Reculer » et « Avancer » font la même chose à la souris et au doigt.
+Dans l'arène :
+
+| Action | Clavier |
+|---|---|
+| Marcher | maintenir ← → ou Q D |
+| Dasher | deux appuis rapides sur la même direction |
+| S'accroupir | maintenir ↓ ou S |
+| Parer, debout ou accroupi | maintenir Espace |
+| Sauter | ↑ ou Z |
+| Attaquer | J, puis J à nouveau pour enchaîner le coup moyen |
+
+Les boutons sous l'arène font la même chose à la souris et au doigt.
 
 ## Structure
 
@@ -46,11 +57,12 @@ Dans l'arène : maintenir ← → (ou Q et D) pour marcher, appuyer deux fois vi
 - `src/data/` — tous les contenus (projets, parcours, profil, contact, combattants, navigation).
 - `src/game/` — moteur de jeu : configuration Phaser et `ArenaScene`.
 - `src/game/stage/` — décor animé de l'arène : shader, caméra et météo.
-- `src/game/hero/` — Moussa jouable : poses découpées en calques, rig, état garde / marche / dash.
+- `src/game/hero/` — Moussa jouable : poses découpées en calques, rig, état du personnage, chargement des atlas.
+- `src/game/input.ts` — clavier de l'arène.
 - `src/styles/` — `main.css` (jetons et base), `components.css`, `pages.css`.
 - `public/assets/backgrounds/` — `stage.webp` (décor) et `depth.png` (carte lue par le shader), repris de `lab/`. Ne pas recompresser ni redimensionner la carte.
 - `public/assets/fighters/moussa/` — visuels de Moussa utilisés par les pages. L'adversaire n'a pas encore de visuel.
-- `public/assets/fighters/moussa/poses/` — atlas des cinq poses de Moussa dans l'arène, générés dans `lab/`.
+- `public/assets/fighters/moussa/poses/` — atlas des vingt poses de Moussa dans l'arène, générés dans `lab/` (environ 17 Mo).
 - `tools/anim-plan-01/` — générateur des 24 images du bandeau rouge (Plan 01). Le site ne s'en sert pas.
 
 ## Documentation
@@ -76,10 +88,10 @@ Les deux moteurs sont différents : rien ne se copie tout seul. Pour une nouvell
 
 1. Copier les atlas concernés de `../lab/public/assets/hero/` vers `public/assets/fighters/moussa/poses/`.
 2. Recopier `../lab/src/game/hero/poseData.ts` et `poseRig.ts` dans `src/game/hero/` (en gardant la première ligne de `poseRig.ts`, qui indique d'où il vient).
-3. Reporter à la main ce qui a changé dans `../lab/src/game/hero/HeroLayer.ts` : l'état dans `heroState.ts`, l'alignement et l'échelle des poses dans `HeroRig.ts`, le dessin dans `scenes/ArenaScene.ts`.
+3. Reporter à la main ce qui a changé dans `../lab/src/game/hero/HeroLayer.ts` : l'état et ses réglages dans `heroState.ts`, l'échelle des poses dans `HeroRig.ts`, le dessin dans `scenes/ArenaScene.ts`. Une nouvelle action s'ajoute aussi à `ACTION_POSES` (ses images), à `input.ts` (sa touche) et à `controls.ts` (son bouton).
 4. Lancer le site, regarder l'arène, et noter dans le message de commit le commit du lab qui a été repris.
 
-Dernier état repris : `lab/` au commit `16fb13e`.
+Dernier état repris : `lab/` au commit `75c9232`.
 
 ## Ce qui n'est pas dans le dépôt
 

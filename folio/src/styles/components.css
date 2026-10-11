@@ -850,6 +850,10 @@ a:focus-visible > .btn--primary {
   padding: 14px 6px 4px;
 }
 
+.arena-controls__hint {
+  flex-basis: 100%;
+}
+
 /* Boutons à maintenir : pas de défilement ni de sélection de texte pendant l'appui. */
 .arena-controls__button {
   touch-action: none;

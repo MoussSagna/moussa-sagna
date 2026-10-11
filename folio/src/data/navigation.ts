@@ -39,7 +39,7 @@ export const TRAINING_MODULES: TrainingModule[] = [
   {
     id: 'bases',
     label: 'Mouvements de base',
-    description: 'Garde et posture de Moussa dans l’arène.',
+    description: 'Garde, accroupi et parade, debout ou accroupie.',
     available: true,
   },
   {
@@ -51,14 +51,14 @@ export const TRAINING_MODULES: TrainingModule[] = [
   {
     id: 'esquives',
     label: 'Esquives',
-    description: 'Dash avant et arrière : deux appuis rapides dans la même direction. Les sauts viendront ensuite.',
+    description: 'Dash avant et arrière au double appui, et saut vertical.',
     available: true,
   },
   {
     id: 'combos',
     label: 'Combos',
-    description: 'Enchaînements d’attaques, si le prototype de combat est retenu.',
-    available: false,
+    description: 'Coup de poing léger, puis moyen sur un second appui. D’autres coups viendront.',
+    available: true,
   },
   {
     id: 'entrainement',

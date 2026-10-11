@@ -1,13 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { DASH, DOUBLE_TAP_MS, DoubleTap, HeroState, PLACEMENT, STEP_SECONDS } from './heroState';
+import {
+  BLOCK_STEP_SECONDS,
+  CROUCH_STEP_SECONDS,
+  DASH,
+  DOUBLE_TAP_MS,
+  DoubleTap,
+  HeroState,
+  JUMP,
+  PLACEMENT,
+  PUNCHES,
+  STEP_SECONDS,
+} from './heroState';
 
 const ASPECT = 720 / 1280;
 const FRAME = 1 / 60;
 
 /** Fait avancer l'état pendant `seconds`, image par image. */
-function run(hero: HeroState, seconds: number, direction: number): void {
+function run(hero: HeroState, seconds: number, direction: number, crouch = false, block = false): void {
   for (let elapsed = 0; elapsed < seconds; elapsed += FRAME) {
-    hero.update(FRAME, direction, ASPECT);
+    hero.update(FRAME, direction, ASPECT, crouch, block);
   }
 }
 
@@ -77,6 +88,163 @@ describe('HeroState', () => {
       hero.dash(-1);
     }
     expect(hero.x).toBeGreaterThanOrEqual(PLACEMENT.minX);
+  });
+});
+
+describe('accroupi et parade', () => {
+  it('s’accroupit et se relève en passant par la pose à mi-descente', () => {
+    const hero = new HeroState();
+    hero.update(FRAME, 0, ASPECT, true);
+    expect(hero.pose).toBe('crouchStep');
+    run(hero, CROUCH_STEP_SECONDS + FRAME, 0, true);
+    expect(hero.pose).toBe('crouch');
+    hero.update(FRAME, 0, ASPECT, false);
+    expect(hero.pose).toBe('crouchStep');
+    run(hero, CROUCH_STEP_SECONDS + FRAME, 0);
+    expect(hero.pose).toBe('guard');
+  });
+
+  it('pare debout avec une pose de passage, et accroupi sans', () => {
+    const hero = new HeroState();
+    hero.update(FRAME, 0, ASPECT, false, true);
+    expect(hero.pose).toBe('blockStep');
+    run(hero, BLOCK_STEP_SECONDS + FRAME, 0, false, true);
+    expect(hero.pose).toBe('block');
+    run(hero, 0.5, 0);
+    expect(hero.pose).toBe('guard');
+
+    run(hero, 0.5, 0, true);
+    expect(hero.pose).toBe('crouch');
+    hero.update(FRAME, 0, ASPECT, true, true);
+    expect(hero.pose).toBe('crouchBlock');
+    hero.update(FRAME, 0, ASPECT, true, false);
+    expect(hero.pose).toBe('crouch');
+  });
+
+  it('ne se déplace ni accroupi ni en parade, et ne dashe pas', () => {
+    const hero = new HeroState();
+    run(hero, 1, 1, true);
+    expect(hero.x).toBe(PLACEMENT.x);
+    hero.dash(1);
+    expect(hero.pose).toBe('crouch');
+    run(hero, 0.5, 0);
+    run(hero, 1, 1, false, true);
+    expect(hero.x).toBe(PLACEMENT.x);
+  });
+
+  it('arrête d’abord la marche quand on s’accroupit en marchant', () => {
+    const hero = new HeroState();
+    run(hero, 0.5, 1);
+    expect(hero.pose).toBe('walk');
+    const seen = new Set<string>();
+    for (let n = 0; n < 30; n++) {
+      hero.update(FRAME, 1, ASPECT, true);
+      seen.add(hero.pose);
+    }
+    expect(hero.pose).toBe('crouch');
+    expect(seen.has('guard') || seen.has('step')).toBe(true);
+  });
+});
+
+describe('saut', () => {
+  it('enchaîne impulsion, montée, corps regroupé et réception, puis revient en garde', () => {
+    const hero = new HeroState();
+    hero.jump();
+    const order: string[] = [];
+    let highest = 0;
+    for (let n = 0; n < 120 && hero.pose === 'jump'; n++) {
+      const frame = hero.jumpFrame();
+      if (order[order.length - 1] !== frame.name) {
+        order.push(frame.name);
+      }
+      highest = Math.max(highest, frame.lift);
+      hero.update(FRAME, 0, ASPECT);
+    }
+    expect(order).toEqual(['jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand']);
+    expect(highest).toBeGreaterThan(JUMP.height * 0.98);
+    expect(highest).toBeLessThanOrEqual(JUMP.height);
+    expect(hero.pose).toBe('guard');
+    expect(hero.x).toBe(PLACEMENT.x);
+  });
+
+  it('reste au sol pendant l’impulsion et la réception', () => {
+    const hero = new HeroState();
+    hero.jump();
+    expect(hero.jumpFrame().lift).toBe(0);
+    run(hero, JUMP.start + JUMP.rise + JUMP.fall + FRAME, 0);
+    expect(hero.jumpFrame().name).toBe('jumpLand');
+    expect(hero.jumpFrame().lift).toBe(0);
+  });
+
+  it('ne part ni accroupi, ni pendant un dash ou un autre saut', () => {
+    const hero = new HeroState();
+    run(hero, 0.5, 0, true);
+    hero.jump();
+    expect(hero.pose).toBe('crouch');
+    run(hero, 0.5, 0);
+    hero.dash(1);
+    hero.jump();
+    expect(hero.pose).toBe('dash');
+  });
+});
+
+describe('coups de poing', () => {
+  const light = PUNCHES.light;
+  const medium = PUNCHES.medium;
+
+  it('joue le coup léger seul : démarrage, bras tendu, retour, puis garde', () => {
+    const hero = new HeroState();
+    hero.attack();
+    expect(hero.illustration).toBe('punchStart');
+    run(hero, light.startup + FRAME / 2, 0);
+    expect(hero.illustration).toBe('punchHit');
+    run(hero, light.active, 0);
+    expect(hero.illustration).toBe('punchStart');
+    run(hero, light.recovery + FRAME, 0);
+    expect(hero.pose).toBe('guard');
+  });
+
+  it('enchaîne le coup moyen sur un second appui, à la place de la récupération', () => {
+    const hero = new HeroState();
+    hero.attack();
+    hero.update(FRAME, 0, ASPECT);
+    hero.attack();
+    const order: string[] = [];
+    for (let n = 0; n < 120 && hero.pose === 'punch'; n++) {
+      if (order[order.length - 1] !== hero.illustration) {
+        order.push(hero.illustration);
+      }
+      hero.update(FRAME, 0, ASPECT);
+    }
+    expect(order).toEqual([
+      'punchStart',
+      'punchHit',
+      'punchChain1',
+      'punchChain2',
+      'punchMidHit',
+      'punchMidRecover',
+    ]);
+    expect(hero.punchStrength).toBe('medium');
+    expect(hero.pose).toBe('guard');
+  });
+
+  it('s’arrête au coup moyen : un troisième appui n’ajoute rien', () => {
+    const hero = new HeroState();
+    hero.attack();
+    hero.update(FRAME, 0, ASPECT);
+    hero.attack();
+    run(hero, light.startup + light.active + FRAME, 0);
+    expect(hero.punchStrength).toBe('medium');
+    hero.attack();
+    run(hero, medium.startup + medium.active + medium.recovery + FRAME, 0);
+    expect(hero.pose).toBe('guard');
+  });
+
+  it('ne part pas accroupi', () => {
+    const hero = new HeroState();
+    run(hero, 0.5, 0, true);
+    hero.attack();
+    expect(hero.pose).toBe('crouch');
   });
 });
 

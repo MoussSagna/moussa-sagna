@@ -5,17 +5,99 @@ import { GAIT, WALK_SPEED } from './poseRig';
 /** Une illustration du personnage. */
 export type PoseName = keyof typeof POSES;
 
+/** Ce que fait le personnage. Le dash, le saut et le coup de poing affichent plusieurs illustrations. */
+export type HeroAction =
+  | 'guard'
+  | 'step'
+  | 'walk'
+  | 'dash'
+  | 'crouchStep'
+  | 'crouch'
+  | 'blockStep'
+  | 'block'
+  | 'crouchBlock'
+  | 'jump'
+  | 'punch';
+
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 export const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 };
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
 export const STEP_SECONDS = 0.09;
+/** Durée de la pose à mi-descente entre la garde et l'accroupi, en secondes. */
+export const CROUCH_STEP_SECONDS = 0.07;
+/** Durée de la pose de passage entre la garde et la parade debout, en secondes. */
+export const BLOCK_STEP_SECONDS = 0.05;
 
 /** Dash : distance en fraction de la largeur de l'écran, durée en secondes. Le déplacement part vite et freine. */
 export const DASH = {
   forward: { distance: 0.17, seconds: 0.3 },
   back: { distance: 0.13, seconds: 0.26 },
 };
+
+/**
+ * Saut vertical. Durées en secondes, hauteur en pixels de la toile (du sol au point le plus haut des pieds).
+ * `tuck` : part de la montée après laquelle le corps se regroupe ; avant, il est encore en extension.
+ * Un seul dessin couvre presque tout le vol : c'est sa déformation continue qui donne le mouvement.
+ */
+export const JUMP = {
+  start: 0.1,
+  /** Montée puis retombée : la retombée est plus courte, le personnage tombe plus vite qu'il ne monte. */
+  rise: 0.4,
+  fall: 0.27,
+  land: 0.14,
+  height: 600,
+  tuck: 0.26,
+  /** Déformation du dessin : tassement à l'impulsion et à la réception, étirement à pleine vitesse. */
+  squash: 0.09,
+  stretch: 0.07,
+};
+
+interface Punch {
+  startup: number;
+  active: number;
+  recovery: number;
+  /** Distance entre l'aplomb des hanches et le bout du poing tendu, en pixels de la toile, pour la future zone de frappe. */
+  reach: number;
+  /** Dessins du démarrage, qui se partagent sa durée. */
+  start: PoseName[];
+  hit: PoseName;
+  recover: PoseName;
+}
+
+/**
+ * Coups de poing debout. Durées en secondes, calquées sur des coups de jeu de combat à 60 images par
+ * seconde (démarrage, actif, récupération). Le léger réutilise son dessin de démarrage pour la
+ * récupération. Le moyen ne s'obtient qu'en enchaînant après le léger : son démarrage est fait des deux
+ * dessins de transition entre le jab et le direct.
+ */
+export const PUNCHES = {
+  light: {
+    startup: 4 / 60,
+    active: 3 / 60,
+    recovery: 7 / 60,
+    reach: 580,
+    start: ['punchStart'],
+    hit: 'punchHit',
+    recover: 'punchStart',
+  },
+  medium: {
+    startup: 6 / 60,
+    active: 4 / 60,
+    recovery: 11 / 60,
+    reach: 560,
+    start: ['punchChain1', 'punchChain2'],
+    hit: 'punchMidHit',
+    recover: 'punchMidRecover',
+  },
+} satisfies Record<string, Punch>;
+export type PunchStrength = keyof typeof PUNCHES;
+
+/**
+ * Enchaînement : une seule touche d'attaque. Un nouvel appui pendant un coup met le suivant en attente ;
+ * il part dès la fin des images actives, sans attendre la récupération.
+ */
+const CHAIN: Partial<Record<PunchStrength, PunchStrength>> = { light: 'medium' };
 
 /** Deux appuis sur la même direction en moins de ce délai (millisecondes) déclenchent un dash. */
 export const DOUBLE_TAP_MS = 260;
@@ -34,32 +116,60 @@ export class DoubleTap {
   }
 }
 
+/** Dessin, hauteur des pieds (pixels de la toile) et déformation (largeur, hauteur) à un instant du saut. */
+export interface JumpFrame {
+  name: PoseName;
+  lift: number;
+  sx: number;
+  sy: number;
+}
+
 /**
- * État du personnage, repris de `HeroLayer` de `lab/` : garde à l'arrêt, pose intermédiaire,
- * marche, et dash. On ne saute jamais directement de la garde à la marche.
+ * État du personnage, repris de `HeroLayer` de `lab/` : garde, marche, dash, accroupi, parade, saut et
+ * coups de poing. On ne saute jamais directement de la garde à la marche, à l'accroupi ou à la parade
+ * debout : une pose de passage s'affiche un instant.
  */
 export class HeroState {
   /** Position horizontale, en fraction de la largeur de l'écran. */
   x = PLACEMENT.x;
-  pose: 'guard' | 'step' | 'walk' | 'dash' = 'guard';
+  pose: HeroAction = 'guard';
   /** Phase du cycle de marche, de 0 à 1. */
   phase = 0;
   /** Dash en cours : sens, position de départ et temps écoulé. */
   dashing = { direction: 1, from: PLACEMENT.x, time: 0 };
-  /** Temps restant dans la pose intermédiaire. */
+  /** Coup de poing en cours. */
+  punchStrength: PunchStrength = 'light';
+  /** Temps écoulé depuis le début du coup de poing en cours. */
+  private punchTime = 0;
+  /** Vrai si la touche d'attaque a été pressée à nouveau pendant le coup en cours. */
+  private punchQueued = false;
+  /** Temps écoulé depuis le début du saut en cours. */
+  private jumpTime = 0;
+  /** Temps restant dans la pose de passage. */
   private stepLeft = 0;
+
+  /** Vrai en garde ou en marche : les seuls états d'où partent un dash, un saut ou un coup. */
+  private get free(): boolean {
+    return this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk';
+  }
 
   /** L'illustration à afficher pour l'état courant. */
   get illustration(): PoseName {
-    if (this.pose !== 'dash') {
-      return this.pose;
+    switch (this.pose) {
+      case 'dash':
+        return this.dashing.direction > 0 ? 'dashForward' : 'dashBack';
+      case 'jump':
+        return this.jumpFrame().name;
+      case 'punch':
+        return this.punchPose();
+      default:
+        return this.pose;
     }
-    return this.dashing.direction > 0 ? 'dashForward' : 'dashBack';
   }
 
-  /** Lance un dash : 1 vers l'avant, -1 vers l'arrière. Sans effet pendant un dash. */
+  /** Lance un dash : 1 vers l'avant, -1 vers l'arrière. Possible seulement depuis la garde ou la marche. */
   dash(direction: number): void {
-    if (this.pose === 'dash' || direction === 0) {
+    if (!this.free || direction === 0) {
       return;
     }
     this.pose = 'dash';
@@ -75,12 +185,83 @@ export class HeroState {
     return Math.max(PLACEMENT.minX, Math.min(PLACEMENT.maxX, x));
   }
 
+  /** Lance un saut vertical. Possible seulement depuis la garde ou la marche. */
+  jump(): void {
+    if (!this.free) {
+      return;
+    }
+    this.pose = 'jump';
+    this.jumpTime = 0;
+  }
+
   /**
+   * Le saut à l'instant courant. Le dessin se tasse pendant l'impulsion, s'étire quand il va vite,
+   * reprend sa forme au sommet, puis s'écrase à la réception avant de se redresser.
+   */
+  jumpFrame(): JumpFrame {
+    const t = this.jumpTime - JUMP.start;
+    if (t < 0) {
+      const p = 1 + t / JUMP.start;
+      const squash = JUMP.squash * p * p;
+      return { name: 'jumpStart', lift: 0, sx: 1 + squash * 0.5, sy: 1 - squash };
+    }
+    if (t >= JUMP.rise + JUMP.fall) {
+      const q = Math.min(1, (t - JUMP.rise - JUMP.fall) / JUMP.land);
+      const squash = JUMP.squash * (1 - q) ** 2;
+      return { name: 'jumpLand', lift: 0, sx: 1 + squash * 0.5, sy: 1 - squash };
+    }
+    // deux demi-paraboles qui se rejoignent au sommet ; vitesse verticale : 1 au décollage, 0 au sommet, 1 à la retombée
+    const rising = t < JUMP.rise;
+    const speed = rising ? 1 - t / JUMP.rise : (t - JUMP.rise) / JUMP.fall;
+    const stretch = JUMP.stretch * speed * speed;
+    return {
+      name: rising && t / JUMP.rise < JUMP.tuck ? 'jumpRise' : 'jumpPeak',
+      lift: JUMP.height * (1 - speed * speed),
+      sx: 1 - stretch * 0.6,
+      sy: 1 + stretch,
+    };
+  }
+
+  /**
+   * Touche d'attaque. Depuis la garde ou la marche, lance le coup léger ; pendant un coup, met en attente
+   * le coup suivant de l'enchaînement.
+   */
+  attack(): void {
+    if (this.pose === 'punch') {
+      if (CHAIN[this.punchStrength]) {
+        this.punchQueued = true;
+      }
+      return;
+    }
+    if (!this.free) {
+      return;
+    }
+    this.pose = 'punch';
+    this.punchStrength = 'light';
+    this.punchTime = 0;
+    this.punchQueued = false;
+  }
+
+  /** Dessin du coup de poing en cours : démarrage, bras tendu pendant les images actives, puis récupération. */
+  private punchPose(): PoseName {
+    const move: Punch = PUNCHES[this.punchStrength];
+    if (this.punchTime < move.startup) {
+      const index = Math.floor((this.punchTime / move.startup) * move.start.length);
+      return move.start[Math.min(move.start.length - 1, index)] ?? move.hit;
+    }
+    return this.punchTime < move.startup + move.active ? move.hit : move.recover;
+  }
+
+  /**
+   * Fait avancer l'état du personnage. Accroupi ou en parade, il ne se déplace pas.
+   *
    * @param delta durée de l'image, en secondes
    * @param direction 1 vers l'avant, -1 vers l'arrière, 0 à l'arrêt
    * @param aspect hauteur de la scène divisée par sa largeur
+   * @param crouch s'accroupir tant que c'est vrai
+   * @param block parer tant que c'est vrai
    */
-  update(delta: number, direction: number, aspect: number): void {
+  update(delta: number, direction: number, aspect: number, crouch = false, block = false): void {
     if (this.pose === 'dash') {
       this.dashing.time += delta;
       this.x = this.dashX(this.dashing.time);
@@ -90,8 +271,65 @@ export class HeroState {
       }
       this.pose = 'guard';
     }
+    if (this.pose === 'punch') {
+      this.punchTime += delta;
+      const move: Punch = PUNCHES[this.punchStrength];
+      const next = CHAIN[this.punchStrength];
+      if (next && this.punchQueued && this.punchTime >= move.startup + move.active) {
+        // le coup suivant remplace la récupération de celui-ci
+        this.punchStrength = next;
+        this.punchTime = 0;
+        this.punchQueued = false;
+        return;
+      }
+      if (this.punchTime < move.startup + move.active + move.recovery) {
+        return;
+      }
+      this.pose = 'guard';
+    }
+    if (this.pose === 'jump') {
+      this.jumpTime += delta;
+      if (this.jumpTime < JUMP.start + JUMP.rise + JUMP.fall + JUMP.land) {
+        return;
+      }
+      this.pose = 'guard';
+    }
+    // poses de passage : elles durent un instant, puis on arrive selon ce qui est encore demandé
+    if (this.pose === 'crouchStep' || this.pose === 'blockStep') {
+      this.stepLeft -= delta;
+      if (this.stepLeft > 0) {
+        return;
+      }
+      if (this.pose === 'crouchStep') {
+        this.pose = crouch ? 'crouch' : 'guard';
+      } else {
+        this.pose = block && !crouch ? 'block' : 'guard';
+      }
+      return;
+    }
+    // accroupi : la parade basse se prend et se quitte sans pose de passage
+    if (this.pose === 'crouch' || this.pose === 'crouchBlock') {
+      if (!crouch) {
+        this.pass('crouchStep');
+      } else {
+        this.pose = block ? 'crouchBlock' : 'crouch';
+      }
+      return;
+    }
+    if (this.pose === 'block') {
+      if (!block || crouch) {
+        this.pass('blockStep');
+      }
+      return;
+    }
+    if (this.pose === 'guard' && (crouch || block)) {
+      this.pass(crouch ? 'crouchStep' : 'blockStep');
+      return;
+    }
     const blocked = (direction > 0 && this.x >= PLACEMENT.maxX) || (direction < 0 && this.x <= PLACEMENT.minX);
-    const moving = direction !== 0 && !blocked;
+    // demander l'accroupi ou la parade en marchant arrête d'abord la marche : le personnage repasse par la garde
+    const moving = direction !== 0 && !blocked && !crouch && !block;
+    // garde <-> pose intermédiaire <-> marche : on ne saute jamais directement d'un bout à l'autre
     if (this.pose === 'step') {
       this.stepLeft -= delta;
       if (this.stepLeft <= 0) {
@@ -109,5 +347,10 @@ export class HeroState {
     // le corps avance à la vitesse du pied posé ; jouer le cycle à l'envers donne la marche arrière
     const pixel = (PLACEMENT.scale / CANVAS[1]) * aspect;
     this.x = Math.max(PLACEMENT.minX, Math.min(PLACEMENT.maxX, this.x + direction * WALK_SPEED * pixel * delta));
+  }
+
+  private pass(pose: 'crouchStep' | 'blockStep'): void {
+    this.pose = pose;
+    this.stepLeft = pose === 'crouchStep' ? CROUCH_STEP_SECONDS : BLOCK_STEP_SECONDS;
   }
 }
