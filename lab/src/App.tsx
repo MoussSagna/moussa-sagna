@@ -22,7 +22,7 @@ const DUMMY_KEYS = new Set(['k'])
 const DOUBLE_TAP_MS = 260
 
 function App() {
-  const [options, setOptions] = useState<StageOptions>({ rain: true, petals: true, calm: prefersCalm })
+  const [options, setOptions] = useState<StageOptions>({ rain: true, petals: true, calm: prefersCalm, opponent: 'rival' })
   const [introKey, setIntroKey] = useState(0)
   const [walk, setWalk] = useState(0)
   const [crouch, setCrouch] = useState(false)
@@ -52,7 +52,7 @@ function App() {
     if (held) tap(direction)
     setWalk(held ? direction : 0)
   }
-  const toggle = (key: keyof StageOptions) => setOptions((current) => ({ ...current, [key]: !current[key] }))
+  const toggle = (key: 'rain' | 'petals' | 'calm') => setOptions((current) => ({ ...current, [key]: !current[key] }))
 
   useEffect(() => {
     const held = new Set<string>()
@@ -138,6 +138,11 @@ function App() {
         </button>
         <Toggle label="Pluie" checked={options.rain} onChange={() => toggle('rain')} />
         <Toggle label="Pétales" checked={options.petals} onChange={() => toggle('petals')} />
+        <Toggle
+          label="Mannequin d'entraînement"
+          checked={options.opponent !== 'rival'}
+          onChange={() => setOptions((current) => ({ ...current, opponent: current.opponent === 'rival' ? 'dummy' : 'rival' }))}
+        />
         <Toggle label="Réduire les mouvements" checked={options.calm} onChange={() => toggle('calm')} />
       </div>
       <p className="m-0 text-[15px] text-muted">

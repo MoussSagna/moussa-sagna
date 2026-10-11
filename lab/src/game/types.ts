@@ -10,6 +10,8 @@ export interface StageOptions {
   petals: boolean
   /** Réduit les mouvements : plus d'éclairs ni de parasites, caméra fixe, moins de particules. */
   calm: boolean
+  /** Qui fait face au personnage : le mannequin d'entraînement ou l'adversaire. Le mannequin par défaut. */
+  opponent?: 'dummy' | 'rival'
 }
 
 export interface FrameInfo {

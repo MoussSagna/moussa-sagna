@@ -35,6 +35,7 @@ export function StageScreen({ options, introKey, walk, crouch, block, dash, jump
   const root = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLCanvasElement>(null)
   const dummy = useRef<HTMLCanvasElement>(null)
+  const rival = useRef<HTMLCanvasElement>(null)
   const hero = useRef<HTMLCanvasElement>(null)
   const weather = useRef<HTMLCanvasElement>(null)
   const engine = useRef<StageEngine | null>(null)
@@ -43,10 +44,11 @@ export function StageScreen({ options, introKey, walk, crouch, block, dash, jump
   const intro = finishedKey !== introKey
 
   useEffect(() => {
-    if (!root.current || !backdrop.current || !dummy.current || !hero.current || !weather.current) return
+    if (!root.current || !backdrop.current || !dummy.current || !rival.current || !hero.current || !weather.current) return
     const instance = new StageEngine(root.current, {
       backdrop: backdrop.current,
       dummy: dummy.current,
+      rival: rival.current,
       hero: hero.current,
       weather: weather.current,
     })
@@ -116,6 +118,7 @@ export function StageScreen({ options, introKey, walk, crouch, block, dash, jump
         aria-label="Stage Tokyo Underground : une cour de temple sous la pluie, lune rouge, cerisier en fleurs et ville au néon"
       />
       <canvas ref={dummy} className="pointer-events-none absolute inset-0 block size-full" aria-label="Mannequin d'entraînement" />
+      <canvas ref={rival} className="pointer-events-none absolute inset-0 block size-full" aria-label="L'adversaire en garde" />
       <canvas ref={hero} className="pointer-events-none absolute inset-0 block size-full" aria-label="Moussa en garde" />
       <canvas ref={weather} className="pointer-events-none absolute inset-0 block size-full" aria-hidden="true" />
 

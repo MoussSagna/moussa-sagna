@@ -1,0 +1,37 @@
+"""Prépare les illustrations de l'adversaire pour le moteur.
+
+Usage (depuis lab/) : python3 tools/prepare_rival.py
+Lit, dans art/ à la racine du dépôt, les rival-*.png (fond vert uni, 1024 x 1536, personnage tourné vers la gauche).
+Écrit une image par pose dans public/assets/rival/, sur une toile de 1024 x 2048 (le dessin occupe le haut).
+Le point posé au sol et les réglages de chaque pose sont dans src/game/rival/RivalLayer.ts.
+"""
+import numpy as np
+from PIL import Image
+
+from prepare_poses import ART, H, ROOT, W, key_green
+
+OUT = ROOT / 'public' / 'assets' / 'rival'
+
+
+def main() -> None:
+    OUT.mkdir(parents=True, exist_ok=True)
+    for path in sorted(ART.glob('rival-*.png')):
+        rgb = np.asarray(Image.open(path).convert('RGB')).copy()
+        assert rgb.shape[:2] == (H, W), path.name
+        art = key_green(rgb)
+        art[art[..., 3] == 0] = 0
+        # côtés en puissances de deux, pour les mipmaps
+        atlas = np.zeros((2048, W, 4), np.uint8)
+        atlas[:H] = art
+        name = path.stem.removeprefix('rival-')
+        Image.fromarray(atlas).save(OUT / f'{name}.webp', lossless=True, quality=100, method=6)
+        solid = art[..., 3] > 128
+        ys, xs = np.where(solid)
+        low = np.where(solid[ys.max() - 150:].any(axis=0))[0]
+        print(f'{name} : x {xs.min()}-{xs.max()}, y {ys.min()}-{ys.max()}, appuis x {low.min()}-{low.max()}')
+        for y in range(300, 1300, 100):
+            print(f'    y {y} : bord gauche {np.where(solid[y])[0].min()}')
+
+
+if __name__ == '__main__':
+    main()

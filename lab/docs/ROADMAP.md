@@ -14,6 +14,8 @@
 - [x] Coups de poing léger et moyen debout, minutés comme dans un jeu de combat. Le léger a un jeu de jambes de boxe (à juger en mouvement).
 - [x] Mannequin d'entraînement : les coups et la boule de feu le touchent, avec arrêt sur image, étincelle, secousse et oscillation sur son ressort (à juger en mouvement).
 - [x] Coups reçus : le mannequin attaque sur commande, le personnage encaisse (deux dessins, recul) ou pare (étincelle bleue, recul court) (à juger en mouvement).
+- [x] Adversaire original, en garde face au personnage : il encaisse les coups en penchant, sans dessin dédié.
+- [ ] Adversaire : marche, coup, coup encaissé, parade, puis un comportement.
 - [x] Enchaînement seulement si le coup touche, et annulation de la récupération d'un coup par l'attaque spéciale.
 - [x] Un seul atlas lié à la fois : plus de limite au nombre de poses.
 - [x] Logos de marque effacés sur les baskets de la garde et de la marche.
@@ -47,7 +49,7 @@
 2. **Transitions entre écrans** : séquences chorégraphiées avec **GSAP**.
 3. **Autres animations du personnage** : sauts avant et arrière, autres coups (fort, pied, accroupi, sauté), touché, et une pose d'élan et de réception pour les dashs. Une illustration par état, toujours dans la même vue, découpée par `tools/prepare_poses.py`.
 4. **Sprites et moteur de combat** : à partir de plusieurs personnages et de nombreuses frames, passer le rendu des sprites sur **PixiJS**. Le décor en shader peut rester tel quel.
-5. **Adversaire** : un personnage original, à la place du mannequin d'entraînement.
+5. **Adversaire** : compléter ses poses et lui donner un comportement.
 6. **Mobile** : cadrage adapté, commandes tactiles, effets allégés.
 7. **Son** : musique et bruitages avec **Howler.js**, démarrés après une action du visiteur.
 8. **Mise en ligne** : build statique (`dist/`), déployable sur Vercel, Netlify ou GitHub Pages.

@@ -2,12 +2,13 @@
 
 ## Vue d'ensemble
 
-L'écran du stage empile quatre canvas dans un même conteneur, pilotés par une seule boucle.
+L'écran du stage empile cinq canvas dans un même conteneur, pilotés par une seule boucle.
 
 | Ordre | Plan | Fichier | Technique |
 | --- | --- | --- | --- |
 | 1 (fond) | Décor | `src/game/stage/StageBackdrop.ts` | WebGL, un shader plein écran |
 | 2 | Mannequin | `src/game/dummy/DummyLayer.ts` | WebGL, deux quads (socle, buste) ou un seul (coup reçu), plus le reflet et l'ombre |
+| 2 | Adversaire | `src/game/rival/RivalLayer.ts` | WebGL, un quad, plus le reflet et l'ombre. Affiché à la place du mannequin selon `options.opponent` |
 | 3 | Personnage | `src/game/hero/HeroLayer.ts` | WebGL, un quad par calque de la pose, plus le reflet et l'ombre |
 | 4 (devant) | Météo | `src/game/stage/WeatherLayer.ts` | Canvas 2D |
 
@@ -141,6 +142,12 @@ Les illustrations ont les mains vides et aucun éclairage d'effet : une lueur pe
 `DummyLayer` (`src/game/dummy/DummyLayer.ts`) est une cible fixe, posée sur le même plan du sol que le personnage. Ses deux illustrations (`../art/dummy-idle.png`, `../art/dummy-hit.png`) sont rangées côte à côte dans un seul atlas par `tools/prepare_dummy.py`.
 
 Au repos, le dessin est coupé en deux rectangles : le socle, immobile, et le buste avec son ressort, qui bascule autour du pied du ressort. Quand il reçoit un coup (`hit(power)`), il affiche le dessin du coup reçu pendant l'arrêt sur image et un instant après, puis le buste au repos repart penché et oscille comme un ressort amorti jusqu'à se redresser (`HIT` règle l'inclinaison, la fréquence et l'amortissement). « Réduire les mouvements » ramène l'oscillation à 35 %.
+
+### L'adversaire
+
+`RivalLayer` (`src/game/rival/RivalLayer.ts`) est le futur adversaire, un personnage original tourné vers la gauche. Il n'a pour l'instant que sa garde (`../art/rival-guard.png`, préparée par `tools/prepare_rival.py`) : il respire en s'étirant depuis le sol et, quand il encaisse un coup, tout son corps penche en arrière puis revient comme un ressort (`HIT`), faute de dessin de coup encaissé. Il n'attaque pas encore.
+
+Le mannequin et l'adversaire suivent la même interface, `Opponent` (`src/game/opponent.ts`) : position, surface du corps, distance minimale, `hit`, `attack`, `strike`. `StageEngine` ne connaît que cette interface et affiche celui que désigne `options.opponent` (case « Mannequin d'entraînement » dans `App.tsx`).
 
 ### Les coups qui touchent
 
