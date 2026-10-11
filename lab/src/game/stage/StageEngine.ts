@@ -59,6 +59,11 @@ export class StageEngine {
     this.hero.dash(direction)
   }
 
+  /** Lance un saut vertical du personnage. */
+  jump(): void {
+    this.hero.jump()
+  }
+
   replayIntro(): void {
     this.introAt = performance.now()
   }

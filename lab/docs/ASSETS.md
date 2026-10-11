@@ -23,9 +23,9 @@ Les scripts de `tools/` demandent Python 3 avec `pillow`, `numpy`, `opencv-pytho
 python3 tools/prepare_poses.py [--debug dossier]
 ```
 
-Le script lit `../art/hero-guard.png`, `hero-step.png`, `hero-walk.png`, `hero-dash-forward.png`, `hero-dash-back.png`, `hero-crouch-step.png`, `hero-crouch.png`, `hero-block-step.png`, `hero-block.png` et `hero-crouch-block.png`. Pour chacune il retire le fond vert, efface les logos des baskets (`LOGOS`), découpe le personnage d'après des polygones tracés à la main, rebouche les zones cachées par des aplats de la couleur du tissu, et écrit :
+Le script lit `../art/hero-guard.png`, `hero-step.png`, `hero-walk.png`, `hero-dash-forward.png`, `hero-dash-back.png`, `hero-crouch-step.png`, `hero-crouch.png`, `hero-block-step.png`, `hero-block.png`, `hero-crouch-block.png` et les quatre `hero-jump-*.png`. Pour chacune il retire le fond vert, efface les logos des baskets (`LOGOS` pour les logos sombres, `FAINT_LOGOS` pour ceux en relief pâle), découpe le personnage d'après des polygones tracés à la main, rebouche les zones cachées par des aplats de la couleur du tissu, et écrit :
 
-- `public/assets/hero/guard.webp`, `step.webp`, `walk.webp`, `dashForward.webp`, `dashBack.webp`, `crouchStep.webp`, `crouch.webp`, `blockStep.webp`, `block.webp`, `crouchBlock.webp` : un atlas par pose, en WebP sans perte, de côtés en puissances de deux pour que le moteur puisse générer les mipmaps ;
+- `public/assets/hero/guard.webp`, `step.webp`, `walk.webp`, `dashForward.webp`, `dashBack.webp`, `crouchStep.webp`, `crouch.webp`, `blockStep.webp`, `block.webp`, `crouchBlock.webp`, `jumpStart.webp`, `jumpRise.webp`, `jumpPeak.webp`, `jumpLand.webp` : un atlas par pose, en WebP sans perte, de côtés en puissances de deux pour que le moteur puisse générer les mipmaps ;
 - `src/game/hero/poseData.ts` : pour chaque pose, ses calques (place dans l'atlas et dans la toile, parent, pivot), ses articulations et son point d'appui.
 
 Avec `--debug`, il écrit aussi une planche des calques de chaque pose pour contrôler la découpe.
@@ -33,7 +33,7 @@ Avec `--debug`, il écrit aussi une planche des calques de chaque pose pour cont
 Découpe actuelle :
 
 - **garde** : rubans (deux calques), bas du corps, buste, tête ;
-- **pose intermédiaire, dashs, mi-descente, accroupi et parades** : un seul calque chacun (liste `SINGLE`, avec l'aplomb des hanches donné à la main) ;
+- **pose intermédiaire, dashs, mi-descente, accroupi, parades et saut** : un seul calque chacun (liste `SINGLE`, avec l'aplomb des hanches donné à la main) ;
 - **marche** : rubans (deux calques), tête, buste, hanche, bassin, deux bras, et cuisse, tibia et pied pour chaque jambe.
 
 Pour une nouvelle illustration, il faut retracer ses polygones et ses articulations en haut du script, puis contrôler la planche de `--debug`.
