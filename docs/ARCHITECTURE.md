@@ -73,7 +73,7 @@ Le corps avance à `WALK_SPEED`, la vitesse exacte du pied posé, pour que les a
 
 - Les membres de la marche sont des pièces rigides qui tournent : les plis du pantalon ne se redessinent pas et le genou marque un angle quand il plie.
 - Les parties cachées (haut de la cuisse éloignée, buste sous le bras) sont des aplats sans détail.
-- Il manque une illustration du milieu du pas (jambes qui se croisent), le moment où le découpage est le plus faible.
+- La marche n'utilise volontairement qu'un seul dessin. Un essai à trois dessins clés (branche `marche-poses`) a été abandonné : d'une illustration générée à l'autre, les plis, les rubans et les proportions changent, et chaque bascule se voyait comme une saccade.
 - En garde, les jambes et les bras ne sont pas articulés.
 - Les dashs sont une pose fixe qui glisse : rien ne bouge dans le dessin pendant le déplacement. Le premier des deux appuis lance brièvement la pose intermédiaire de la marche avant que le dash parte.
 
