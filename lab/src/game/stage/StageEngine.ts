@@ -1,20 +1,27 @@
-import { HeroLayer } from '../hero/HeroLayer'
+import { DummyLayer } from '../dummy/DummyLayer'
+import { HeroLayer, PLACEMENT } from '../hero/HeroLayer'
+import type { Strike } from '../hero/HeroLayer'
+import { CANVAS } from '../hero/poseData'
 import type { Camera, FrameInfo, StageOptions } from '../types'
 import { StageBackdrop } from './StageBackdrop'
 import { WeatherLayer } from './WeatherLayer'
 
 export interface StageCanvases {
   backdrop: HTMLCanvasElement
+  dummy: HTMLCanvasElement
   hero: HTMLCanvasElement
   weather: HTMLCanvasElement
 }
 
 /** Durée du travelling d'ouverture, en millisecondes. */
 const INTRO_MS = 3600
+/** Secousse de la caméra à l'impact : amplitude (fraction d'écran) pour un coup de pleine puissance, et vitesse d'extinction. */
+const SHAKE = { amplitude: 0.006, decay: 16 }
 
 /**
- * Orchestre l'écran du stage : une seule boucle, une seule caméra, trois plans
- * (décor WebGL, personnage WebGL, météo Canvas 2D).
+ * Orchestre l'écran du stage : une seule boucle, une seule caméra, quatre plans
+ * (décor WebGL, mannequin WebGL, personnage WebGL, météo Canvas 2D). C'est aussi lui qui décide
+ * quand un coup touche le mannequin, et ce qui se passe alors.
  */
 export class StageEngine {
   options: StageOptions = { rain: true, petals: true, calm: false }
@@ -25,7 +32,13 @@ export class StageEngine {
   /** Vrai tant que le personnage doit parer. */
   block = false
   private backdrop: StageBackdrop
+  private dummy: DummyLayer
   private hero: HeroLayer
+  /** Arrêt sur image en cours : temps restant, et temps total passé à l'arrêt depuis le démarrage. */
+  private stop = 0
+  private frozen = 0
+  /** Secousse de la caméra, de 0 à 1 ; elle s'éteint d'elle-même. */
+  private shake = 0
   private weather: WeatherLayer
   private canvases: HTMLCanvasElement[]
   private raf = 0
@@ -40,9 +53,10 @@ export class StageEngine {
   constructor(root: HTMLElement, canvases: StageCanvases) {
     this.root = root
     this.backdrop = new StageBackdrop(canvases.backdrop)
+    this.dummy = new DummyLayer(canvases.dummy)
     this.hero = new HeroLayer(canvases.hero)
     this.weather = new WeatherLayer(canvases.weather)
-    this.canvases = [canvases.backdrop, canvases.hero, canvases.weather]
+    this.canvases = [canvases.backdrop, canvases.dummy, canvases.hero, canvases.weather]
   }
 
   /** Charge les images puis lance la boucle. Résout `false` si le décor animé est indisponible. */
@@ -50,7 +64,7 @@ export class StageEngine {
     this.root.addEventListener('pointermove', this.onPointerMove)
     this.root.addEventListener('pointerleave', this.onPointerLeave)
     this.raf = requestAnimationFrame(this.frame)
-    const [backdrop] = await Promise.all([this.backdrop.load(), this.hero.load()])
+    const [backdrop] = await Promise.all([this.backdrop.load(), this.hero.load(), this.dummy.load()])
     return backdrop
   }
 
@@ -108,6 +122,29 @@ export class StageEngine {
     }
   }
 
+  /** Le personnage ne traverse pas le mannequin ; un coup ou la boule de feu qui l'atteint le fait réagir. */
+  private resolveHits(info: FrameInfo, calm: boolean): void {
+    // largeur d'un pixel de la toile, en fraction de la largeur du stage
+    const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)
+    this.hero.wall = this.dummy.x - this.dummy.gap * pixel
+    const surface = this.dummy.x - this.dummy.surface * pixel
+    const react = (strike: Strike) => {
+      this.dummy.hit(strike.power)
+      this.stop = strike.stop * (calm ? 0.5 : 1)
+      this.shake = Math.max(this.shake, strike.power)
+    }
+    const punch = this.hero.strike(pixel)
+    if (punch && punch.x >= surface) {
+      this.hero.land(punch, surface)
+      react(punch)
+    }
+    const ball = this.hero.fireballStrike(pixel)
+    if (ball && ball.x >= surface) {
+      this.hero.burst(surface)
+      react(ball)
+    }
+  }
+
   private frame = (now: number) => {
     this.raf = requestAnimationFrame(this.frame)
     this.resize()
@@ -128,10 +165,28 @@ export class StageEngine {
       oy: p.y * 0.008 + Math.cos(time * 0.17) * 0.003 * sway,
       zoom: 1.045 + (1 - settle) * 0.13 * sway + Math.sin(time * 0.13) * 0.006 * sway,
     }
+    // secousse d'impact : elle déplace tous les plans ensemble
+    this.shake *= Math.exp(-delta * SHAKE.decay)
+    if (!calm) {
+      camera.ox += Math.sin(time * 97) * this.shake * SHAKE.amplitude
+      camera.oy += Math.cos(time * 83) * this.shake * SHAKE.amplitude * 0.6
+    }
     const info: FrameInfo = { time, delta, width: this.size.width, height: this.size.height }
     this.backdrop.draw(info, camera, calm)
-    this.hero.update(info, this.walk, this.crouch, this.block)
-    this.hero.draw(info, camera, calm)
+
+    // arrêt sur image : le combat se fige un instant, le décor, la météo et les étincelles continuent
+    const stopped = this.stop > 0
+    if (stopped) {
+      this.stop -= delta
+      this.frozen += delta
+    }
+    const fight: FrameInfo = { ...info, time: time - this.frozen, delta: stopped ? 0 : delta }
+    this.hero.update(fight, this.walk, this.crouch, this.block)
+    this.dummy.update(fight)
+    this.hero.tick(delta)
+    if (!stopped) this.resolveHits(info, calm)
+    this.dummy.draw(fight, camera, calm)
+    this.hero.draw(fight, camera, calm)
     this.weather.draw(info, -camera.ox * 0.5, this.options)
   }
 }
