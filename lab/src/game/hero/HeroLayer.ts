@@ -61,7 +61,7 @@ const POSE_SCALE: Record<PoseName, number> = {
   punchStart: 1, punchHit: 1,
   punchChain1: 1, punchChain2: 1, punchMidHit: 1, punchMidRecover: 1,
   punchHeavyStart: 1, punchHeavyHit: 1, punchHeavyRecover: 1,
-  specialCharge: 1, specialThrow: 1.09, specialRecover: 1.13,
+  specialCharge: 1, specialThrow: 1.12, specialRecover: 1,
   specialIn1: 1, specialIn2: 1, specialIn3: 1,
 }
 
