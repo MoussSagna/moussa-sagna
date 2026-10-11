@@ -15,13 +15,15 @@ interface Props {
   walk: number
   /** Vrai tant que le personnage doit rester accroupi. */
   crouch: boolean
+  /** Vrai tant que le personnage doit parer. */
+  block: boolean
   /** Dash demandé : `id` change à chaque demande, `direction` vaut 1 ou -1. */
   dash: { id: number; direction: number }
   onUnavailable?: () => void
 }
 
 /** L'écran du stage : décor animé, personnage en garde, météo et carton de titre. */
-export function StageScreen({ options, introKey, walk, crouch, dash, onUnavailable }: Props) {
+export function StageScreen({ options, introKey, walk, crouch, block, dash, onUnavailable }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLCanvasElement>(null)
   const hero = useRef<HTMLCanvasElement>(null)
@@ -61,6 +63,10 @@ export function StageScreen({ options, introKey, walk, crouch, dash, onUnavailab
   useEffect(() => {
     if (engine.current) engine.current.crouch = crouch
   }, [crouch])
+
+  useEffect(() => {
+    if (engine.current) engine.current.block = block
+  }, [block])
 
   useEffect(() => {
     if (dash.id > 0) engine.current?.dash(dash.direction)

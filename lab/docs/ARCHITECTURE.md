@@ -34,7 +34,7 @@ Les lanternes, les néons et le trajet du métro sont positionnés par leurs coo
 
 ## Le personnage
 
-Le personnage est fait de sept illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
+Le personnage est fait de dix illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
 
 | Pose | Illustration | Rôle |
 | --- | --- | --- |
@@ -45,6 +45,9 @@ Le personnage est fait de sept illustrations dans la même vue (trois quarts à 
 | `dashBack` | `../art/hero-dash-back.png` | dash arrière, un seul calque |
 | `crouchStep` | `../art/hero-crouch-step.png` | mi-descente, affichée un instant entre la garde et l'accroupi |
 | `crouch` | `../art/hero-crouch.png` | accroupi, un seul calque |
+| `blockStep` | `../art/hero-block-step.png` | passage, affiché un instant entre la garde et la parade debout |
+| `block` | `../art/hero-block.png` | parade debout, un seul calque |
+| `crouchBlock` | `../art/hero-crouch-block.png` | parade accroupie, un seul calque |
 
 - **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas par pose et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
 - **Dessin** : `HeroLayer` dessine un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice du calque ; le fragment shader retrouve le pixel d'origine dans la toile (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.
@@ -73,6 +76,12 @@ Tant que `StageEngine.crouch` est vrai, le personnage passe de la garde à la po
 
 `App.tsx` maintient l'accroupi avec la flèche bas, S ou le bouton « S'accroupir ».
 
+### La parade
+
+Tant que `StageEngine.block` est vrai, le personnage pare. Debout, il passe par la pose `blockStep` pendant `BLOCK_STEP_SECONDS` avant de tenir `block`, et fait le chemin inverse au relâchement. Accroupi, il passe directement de `crouch` à `crouchBlock` et retour, sans pose de passage : les deux dessins sont très proches. En parade, il ne marche pas et ne dashe pas. Les poses tenues (`crouch`, `block`, `crouchBlock`) respirent d'un bloc grâce à `heldMatrix`.
+
+Il n'y a pas encore d'adversaire : la parade se déclenche à la main, avec Espace ou le bouton « Parer ». Elle devra plus tard se prendre en reculant au moment d'un coup.
+
 ### Les changements d'état
 
 `HeroLayer.update` ne saute jamais directement de la garde à la marche : il affiche la pose `step` pendant `STEP_SECONDS`, puis la pose d'arrivée. Ce sont des coupes franches entre trois dessins proches, comme dans une animation dessinée, sans fondu. `StageEngine.walk` reçoit la direction (1, -1 ou 0) ; `App.tsx` la pilote au clavier et avec deux boutons à maintenir.
@@ -84,7 +93,7 @@ Tant que `StageEngine.crouch` est vrai, le personnage passe de la garde à la po
 - La marche n'utilise volontairement qu'un seul dessin. Un essai à trois dessins clés (branche `marche-poses`) a été abandonné : d'une illustration générée à l'autre, les plis, les rubans et les proportions changent, et chaque bascule se voyait comme une saccade.
 - En garde, les jambes et les bras ne sont pas articulés.
 - L'accroupi est un dessin entier qui respire d'un bloc : ni les bras, ni la tête, ni les rubans ne bougent séparément.
-- Avec sept atlas et la texture du reflet, le personnage occupe huit unités de texture, le minimum garanti par WebGL. Une pose de plus demandera de regrouper des atlas ou de ne lier que celui de la pose affichée.
+- Chaque pose a son atlas, mais un seul est lié à la fois (celui de la pose affichée) : le nombre de poses ne dépend plus des unités de texture du navigateur. En contrepartie, tous les atlas sont chargés au démarrage, soit environ 8 Mo d'images à télécharger.
 - Les dashs sont une pose fixe qui glisse : rien ne bouge dans le dessin pendant le déplacement. Le premier des deux appuis lance brièvement la pose intermédiaire de la marche avant que le dash parte.
 
 ## Ajouter un plan

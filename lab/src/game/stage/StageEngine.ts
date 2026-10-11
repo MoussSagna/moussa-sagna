@@ -22,6 +22,8 @@ export class StageEngine {
   walk = 0
   /** Vrai tant que le personnage doit rester accroupi. */
   crouch = false
+  /** Vrai tant que le personnage doit parer. */
+  block = false
   private backdrop: StageBackdrop
   private hero: HeroLayer
   private weather: WeatherLayer
@@ -113,7 +115,7 @@ export class StageEngine {
     }
     const info: FrameInfo = { time, delta, width: this.size.width, height: this.size.height }
     this.backdrop.draw(info, camera, calm)
-    this.hero.update(info, this.walk, this.crouch)
+    this.hero.update(info, this.walk, this.crouch, this.block)
     this.hero.draw(info, camera, calm)
     this.weather.draw(info, -camera.ox * 0.5, this.options)
   }

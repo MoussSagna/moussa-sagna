@@ -1,7 +1,7 @@
-import { asset, createProgram, loadTexture, uniforms } from '../gl'
+import { asset, createProgram, createTexture, uniforms } from '../gl'
 import type { Camera, FrameInfo } from '../types'
 import { CANVAS, POSES } from './poseData'
-import { BENDS, GAIT, WALK_SPEED, crouchMatrix, guardMatrices, walkMatrices } from './poseRig'
+import { BENDS, GAIT, WALK_SPEED, guardMatrices, heldMatrix, walkMatrices } from './poseRig'
 import type { Affine } from './poseRig'
 import { FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from './shaders'
 
@@ -9,7 +9,7 @@ const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas'
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -24,6 +24,9 @@ const FEET: Record<PoseName, [number, number]> = {
   dashBack: POSES.dashBack.anchor,
   crouchStep: POSES.crouchStep.anchor,
   crouch: POSES.crouch.anchor,
+  blockStep: POSES.blockStep.anchor,
+  block: POSES.block.anchor,
+  crouchBlock: POSES.crouchBlock.anchor,
   // en marche, c'est la hanche qui est à l'aplomb du point d'appui
   walk: [POSES.walk.joints.hip_near[0], POSES.walk.anchor[1]],
 }
@@ -32,12 +35,21 @@ const FEET: Record<PoseName, [number, number]> = {
  * Agrandissement de chaque pose autour de ses pieds, pour que la tête garde la taille de celle de la garde.
  * Les illustrations de dash sont dessinées plus petit : valeurs mesurées sur la hauteur de la tête.
  */
-const POSE_SCALE: Record<PoseName, number> = { guard: 1, step: 1, walk: 1, dashForward: 1.07, dashBack: 1.15, crouchStep: 1, crouch: 1 }
+const POSE_SCALE: Record<PoseName, number> = { guard: 1, step: 1, walk: 1, dashForward: 1.07, dashBack: 1.15, crouchStep: 1, crouch: 1, blockStep: 1, block: 1, crouchBlock: 1 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
 const STEP_SECONDS = 0.09
 /** Durée de la pose à mi-descente entre la garde et l'accroupi, en secondes. */
 const CROUCH_STEP_SECONDS = 0.07
+/** Durée de la pose de passage entre la garde et la parade debout, en secondes. */
+const BLOCK_STEP_SECONDS = 0.05
+
+/** Poses tenues en un seul calque, qui respirent d'un bloc. */
+const HELD: PoseName[] = ['crouch', 'block', 'crouchBlock']
+
+/** Unités de texture : l'atlas de la pose affichée, puis la texture du reflet. */
+const ATLAS_UNIT = 0
+const REFLECTION_UNIT = 1
 const CALM_AMPLITUDE = 0.35
 
 /**
@@ -77,7 +89,9 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: 'guard' | 'step' | 'walk' | 'dash' | 'crouchStep' | 'crouch' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack'> | 'dash' = 'guard'
+  /** L'atlas de chaque pose. Un seul est lié à la fois, celui de la pose affichée. */
+  private atlases = new Map<PoseName, WebGLTexture>()
   /** Dash en cours : sens, position de départ et temps écoulé. */
   private dashing = { direction: 1, from: PLACEMENT.x, time: 0 }
   /** Temps restant dans la pose intermédiaire. */
@@ -100,14 +114,17 @@ export class HeroLayer {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW)
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-    // un atlas par pose, sur les premières unités de texture
+    // un atlas par pose ; ils ne restent pas liés, pour ne pas dépendre du nombre d'unités de texture du navigateur
     const loaded = await Promise.all(
-      POSE_NAMES.map((name, unit) => loadTexture(gl, unit, asset(POSES[name].file), { alpha: true, premultiply: true, mipmap: true })),
+      POSE_NAMES.map((name) => createTexture(gl, ATLAS_UNIT, asset(POSES[name].file), { alpha: true, premultiply: true, mipmap: true })),
     )
-    if (!loaded.every(Boolean)) return false
+    for (const [index, texture] of loaded.entries()) {
+      if (!texture) return false
+      this.atlases.set(POSE_NAMES[index], texture)
+    }
 
-    // texture hors écran du reflet, sur l'unité qui suit
-    gl.activeTexture(gl.TEXTURE0 + POSE_NAMES.length)
+    // texture hors écran du reflet, sur sa propre unité
+    gl.activeTexture(gl.TEXTURE0 + REFLECTION_UNIT)
     const texture = gl.createTexture()
     gl.bindTexture(gl.TEXTURE_2D, texture)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, REFLECTION.width, REFLECTION.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
@@ -121,14 +138,15 @@ export class HeroLayer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
 
     gl.useProgram(flat)
-    gl.uniform1i(this.flat.u.uTex, POSE_NAMES.length)
+    gl.uniform1i(this.flat.u.uTex, REFLECTION_UNIT)
     this.ready = true
     return true
   }
 
-  /** Lance un dash : 1 vers l'avant, -1 vers l'arrière. Sans effet pendant un dash ou accroupi. */
+  /** Lance un dash : 1 vers l'avant, -1 vers l'arrière. Possible seulement depuis la garde ou la marche. */
   dash(direction: number): void {
-    if (this.pose === 'dash' || this.pose === 'crouch' || this.pose === 'crouchStep' || direction === 0) return
+    const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
+    if (!free || direction === 0) return
     this.pose = 'dash'
     this.dashing = { direction: Math.sign(direction), from: this.x, time: 0 }
   }
@@ -143,9 +161,10 @@ export class HeroLayer {
 
   /**
    * Fait avancer l'état du personnage. `direction` : 1 vers l'avant, -1 vers l'arrière, 0 à l'arrêt.
-   * `crouch` : s'accroupir tant que c'est vrai ; accroupi, le personnage ne se déplace pas.
+   * `crouch` et `block` : s'accroupir et parer tant que c'est vrai. Accroupi ou en parade, le personnage
+   * ne se déplace pas.
    */
-  update(frame: FrameInfo, direction: number, crouch: boolean): void {
+  update(frame: FrameInfo, direction: number, crouch: boolean, block: boolean): void {
     if (this.pose === 'dash') {
       this.dashing.time += frame.delta
       this.x = this.dashX(this.dashing.time)
@@ -153,21 +172,35 @@ export class HeroLayer {
       if (this.dashing.time < move.seconds) return
       this.pose = 'guard'
     }
-    // garde <-> mi-descente <-> accroupi, sur le même principe que la marche
-    if (this.pose === 'crouchStep') {
+    // poses de passage : elles durent un instant, puis on arrive selon ce qui est encore demandé
+    if (this.pose === 'crouchStep' || this.pose === 'blockStep') {
       this.stepLeft -= frame.delta
-      if (this.stepLeft <= 0) this.pose = crouch ? 'crouch' : 'guard'
+      if (this.stepLeft > 0) return
+      if (this.pose === 'crouchStep') this.pose = crouch ? 'crouch' : 'guard'
+      else this.pose = block && !crouch ? 'block' : 'guard'
       return
     }
-    if (this.pose === 'crouch' ? !crouch : crouch && this.pose === 'guard') {
-      this.pose = 'crouchStep'
-      this.stepLeft = CROUCH_STEP_SECONDS
+    const pass = (pose: 'crouchStep' | 'blockStep') => {
+      this.pose = pose
+      this.stepLeft = pose === 'crouchStep' ? CROUCH_STEP_SECONDS : BLOCK_STEP_SECONDS
+    }
+    // accroupi : la parade basse se prend et se quitte sans pose de passage
+    if (this.pose === 'crouch' || this.pose === 'crouchBlock') {
+      if (!crouch) pass('crouchStep')
+      else this.pose = block ? 'crouchBlock' : 'crouch'
       return
     }
-    if (this.pose === 'crouch') return
+    if (this.pose === 'block') {
+      if (!block || crouch) pass('blockStep')
+      return
+    }
+    if (this.pose === 'guard' && (crouch || block)) {
+      pass(crouch ? 'crouchStep' : 'blockStep')
+      return
+    }
     const blocked = (direction > 0 && this.x >= PLACEMENT.maxX) || (direction < 0 && this.x <= PLACEMENT.minX)
-    // demander l'accroupi en marchant arrête d'abord la marche : le personnage repasse par la garde
-    const moving = direction !== 0 && !blocked && !crouch
+    // demander l'accroupi ou la parade en marchant arrête d'abord la marche : le personnage repasse par la garde
+    const moving = direction !== 0 && !blocked && !crouch && !block
     // garde <-> pose intermédiaire <-> marche : on ne saute jamais directement d'un bout à l'autre
     if (this.pose === 'step') {
       this.stepLeft -= frame.delta
@@ -212,8 +245,8 @@ export class HeroLayer {
         ? guardMatrices(frame.time, amplitude)
         : name === 'walk'
           ? walkMatrices(this.phase)
-          : name === 'crouch'
-            ? [crouchMatrix(frame.time, amplitude)]
+          : HELD.includes(name)
+            ? [heldMatrix(POSES[name].anchor, frame.time, amplitude)]
             : null
     const feet = FEET[name]
     const scale = POSE_SCALE[name]
@@ -226,7 +259,9 @@ export class HeroLayer {
       const u = layer.u
       gl.uniform4f(u.uView, vx, vy, vz, vw)
       gl.uniform1f(u.uAlpha, alpha)
-      gl.uniform1i(u.uTex, POSE_NAMES.indexOf(name))
+      gl.activeTexture(gl.TEXTURE0 + ATLAS_UNIT)
+      gl.bindTexture(gl.TEXTURE_2D, this.atlases.get(name) ?? null)
+      gl.uniform1i(u.uTex, ATLAS_UNIT)
       gl.uniform2f(u.uAtlasSize, pose.atlasSize[0], pose.atlasSize[1])
       pose.layers.forEach((item, index) => {
         const m = matrices ? matrices[index] : null

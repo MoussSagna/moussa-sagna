@@ -8,6 +8,8 @@ const prefersCalm = window.matchMedia('(prefers-reduced-motion: reduce)').matche
 const KEYS: Record<string, number> = { arrowright: 1, d: 1, arrowleft: -1, q: -1, a: -1 }
 /** Touches qui font s'accroupir tant qu'elles sont maintenues. */
 const CROUCH_KEYS = new Set(['arrowdown', 's'])
+/** Touches qui font parer tant qu'elles sont maintenues. */
+const BLOCK_KEYS = new Set([' '])
 /** Deux appuis sur la même direction en moins de ce délai (millisecondes) déclenchent un dash. */
 const DOUBLE_TAP_MS = 260
 
@@ -16,6 +18,7 @@ function App() {
   const [introKey, setIntroKey] = useState(0)
   const [walk, setWalk] = useState(0)
   const [crouch, setCrouch] = useState(false)
+  const [block, setBlock] = useState(false)
   const [dash, setDash] = useState({ id: 0, direction: 1 })
   const lastTap = useRef({ direction: 0, at: 0 })
   const [note, setNote] = useState('Bouge la souris sur le décor pour sentir la profondeur.')
@@ -45,23 +48,28 @@ function App() {
     const sync = () => {
       let direction = 0
       let down = false
+      let guard = false
       for (const key of held) {
         if (CROUCH_KEYS.has(key)) down = true
+        else if (BLOCK_KEYS.has(key)) guard = true
         else direction = KEYS[key]
       }
       setWalk(direction)
       setCrouch(down)
+      setBlock(guard)
     }
     const down = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase()
-      const crouching = CROUCH_KEYS.has(key)
-      if ((!(key in KEYS) && !crouching) || event.ctrlKey || event.metaKey || event.altKey) return
+      const posture = CROUCH_KEYS.has(key) || BLOCK_KEYS.has(key)
+      if ((!(key in KEYS) && !posture) || event.ctrlKey || event.metaKey || event.altKey) return
       const target = event.target
       // on ne détourne les touches que hors des champs de saisie de texte
       const typing = (target instanceof HTMLInputElement && target.type !== 'checkbox') || target instanceof HTMLTextAreaElement
-      if (typing) return
+      // Espace garde son rôle habituel sur un bouton ou une case à cocher qui a le focus
+      const control = key === ' ' && (target instanceof HTMLButtonElement || target instanceof HTMLInputElement)
+      if (typing || control) return
       event.preventDefault()
-      if (!event.repeat && !crouching) tap(KEYS[key])
+      if (!event.repeat && !posture) tap(KEYS[key])
       held.add(key)
       sync()
     }
@@ -86,13 +94,14 @@ function App() {
   return (
     <main className="mx-auto flex max-w-[1500px] flex-col gap-3.5 px-4 pt-4 pb-8">
       <h1 className="sr-only">Moussa Sagna, développeur frontend</h1>
-      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} dash={dash} onUnavailable={onUnavailable} />
+      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} block={block} dash={dash} onUnavailable={onUnavailable} />
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-muted">
         <div className="flex gap-2">
           <HoldButton label="Reculer" onHold={(held) => hold(-1, held)} />
           <HoldButton label="Avancer" onHold={(held) => hold(1, held)} />
           <HoldButton label="S'accroupir" onHold={setCrouch} />
+          <HoldButton label="Parer" onHold={setBlock} />
         </div>
         <button
           type="button"
@@ -111,7 +120,8 @@ function App() {
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Q</kbd>{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd> pour marcher, appuie deux fois vite pour un dash, maintiens{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↓</kbd> ou{' '}
-        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">S</kbd> pour t'accroupir. {note}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">S</kbd> pour t'accroupir,{' '}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Espace</kbd> pour parer. {note}
       </p>
     </main>
   )
