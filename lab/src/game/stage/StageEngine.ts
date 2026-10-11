@@ -64,6 +64,11 @@ export class StageEngine {
     this.hero.attack()
   }
 
+  /** Lance l'attaque spéciale du personnage. */
+  special(): void {
+    this.hero.special()
+  }
+
   /** Lance un saut vertical du personnage. */
   jump(): void {
     this.hero.jump()

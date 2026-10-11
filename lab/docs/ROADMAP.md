@@ -29,7 +29,10 @@
 - [x] Une seule touche d'attaque, qui enchaîne le coup léger puis le moyen.
 - [x] Deux dessins de transition entre le jab et le direct.
 - [ ] Poing moyen : refaire le retour en corps entier, comme l'impact.
-- [ ] Coup fort, troisième de l'enchaînement.
+- [x] Coup fort, un uppercut, troisième de l'enchaînement.
+- [x] Effet de vitesse sur les dashs : étirement, inclinaison et traînée.
+- [x] Attaque spéciale : boule de feu calculée par un shader (à juger en mouvement).
+- [ ] Boule de feu : impact sur un adversaire, éclairage du personnage pendant la charge, vraie commande (quart de cercle puis attaque).
 - [ ] Accroupi : animer séparément la tête et les rubans.
 - [ ] Alléger le chargement : environ 17 Mo d'atlas sont téléchargés au démarrage.
 - [ ] Parade : la déclencher en reculant au moment d'un coup, quand il y aura un adversaire.

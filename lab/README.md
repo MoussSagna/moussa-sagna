@@ -13,8 +13,9 @@ Le lab sert à mettre au point le stage et les animations du personnage avant de
 | Dash avant ou arrière | deux appuis rapides dans le même sens | deux appuis rapides sur le bouton |
 | S'accroupir | maintenir ↓ ou S | maintenir « S'accroupir » |
 | Parer (debout ou accroupi) | maintenir Espace | maintenir « Parer » |
+| Attaque spéciale (boule de feu) | L | « Spécial » |
 | Sauter | ↑ ou Z (W sur un clavier QWERTY) | « Sauter » |
-| Attaquer | J : un appui pour le coup léger, un second pour enchaîner le coup moyen | « Attaquer » |
+| Attaquer | J : un appui pour le coup léger, un second pour enchaîner le coup moyen, un troisième pour le coup fort | « Attaquer » |
 
 ## Démarrer
 
