@@ -128,47 +128,101 @@ Pluie / Pétales / Réduire les mouvements.
 
 ## Personnage jouable
 
-Moussa vient lui aussi de `lab/`. Il n'y a ni planche de frames ni animation
-pré-rendue : cinq illustrations dans la même vue (trois quarts, tourné vers la droite) sont découpées en
-calques et animées en direct.
+Moussa vient lui aussi de `lab/`. Il n'y a ni planche de frames ni animation pré-rendue : vingt illustrations
+dans la même vue (trois quarts, tourné vers la droite) sont découpées en calques et animées en direct.
+
+Il se tient en garde, marche, dashe, s'accroupit, pare debout ou accroupi, saute sur place et enchaîne deux
+coups de poing. Il n'a pas d'adversaire : les coups et la parade ne touchent rien.
 
 | Fichier | Rôle |
 |---|---|
-| `src/game/hero/poseData.ts` | Calques, articulations et point d'appui de chaque pose. **Généré**, ne pas modifier à la main. |
-| `src/game/hero/poseRig.ts` | Calcul des poses : respiration de la garde, marche par cinématique inverse. Repris tel quel. |
-| `src/game/hero/heroState.ts` | État du personnage : garde, pose intermédiaire de 0,09 s, marche, dash, double appui, bords de l'arène. |
-| `src/game/hero/HeroRig.ts` | Un objet Phaser par calque. Calques rigides : images de l'atlas. Rubans : shader d'ondulation. |
+| `src/game/hero/poseData.ts` | Calques, articulations et point d'appui de chaque pose. **Généré dans le lab**, ne pas modifier à la main. |
+| `src/game/hero/poseRig.ts` | Calcul des poses : respiration de la garde et des poses tenues, marche par cinématique inverse. Recopié tel quel du lab. |
+| `src/game/hero/heroState.ts` | État du personnage et tous ses réglages (durées, distances, minutage des coups). Sans Phaser, testé. |
+| `src/game/hero/HeroAtlases.ts` | Téléchargement des atlas et limite de ceux gardés en mémoire vidéo. |
+| `src/game/hero/HeroRig.ts` | Dessin : un objet Phaser par calque pour la garde et la marche, quelques images partagées pour les autres poses. |
 | `src/game/hero/shaders.ts` | Shader des rubans : déplacement nul à la racine, maximal à la pointe. |
-| `src/game/controls.ts` | Clé du registre Phaser par laquelle React transmet la direction demandée. |
+| `src/game/input.ts` | Clavier de l'arène. |
+| `src/game/controls.ts` | Clés du registre Phaser par lesquelles React transmet les commandes des boutons. |
 
-- **Assets** : `public/assets/fighters/moussa/poses/guard.webp`, `walk.webp` (2048 × 2048), `step.webp`,
-  `dashForward.webp` et `dashBack.webp` (1024 × 2048), en WebP sans perte, environ 4,1 Mo au total. Ils sont produits dans `lab/` par
-  `lab/tools/prepare_poses.py`, à partir des illustrations de `art/` à la racine du dépôt. Ne pas les recompresser avec perte.
-- **Commandes** : flèches gauche et droite, ou Q et D (A en QWERTY), lues par la scène ; boutons « Reculer » et
-  « Avancer » à maintenir, transmis par `ArenaCanvas` via le registre du jeu. Deux appuis sur la même direction
-  en moins de 260 ms (`DOUBLE_TAP_MS`) lancent un dash, au clavier comme aux boutons.
+### Commandes
+
+| Action | Clavier | Bouton |
+|---|---|---|
+| Marcher | maintenir ← → ou Q D (A en QWERTY) | maintenir « Reculer » ou « Avancer » |
+| Dasher | deux appuis sur la même direction en moins de 260 ms | deux appuis sur le même bouton |
+| S'accroupir | maintenir ↓ ou S | maintenir « S'accroupir » |
+| Parer | maintenir Espace | maintenir « Parer » |
+| Sauter | ↑ ou Z (W en QWERTY) | « Sauter » |
+| Attaquer | J : un appui pour le coup léger, un second pendant le coup pour enchaîner le moyen | « Attaquer » |
+
+Le clavier est lu par la scène (`ArenaKeyboard`) ; les boutons passent par le registre du jeu. Tant que l'arène
+est affichée, les touches de l'arène n'ont plus leur effet dans la page : les flèches haut et bas et Espace ne
+la font pas défiler. Deux exceptions : une saisie de texte, et Espace sur un bouton ou une case qui a le focus.
+
+### États
+
+- **Marche** : la garde et la marche sont séparées par une pose intermédiaire de 0,09 s. Le corps avance à la
+  vitesse exacte du pied posé, pour que les appuis ne patinent pas.
 - **Dash** : une pose fixe qui glisse sur une distance fixe, vite au départ puis en freinant (`DASH`). Deux
   images fantômes de plus en plus transparentes la suivent ; elles disparaissent avec les animations réduites.
+- **Accroupi et parade** : maintenus. Une pose de passage s'affiche un instant entre la garde et l'accroupi, et
+  entre la garde et la parade debout ; la parade accroupie se prend et se quitte sans passage. Accroupi ou en
+  parade, le personnage ne se déplace pas. Ces poses tenues respirent d'un bloc.
+- **Saut** : vertical, depuis la garde ou la marche. Quatre dessins (impulsion, montée, corps regroupé,
+  réception) ; la hauteur est calculée (`JUMP`) et le dessin est déformé en continu autour des pieds. Pendant le
+  vol, l'ombre rétrécit et le reflet s'éloigne des pieds en s'estompant.
+- **Coups de poing** : une seule touche. `PUNCHES` donne le minutage de chaque coup, repris d'un jeu de combat
+  à 60 images par seconde, et un dessin par phase. Un nouvel appui pendant le coup léger met le coup moyen en
+  attente : il part à la fin des images actives, à la place de la récupération.
+
+Dash, saut et coup ne partent que de la garde ou de la marche.
+
+### Chargement et mémoire vidéo
+
+- **Assets** : vingt atlas dans `public/assets/fighters/moussa/poses/`, en WebP sans perte, environ 17 Mo au
+  total. Ils sont produits dans `lab/` par `lab/tools/prepare_poses.py`, à partir des illustrations de `art/` à
+  la racine du dépôt. Ne pas les recompresser avec perte.
+- **Ordre de chargement** : la garde, la pose intermédiaire et la marche d'abord (environ 2,9 Mo), après quoi
+  le personnage apparaît. Les autres poses arrivent ensuite en arrière-plan, action par action
+  (`ACTION_POSES` dans `ArenaScene.ts`). Une action n'est acceptée que lorsque toutes ses images sont arrivées.
+- **Mémoire vidéo** : un atlas y pèse 10 à 20 Mo une fois décompressé, et les garder tous (plus de 250 Mo) fait
+  perdre le contexte WebGL sur les appareils modestes. `HeroAtlases` n'ajoute une image au gestionnaire de
+  textures de Phaser qu'au moment de l'afficher, et en retire les moins récemment utilisées au-delà de six. La
+  garde et la marche restent toujours en mémoire : leurs rubans sont dessinés par des shaders qui gardent une
+  référence à la texture. La première image d'une pose pas encore affichée peut donc arriver avec un léger
+  retard.
+- **Images partagées** : c'est pour pouvoir retirer un atlas que les poses autres que la garde et la marche
+  n'ont pas leurs propres objets Phaser. Une image au repos reçoit la texture vide de Phaser, pour ne jamais
+  pointer vers un atlas retiré.
+
+### Dessin
+
+- **Alignement** : toutes les poses sont posées au même point du sol et suivent la caméra du décor.
 - **Échelle des poses** : les illustrations ne sont pas toutes dessinées à la même taille. `POSE_SCALE`, dans
-  `HeroRig.ts`, agrandit chaque pose autour de ses pieds pour garder la taille de tête de la garde. À mesurer
-  pour chaque nouvelle image.
-- **Alignement** : les trois poses sont posées au même point du sol et suivent la caméra du décor. Le corps
-  avance à la vitesse exacte du pied posé, pour que les appuis ne patinent pas.
+  `HeroRig.ts`, agrandit ou réduit une pose autour de ses pieds pour garder la taille de tête de la garde. À
+  reporter du lab pour chaque nouvelle image.
 - **Reflet et ombre** : le reflet est un second exemplaire du rig, retourné sous les pieds, écrasé de moitié et
   à 20 % d'opacité. Là où deux calques se recouvrent, il est un peu plus dense : c'est une approximation de
   `lab/`, qui rend d'abord le personnage dans une texture.
 - **Mipmaps** : `render.mipmapFilter` est activé dans `src/game/config.ts` pour les atlas. `RIBBON_TEXTURE_DATA`
   doit garder le même filtrage, car le shader des rubans partage la texture avec les images.
-- **Animations réduites** : la respiration de la garde tombe à 35 % de son amplitude.
+- **Animations réduites** : la respiration et la déformation du saut tombent à 35 % de leur amplitude.
 
-Limites reprises de `lab/` : les membres de la marche sont des pièces rigides (le genou marque un
-angle), les zones cachées sont des aplats, et en garde les jambes et les bras ne sont pas articulés. Rien ne
-bouge dans le dessin pendant un dash, et le premier des deux appuis amorce brièvement la marche avant que le
-dash parte. La marche n'utilise volontairement qu'un seul dessin : faire alterner plusieurs illustrations dans
-une même animation se voit comme une saccade.
+### Limites
 
-État repris : `lab/` au commit `16fb13e` (11 octobre 2026). Toute nouvelle pose doit garder la même vue et la même taille de tête, sinon
-le personnage saute au changement d'état.
+Reprises de `lab/` : les membres de la marche sont des pièces rigides (le genou marque un angle), les zones
+cachées sont des aplats, et en garde les jambes et les bras ne sont pas articulés. Rien ne bouge dans le dessin
+pendant un dash, un saut ou une pose tenue, rubans compris. Le premier des deux appuis d'un dash amorce
+brièvement la marche. Le retour du coup moyen pose le haut du corps sur les jambes de la garde : les jambes
+sautent en sortant de l'impact.
+
+Une animation continue n'utilise qu'un seul dessin : faire alterner plusieurs illustrations proches se voit
+comme une saccade. L'enchaînement de coups est l'exception assumée par le lab, parce que ses poses sont
+franchement différentes.
+
+État repris : `lab/` au commit `75c9232` (11 octobre 2026). Toute nouvelle pose doit garder la même vue et la
+même taille de tête, sinon le personnage saute au changement d'état.
 
 ## Routage
 

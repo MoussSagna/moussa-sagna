@@ -21,6 +21,21 @@ export const BENDS: Record<keyof typeof POSES, Record<string, Bend>> = {
   step: {},
   dashForward: {},
   dashBack: {},
+  crouchStep: {},
+  crouch: {},
+  blockStep: {},
+  block: {},
+  crouchBlock: {},
+  jumpStart: {},
+  jumpRise: {},
+  jumpPeak: {},
+  jumpLand: {},
+  punchStart: {},
+  punchHit: {},
+  punchChain1: {},
+  punchChain2: {},
+  punchMidHit: {},
+  punchMidRecover: {},
   walk: {
     ribbons: { amplitude: 14, length: 520, axis: [-0.906, 0.423] },
     ribbon_low: { amplitude: 8, length: 200, axis: [-0.93, 0.368] },
@@ -84,8 +99,14 @@ function place(target: Point, pivot: Point, angle: number, scale = 1): Affine {
 }
 
 /** Mise à l'échelle autour d'un point fixe. */
-function scaleAbout(pivot: Point, sx: number, sy: number): Affine {
+export function scaleAbout(pivot: Point, sx: number, sy: number): Affine {
   return [sx, 0, 0, sy, pivot[0] * (1 - sx), pivot[1] * (1 - sy)]
+}
+
+/** Pose tenue en un seul calque (accroupi, parade) : le dessin entier respire en se tassant à peine vers le sol, semelles fixes. */
+export function heldMatrix(anchor: Point, time: number, amplitude: number): Affine {
+  const breath = (1 - Math.cos((2 * Math.PI * time) / GUARD.breath)) / 2
+  return scaleAbout(anchor, 1 + amplitude * 0.003 * breath, 1 - amplitude * 0.012 * breath)
 }
 
 /**

@@ -1,10 +1,14 @@
 import Phaser from 'phaser';
-import { STAGE_BACKGROUND_URL, STAGE_DEPTH_URL, heroPoseUrl } from '../../assets';
-import { WALK_REGISTRY_KEY } from '../controls';
-import { GROUND, HeroRig, POSE_NAMES, poseTextureKey, singleLayerPlacement } from '../hero/HeroRig';
-import { DoubleTap, HeroState, PLACEMENT } from '../hero/heroState';
-import { CANVAS } from '../hero/poseData';
-import { guardMatrices, walkMatrices } from '../hero/poseRig';
+import { STAGE_BACKGROUND_URL, STAGE_DEPTH_URL } from '../../assets';
+import { CONTROLS } from '../controls';
+import { HeroAtlases } from '../hero/HeroAtlases';
+import { GROUND, HeroRig, feetOf, singleLayerPlacement } from '../hero/HeroRig';
+import { DoubleTap, HeroState, JUMP, PLACEMENT } from '../hero/heroState';
+import type { PoseName } from '../hero/heroState';
+import { CANVAS, POSES } from '../hero/poseData';
+import { guardMatrices, heldMatrix, scaleAbout, walkMatrices } from '../hero/poseRig';
+import type { Affine } from '../hero/poseRig';
+import { ArenaKeyboard } from '../input';
 import { computeCamera } from '../stage/camera';
 import type { StageCamera } from '../stage/camera';
 import { STAGE_FRAGMENT, STAGE_TEXTURE_DATA, STAGE_UNIFORMS } from '../stage/shaders';
@@ -46,8 +50,31 @@ const DASH_GHOSTS: [delay: number, alpha: number][] = [
   [0.045, 0.3],
 ];
 
+/** Poses chargées avant d'afficher le personnage : de quoi se tenir en garde et marcher. */
+const ESSENTIAL_POSES: PoseName[] = ['guard', 'step', 'walk'];
+
+/**
+ * Poses dont chaque action a besoin. Elles sont téléchargées en arrière-plan, dans cet ordre, une fois
+ * le personnage affiché ; une action n'est acceptée que lorsque toutes ses images sont arrivées.
+ */
+const ACTION_POSES = {
+  dash: ['dashForward', 'dashBack'],
+  crouch: ['crouchStep', 'crouch'],
+  block: ['blockStep', 'block', 'crouchBlock'],
+  jump: ['jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand'],
+  punch: ['punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover'],
+} satisfies Record<string, PoseName[]>;
+type Action = keyof typeof ACTION_POSES;
+
+/** Poses tenues en un seul calque, qui respirent d'un bloc. */
+const HELD_POSES: PoseName[] = ['crouch', 'block', 'crouchBlock'];
+
+/** Texture toujours présente dans Phaser, donnée aux images fantômes au repos. */
+const BLANK_TEXTURE = '__DEFAULT';
+
 interface Hero {
   state: HeroState;
+  atlases: HeroAtlases;
   body: HeroRig;
   reflection: HeroRig;
   shadow: Phaser.GameObjects.Image;
@@ -59,7 +86,8 @@ export class ArenaScene extends Phaser.Scene {
   private weatherGraphics: Phaser.GameObjects.Graphics | null = null;
   private weather = new Weather();
   private hero: Hero | null = null;
-  private keys: Record<string, Phaser.Input.Keyboard.Key> | null = null;
+  private atlases: HeroAtlases | null = null;
+  private keyboard: ArenaKeyboard | null = null;
   private taps = new DoubleTap();
   /** Secondes écoulées depuis la création de la scène. */
   private clock = 0;
@@ -82,9 +110,6 @@ export class ArenaScene extends Phaser.Scene {
     });
     this.load.image(BACKGROUND_KEY, STAGE_BACKGROUND_URL);
     this.load.image(DEPTH_KEY, STAGE_DEPTH_URL);
-    for (const pose of POSE_NAMES) {
-      this.load.image(poseTextureKey(pose), heroPoseUrl(pose));
-    }
   }
 
   create(): void {
@@ -164,9 +189,7 @@ export class ArenaScene extends Phaser.Scene {
       .shader(shader, 0, 0, width, height, [BACKGROUND_KEY, DEPTH_KEY], STAGE_TEXTURE_DATA)
       .setOrigin(0);
     this.weatherGraphics = this.add.graphics().setDepth(WEATHER_DEPTH);
-    if (POSE_NAMES.every((pose) => this.textures.exists(poseTextureKey(pose)))) {
-      this.addHero();
-    }
+    void this.loadHero();
 
     this.input.on(Phaser.Input.Events.POINTER_MOVE, (pointer: Phaser.Input.Pointer) => {
       this.pointer.targetX = (pointer.x / width - 0.5) * 2;
@@ -186,8 +209,27 @@ export class ArenaScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.DESTROY, this.stopListening, this);
   }
 
-  /** Moussa : reflet, ombre et personnage, plus les touches de déplacement. */
-  private addHero(): void {
+  /**
+   * Charge Moussa sans retarder l'arène : d'abord de quoi se tenir en garde et marcher, puis, une fois
+   * le personnage affiché, les poses des autres actions.
+   */
+  private async loadHero(): Promise<void> {
+    const atlases = new HeroAtlases(this.textures);
+    this.atlases = atlases;
+    if (!(await atlases.load(ESSENTIAL_POSES)) || this.atlases !== atlases) {
+      return;
+    }
+    this.addHero(atlases);
+    for (const poses of Object.values(ACTION_POSES)) {
+      if (this.atlases !== atlases) {
+        return;
+      }
+      await atlases.load(poses);
+    }
+  }
+
+  /** Moussa : reflet, ombre et personnage, plus le clavier et les boutons de l'interface. */
+  private addHero(atlases: HeroAtlases): void {
     if (!this.textures.exists(SHADOW_KEY)) {
       // ombre au sol : un disque noir qui s'estompe vers le bord
       const size = 128;
@@ -205,69 +247,92 @@ export class ArenaScene extends Phaser.Scene {
         canvas.refresh();
       }
     }
-    const reflection = new HeroRig(this, REFLECTION.alpha);
+    const reflection = new HeroRig(this, atlases, REFLECTION.alpha);
     reflection.container.setDepth(REFLECTION_DEPTH);
     const shadow = this.add.image(0, 0, SHADOW_KEY).setDepth(SHADOW_DEPTH);
-    const body = new HeroRig(this);
+    const body = new HeroRig(this, atlases);
     body.container.setDepth(HERO_DEPTH);
-    const ghost = singleLayerPlacement('dashForward');
     const ghosts = DASH_GHOSTS.map(() =>
-      this.add.image(0, 0, ghost.key, ghost.frame).setOrigin(0).setDepth(GHOST_DEPTH).setVisible(false),
+      this.add.image(0, 0, BLANK_TEXTURE).setOrigin(0).setDepth(GHOST_DEPTH).setVisible(false),
     );
-    this.hero = { state: new HeroState(), body, reflection, shadow, ghosts };
+    this.hero = { state: new HeroState(), atlases, body, reflection, shadow, ghosts };
 
-    // Flèches, ou Q et D (A pour les claviers QWERTY). Sans capture : la page garde ses raccourcis.
-    const keys = this.input.keyboard?.addKeys('LEFT,RIGHT,Q,A,D', false);
-    this.keys = keys ? (keys as Record<string, Phaser.Input.Keyboard.Key>) : null;
-    // Chaque appui (pas la répétition d'une touche maintenue) compte pour le double appui du dash.
-    for (const [name, key] of Object.entries(this.keys ?? {})) {
-      const direction = name === 'RIGHT' || name === 'D' ? 1 : -1;
-      key.on(Phaser.Input.Keyboard.Events.DOWN, () => this.tap(direction));
-    }
-    this.registry.events.on(`changedata-${WALK_REGISTRY_KEY}`, this.onWalkButton, this);
+    this.keyboard = new ArenaKeyboard({
+      onTap: (direction, at) => this.tap(direction, at),
+      onJump: () => this.jump(),
+      onAttack: () => this.attack(),
+    });
+    this.registry.events.on(`changedata-${CONTROLS.walk}`, this.onWalkButton, this);
+    this.registry.events.on(`changedata-${CONTROLS.jump}`, this.jump, this);
+    this.registry.events.on(`changedata-${CONTROLS.attack}`, this.attack, this);
+  }
+
+  /** Vrai si les images de cette action sont arrivées. */
+  private can(action: Action): boolean {
+    return this.hero?.atlases.has(...ACTION_POSES[action]) ?? false;
   }
 
   /** Les boutons de l'interface passent par le registre : un passage à 1 ou -1 est un appui. */
   private onWalkButton(_parent: unknown, value: unknown): void {
     if (value === 1 || value === -1) {
-      this.tap(value);
+      this.tap(value, performance.now());
     }
   }
 
   /** Un appui sur une direction : le second appui rapproché dans le même sens lance un dash. */
-  private tap(direction: number): void {
-    if (this.taps.tap(direction, performance.now())) {
+  private tap(direction: number, at: number): void {
+    if (this.taps.tap(direction, at) && this.can('dash')) {
       this.hero?.state.dash(direction);
+    }
+  }
+
+  private jump(): void {
+    if (this.can('jump')) {
+      this.hero?.state.jump();
+    }
+  }
+
+  /** Touche d'attaque : un appui pour le coup léger, un autre pendant le coup pour enchaîner. */
+  private attack(): void {
+    if (this.can('punch')) {
+      this.hero?.state.attack();
     }
   }
 
   /** Déplacement demandé : le clavier d'abord, sinon les boutons de l'interface. */
   private walkDirection(): number {
-    const keys = this.keys;
-    let direction = 0;
-    if (keys) {
-      if (keys.RIGHT?.isDown || keys.D?.isDown) {
-        direction += 1;
-      }
-      if (keys.LEFT?.isDown || keys.Q?.isDown || keys.A?.isDown) {
-        direction -= 1;
-      }
-    }
+    const direction = this.keyboard?.direction ?? 0;
     if (direction !== 0) {
       return direction;
     }
-    const held: unknown = this.registry.get(WALK_REGISTRY_KEY);
+    const held: unknown = this.registry.get(CONTROLS.walk);
     return held === 1 || held === -1 ? held : 0;
+  }
+
+  /** Vrai tant qu'une touche ou un bouton demande l'accroupi ou la parade, et que ses images sont là. */
+  private holds(action: 'crouch' | 'block'): boolean {
+    return this.can(action) && ((this.keyboard?.[action] ?? false) || this.registry.get(CONTROLS[action]) === true);
   }
 
   private updateHero(hero: Hero, time: number, delta: number, camera: StageCamera): void {
     const { width, height } = this.scale;
-    hero.state.update(delta, this.walkDirection(), height / width);
+    hero.state.update(delta, this.walkDirection(), height / width, this.holds('crouch'), this.holds('block'));
 
+    const jump = hero.state.pose === 'jump' ? hero.state.jumpFrame() : null;
+    const lift = jump ? jump.lift : 0;
     const pose = hero.state.illustration;
     const amplitude = this.calm ? CALM_AMPLITUDE : 1;
-    const matrices =
-      pose === 'guard' ? guardMatrices(time, amplitude) : pose === 'walk' ? walkMatrices(hero.state.phase) : null;
+    let matrices: Affine[] | null = null;
+    if (pose === 'guard') {
+      matrices = guardMatrices(time, amplitude);
+    } else if (pose === 'walk') {
+      matrices = walkMatrices(hero.state.phase);
+    } else if (HELD_POSES.includes(pose)) {
+      matrices = [heldMatrix(POSES[pose].anchor, time, amplitude)];
+    } else if (jump) {
+      // le dessin du saut est déformé en continu autour de ses pieds
+      matrices = [scaleAbout(feetOf(pose), 1 + (jump.sx - 1) * amplitude, 1 + (jump.sy - 1) * amplitude)];
+    }
     const ribbonPhase = time * (pose === 'walk' ? 7 : 2.4);
     hero.body.show(pose, matrices, ribbonPhase, amplitude);
     hero.reflection.show(pose, matrices, ribbonPhase, amplitude);
@@ -277,21 +342,30 @@ export class ArenaScene extends Phaser.Scene {
     const groundY = ((PLACEMENT.y + PLACEMENT.depth * camera.oy - 0.5) * camera.zoom + 0.5) * height;
     const scale = (PLACEMENT.scale * camera.zoom * height) / CANVAS[1];
     const left = groundX - GROUND[0] * scale;
-    hero.body.container.setPosition(left, groundY - GROUND[1] * scale).setScale(scale);
+    const top = groundY - GROUND[1] * scale;
+    hero.body.container.setPosition(left, top - lift * scale).setScale(scale);
+    // en l'air, le reflet s'éloigne des pieds et s'estompe, et l'ombre rétrécit
+    const air = lift / JUMP.height;
     hero.reflection.container
-      .setPosition(left, groundY + GROUND[1] * scale * REFLECTION.squash)
+      .setPosition(left, groundY + (GROUND[1] + lift) * scale * REFLECTION.squash)
       .setScale(scale, -scale * REFLECTION.squash);
+    hero.reflection.setFade(1 - 0.6 * air);
     const tall = scale * CANVAS[1];
-    hero.shadow.setPosition(groundX, groundY - tall * 0.006).setDisplaySize(tall * 0.313, tall * 0.031);
+    const shrink = 1 - 0.45 * air;
+    hero.shadow
+      .setPosition(groundX, groundY - tall * 0.006)
+      .setDisplaySize(tall * 0.313 * shrink, tall * 0.031 * shrink);
 
     // pendant un dash, la pose est redessinée, de plus en plus transparente, à ses positions précédentes
     const dashing = hero.state.pose === 'dash' && !this.calm;
-    const top = groundY - GROUND[1] * scale;
     hero.ghosts.forEach((ghost, index) => {
       const [delay, alpha] = DASH_GHOSTS[index] ?? [0, 0];
       const elapsed = hero.state.dashing.time;
       if (!dashing || elapsed <= delay) {
-        ghost.setVisible(false);
+        // au repos, l'image ne garde pas de référence à un atlas qui peut être retiré de la mémoire vidéo
+        if (ghost.visible) {
+          ghost.setTexture(BLANK_TEXTURE).setVisible(false);
+        }
         return;
       }
       const placement = singleLayerPlacement(pose);
@@ -311,7 +385,13 @@ export class ArenaScene extends Phaser.Scene {
 
   private stopListening(): void {
     this.motionQuery?.removeEventListener('change', this.onMotionChange);
-    this.registry.events.off(`changedata-${WALK_REGISTRY_KEY}`, this.onWalkButton, this);
+    this.registry.events.off(`changedata-${CONTROLS.walk}`, this.onWalkButton, this);
+    this.registry.events.off(`changedata-${CONTROLS.jump}`, this.jump, this);
+    this.registry.events.off(`changedata-${CONTROLS.attack}`, this.attack, this);
+    this.keyboard?.destroy();
+    this.keyboard = null;
+    this.atlases?.close();
+    this.atlases = null;
     this.motionQuery = null;
   }
 

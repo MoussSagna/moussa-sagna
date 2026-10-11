@@ -24,8 +24,8 @@ Dossier : `public/assets/fighters/moussa/`. Ils sont déclarés dans `src/data/f
 Les fichiers sont à la taille d'origine de la planche, sans agrandissement.
 
 Pour l'arène (`/entrainement`), le personnage jouable utilise d'autres fichiers, repris de
-`lab/` : `poses/guard.webp`, `step.webp`, `walk.webp`, `dashForward.webp` et
-`dashBack.webp`. Ce sont des atlas de calques tirés de cinq illustrations en pied, pas des découpes de la planche. Voir « Personnage jouable » dans
+`lab/` : les vingt fichiers de `poses/` (`guard.webp`, `walk.webp`, `crouch.webp`, `punchHit.webp`…). Ce
+sont des atlas de calques tirés de vingt illustrations en pied, pas des découpes de la planche. Voir « Personnage jouable » dans
 `03-ARCHITECTURE-TECHNIQUE.md`.
 
 ### Comment ils ont été découpés
