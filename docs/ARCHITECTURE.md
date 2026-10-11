@@ -34,15 +34,16 @@ Les lanternes, les néons et le trajet du métro sont positionnés par leurs coo
 
 ## Le personnage
 
-Le personnage est fait de trois illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
+Le personnage est fait de quatre illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
 
 | Pose | Illustration | Rôle |
 | --- | --- | --- |
 | `guard` | `art/hero-guard.png` | état neutre : garde, poings levés |
 | `step` | `art/hero-step.png` | pose intermédiaire, affichée un instant entre la garde et la marche |
-| `walk` | `art/hero-walk.png` | marche, jambes et bras articulés |
+| `walk` | `art/hero-walk.png` | marche, dessin de contact : jambe proche en avant, jambes et bras articulés |
+| `walkPass` | `art/hero-walk-pass.png` | marche, dessin d'appui : jambe proche à la verticale, pied éloigné levé derrière |
 
-- **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas (`guard.webp`, `step.webp`, `walk.webp`) et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
+- **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas par pose (`guard.webp`, `step.webp`, `walk.webp`, `walkPass.webp`) et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
 - **Dessin** : `HeroLayer` dessine un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice du calque ; le fragment shader retrouve le pixel d'origine dans la toile (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.
 - **Alignement** : chaque pose a un point d'appui (milieu des pieds, ligne des semelles). Les trois sont posés au même endroit du sol, placé par `PLACEMENT`, et suivent la caméra du décor avec la profondeur du sol.
 - **Reflet et ombre** : le personnage entier est d'abord dessiné une fois dans une texture hors écran, qui sert au reflet.
@@ -53,9 +54,11 @@ Le personnage est fait de trois illustrations dans la même vue (trois quarts à
 
 ### La marche
 
-`walkMatrices` calcule la pose pour une phase du cycle. Chaque cheville suit une trajectoire par rapport à la hanche : elle recule au sol à vitesse constante, puis revient en l'air. La cuisse et le tibia sont placés par cinématique inverse (deux os, genou vers l'avant). Le pied a son propre angle : talon qui se pose, pied à plat, talon qui se lève. Le bassin monte quand une jambe passe à la verticale, le buste se penche un peu et les bras balancent à l'opposé des jambes.
+`walkPose` calcule la pose pour une phase du cycle. Chaque cheville suit une trajectoire par rapport à la hanche : elle recule au sol à vitesse constante, puis revient en l'air. La cuisse et le tibia sont placés par cinématique inverse (deux os, genou vers l'avant). Le pied a son propre angle : talon qui se pose, pied à plat, talon qui se lève. Le bassin monte quand une jambe passe à la verticale, le buste se penche un peu et les bras balancent à l'opposé des jambes.
 
 Le corps avance à `WALK_SPEED`, la vitesse exacte du pied posé, pour que les appuis ne patinent pas. Jouer le cycle à l'envers donne la marche arrière. `GAIT` règle la durée du cycle, la foulée, la levée des pieds et le balancement des bras.
+
+La marche s'appuie sur plusieurs dessins clés (`WALK_KEYS`). Chacun a été dessiné à une phase précise du cycle et sert dans une fenêtre autour d'elle ; ses membres ne tournent que de l'écart avec cette phase, donc beaucoup moins que s'il fallait couvrir tout le cycle. Le squelette est le même pour tous : au moment de changer de dessin, les deux sont dans la même pose et seul le trait change. Sur le dessin d'appui, la cuisse et le tibia éloignés sont cachés par l'autre jambe : ce sont des formes pleines de la couleur du pantalon.
 
 ### Les changements d'état
 
@@ -65,7 +68,7 @@ Le corps avance à `WALK_SPEED`, la vitesse exacte du pied posé, pour que les a
 
 - Les membres de la marche sont des pièces rigides qui tournent : les plis du pantalon ne se redessinent pas et le genou marque un angle quand il plie.
 - Les parties cachées (haut de la cuisse éloignée, buste sous le bras) sont des aplats sans détail.
-- Il manque une illustration du milieu du pas (jambes qui se croisent), le moment où le découpage est le plus faible.
+- Il manque deux dessins clés : le contact inversé (jambe éloignée en avant) et l'appui sur la jambe éloignée, quand la jambe proche passe devant. Cette moitié du cycle est encore calculée à partir du seul dessin de contact.
 - En garde, les jambes et les bras ne sont pas articulés.
 
 ## Ajouter un plan

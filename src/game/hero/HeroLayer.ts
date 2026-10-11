@@ -1,7 +1,7 @@
 import { asset, createProgram, loadTexture, uniforms } from '../gl'
 import type { Camera, FrameInfo } from '../types'
 import { CANVAS, POSES } from './poseData'
-import { BENDS, GAIT, WALK_SPEED, guardMatrices, walkMatrices } from './poseRig'
+import { BENDS, GAIT, WALK_SPEED, guardMatrices, walkGround, walkPose } from './poseRig'
 import type { Affine } from './poseRig'
 import { FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from './shaders'
 
@@ -9,7 +9,7 @@ const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas'
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'walkPass']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -19,8 +19,14 @@ const GROUND = POSES.guard.anchor
 const OFFSETS: Record<PoseName, [number, number]> = {
   guard: [0, 0],
   step: [GROUND[0] - POSES.step.anchor[0], GROUND[1] - POSES.step.anchor[1]],
-  // en marche, c'est la hanche qui est à l'aplomb du point d'appui
-  walk: [GROUND[0] - POSES.walk.joints.hip_near[0], GROUND[1] - POSES.walk.anchor[1]],
+  // en marche, la hanche est à l'aplomb du point d'appui et la cheville posée est à la même hauteur pour tous les dessins
+  walk: walkOffset('walk'),
+  walkPass: walkOffset('walkPass'),
+}
+
+function walkOffset(pose: 'walk' | 'walkPass'): [number, number] {
+  const sole = POSES.walk.anchor[1] - POSES.walk.joints.ankle_near[1]
+  return [GROUND[0] - POSES[pose].joints.hip_near[0], GROUND[1] - sole - walkGround(pose)]
 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
@@ -51,7 +57,7 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: PoseName = 'guard'
+  private pose: 'guard' | 'step' | 'walk' = 'guard'
   /** Temps restant dans la pose intermédiaire. */
   private stepLeft = 0
   private phase = 0
@@ -72,14 +78,14 @@ export class HeroLayer {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW)
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-    // un atlas par pose, sur les unités de texture 0 à 2
+    // un atlas par pose, sur les premières unités de texture
     const loaded = await Promise.all(
       POSE_NAMES.map((name, unit) => loadTexture(gl, unit, asset(POSES[name].file), { alpha: true, premultiply: true, mipmap: true })),
     )
     if (!loaded.every(Boolean)) return false
 
-    // texture hors écran du reflet, sur l'unité 3
-    gl.activeTexture(gl.TEXTURE3)
+    // texture hors écran du reflet, sur l'unité qui suit
+    gl.activeTexture(gl.TEXTURE0 + POSE_NAMES.length)
     const texture = gl.createTexture()
     gl.bindTexture(gl.TEXTURE_2D, texture)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, REFLECTION.width, REFLECTION.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
@@ -93,7 +99,7 @@ export class HeroLayer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
 
     gl.useProgram(flat)
-    gl.uniform1i(this.flat.u.uTex, 3)
+    gl.uniform1i(this.flat.u.uTex, POSE_NAMES.length)
     this.ready = true
     return true
   }
@@ -138,11 +144,11 @@ export class HeroLayer {
     const left = sx - (GROUND[0] / CANVAS[0]) * w
     const top = sy - (GROUND[1] / CANVAS[1]) * h
 
-    const name = this.pose
-    const pose = POSES[name]
     const amplitude = calm ? CALM_AMPLITUDE : 1
-    const matrices: Affine[] | null =
-      name === 'guard' ? guardMatrices(frame.time, amplitude) : name === 'walk' ? walkMatrices(this.phase) : null
+    const walking = this.pose === 'walk' ? walkPose(this.phase) : null
+    const name: PoseName = walking ? walking.pose : this.pose
+    const pose = POSES[name]
+    const matrices: Affine[] | null = walking ? walking.matrices : name === 'guard' ? guardMatrices(frame.time, amplitude) : null
     const offset = OFFSETS[name]
     const bends = BENDS[name]
 
@@ -164,7 +170,7 @@ export class HeroLayer {
         gl.uniform3f(u.uMy, m ? m[1] : 0, m ? m[3] : 1, (m ? m[5] : 0) + offset[1])
         gl.uniform4f(u.uBox, bx, by, bw, bh)
         gl.uniform2f(u.uAtlas, item.atlas[0], item.atlas[1])
-        gl.uniform4f(u.uBend, bend ? bend.amplitude * amplitude : 0, bend ? bend.length : 1, frame.time * (name === 'walk' ? 7 : 2.4) + index, 0)
+        gl.uniform4f(u.uBend, bend ? bend.amplitude * amplitude : 0, bend ? bend.length : 1, frame.time * (walking ? 7 : 2.4) + index, 0)
         gl.uniform4f(u.uAxis, bend ? bend.axis[0] : 1, bend ? bend.axis[1] : 0, item.pivot[0], item.pivot[1])
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
       })

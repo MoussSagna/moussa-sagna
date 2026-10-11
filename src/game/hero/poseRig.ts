@@ -12,7 +12,7 @@ export interface Bend {
 }
 
 /** Rubans qui ondulent, par pose et par calque. Les autres calques sont rigides. */
-export const BENDS: Record<'guard' | 'step' | 'walk', Record<string, Bend>> = {
+export const BENDS: Record<keyof typeof POSES, Record<string, Bend>> = {
   guard: {
     ribbons: { amplitude: 9, length: 520, axis: [-0.906, 0.423] },
     ribbon_low: { amplitude: 7, length: 300, axis: [-0.555, 0.832] },
@@ -21,6 +21,10 @@ export const BENDS: Record<'guard' | 'step' | 'walk', Record<string, Bend>> = {
   walk: {
     ribbons: { amplitude: 14, length: 520, axis: [-0.906, 0.423] },
     ribbon_low: { amplitude: 8, length: 200, axis: [-0.93, 0.368] },
+  },
+  walkPass: {
+    ribbons: { amplitude: 14, length: 520, axis: [-0.906, 0.423] },
+    ribbon_low: { amplitude: 8, length: 240, axis: [-0.8, 0.6] },
   },
 }
 
@@ -37,18 +41,28 @@ export const GAIT = {
   reach: 170,
   /** Part du cycle où un pied est au sol ; au-dessus de 0,5 les deux pieds sont posés un instant. */
   stance: 0.56,
-  lift: 42,
-  heelLift: 38,
+  /** Levée du pied : au décollage du talon, puis coup de talon vers l'arrière au début du retour. */
+  heelLift: 55,
+  kick: 150,
+  kickPitch: 28,
   heelStrike: -14,
   toeOff: 30,
   hipRise: 14,
   lean: 2.2,
   armNear: 36,
   armFar: 32,
-  /** Hauteur de la cheville éloignée quand son pied est à plat, et angle qui remet ce pied à plat. */
-  farAnkleGround: 1306,
-  farFootFlat: -20,
 }
+
+/**
+ * Dessins clés de la marche. Chacun sert autour de la phase `at` où il a été dessiné, de `from` à `to`
+ * (le premier sert partout ailleurs), et ses membres ne tournent que de l'écart avec cette phase.
+ * `farAnkle` : hauteur de la cheville éloignée, en pixels au-dessus de la cheville proche posée.
+ * `farFlat` : angle qui remet le pied éloigné à plat.
+ */
+const WALK_KEYS: { pose: 'walk' | 'walkPass'; at: number; from: number; to: number; farAnkle: number; farFlat: number }[] = [
+  { pose: 'walk', at: 0, from: 0, to: 1, farAnkle: 14, farFlat: -20 },
+  { pose: 'walkPass', at: 0.247, from: 0.13, to: 0.37, farAnkle: 14, farFlat: -54 },
+]
 
 /** Vitesse du corps en pixels de la toile par seconde : exactement celle du pied posé, donc rien ne patine. */
 export const WALK_SPEED = (2 * GAIT.reach) / (GAIT.stance * GAIT.period)
@@ -123,10 +137,12 @@ function footAt(phase: number): { x: number; lift: number; pitch: number } {
     }
   }
   const s = (p - GAIT.stance) / (1 - GAIT.stance)
+  // le pied monte haut derrière juste après avoir quitté le sol, puis redescend en avançant
+  const land = smooth((s - 0.45) / 0.5)
   return {
     x: GAIT.reach * (2 * smooth(s) - 1),
-    lift: GAIT.heelLift * (1 - s) ** 2 + GAIT.lift * Math.sin(Math.PI * s),
-    pitch: GAIT.toeOff + (GAIT.heelStrike - GAIT.toeOff) * smooth(s * 1.15),
+    lift: GAIT.heelLift * (1 - s) ** 2 + GAIT.kick * 9.48 * s * (1 - s) ** 3,
+    pitch: (GAIT.toeOff + GAIT.kickPitch * Math.sin(Math.PI * Math.min(1, s / 0.6))) * (1 - land) + GAIT.heelStrike * land,
   }
 }
 
@@ -149,32 +165,50 @@ function solveLeg(hip: Point, rest: [Point, Point, Point], ankle: Point, pitch: 
   return [place(hip, hip0, thigh - thigh0), place(knee, knee0, shin - shin0), place(end, ankle0, pitch * RAD)]
 }
 
-/** Marche : une matrice par calque de `POSES.walk.layers` pour la phase `u` du cycle (0 à 1). */
-export function walkMatrices(u: number): Affine[] {
-  const j = POSES.walk.joints
+/** Mouvements du haut du corps en fonction de la phase : montée du bassin, inclinaison, balancement des bras. */
+function bodyAt(u: number): { rise: number; lean: number; swing: number; nod: number } {
   const turn = 2 * Math.PI * u
-  // le bassin monte quand une jambe passe à la verticale et redescend à chaque pose du pied
-  const rise = -GAIT.hipRise * Math.sin(turn) ** 2
-  const lean = (GAIT.lean + 0.8 * Math.sin(2 * turn - 0.6)) * RAD
-  const root = place([j.hip_near[0], j.hip_near[1] + rise], j.hip_near, lean)
+  return {
+    // le bassin monte quand une jambe passe à la verticale et redescend à chaque pose du pied
+    rise: -GAIT.hipRise * Math.sin(turn) ** 2,
+    lean: (GAIT.lean + 0.8 * Math.sin(2 * turn - 0.6)) * RAD,
+    swing: (1 - Math.cos(turn)) / 2,
+    nod: 1.1 * RAD * Math.sin(2 * turn + 1),
+  }
+}
 
+/**
+ * Marche : choisit le dessin clé de la phase `u` (0 à 1) et calcule une matrice par calque de ce dessin.
+ * Aux changements de dessin, les deux squelettes sont dans la même pose : seul le dessin change.
+ */
+export function walkPose(u: number): { pose: 'walk' | 'walkPass'; matrices: Affine[] } {
+  const key = WALK_KEYS.find((k, index) => index > 0 && u >= k.from && u < k.to) ?? WALK_KEYS[0]
+  const j = POSES[key.pose].joints
+  const now = bodyAt(u)
+  const drawn = bodyAt(key.at)
+  const lean = now.lean - drawn.lean
+  const root = place([j.hip_near[0], j.hip_near[1] + now.rise - drawn.rise], j.hip_near, lean)
+
+  // les chevilles visent le même point pour tous les dessins : la hauteur du sol est celle du dessin de contact
+  const ground = j.hip_near[1] - drawn.rise + GROUND_BELOW_HIP
   const near = footAt(u)
   const far = footAt(u + 0.5)
   const nearLeg = solveLeg(
     apply(root, j.hip_near),
     [j.hip_near, j.knee_near, j.ankle_near],
-    [j.hip_near[0] + near.x, j.ankle_near[1] - near.lift],
-    near.pitch,
+    [j.hip_near[0] + near.x, ground - near.lift],
+    near.pitch - footAt(key.at).pitch,
   )
   const farLeg = solveLeg(
     apply(root, j.hip_far),
     [j.hip_far, j.knee_far, j.ankle_far],
-    [j.hip_far[0] + far.x, GAIT.farAnkleGround - far.lift],
-    far.pitch + GAIT.farFootFlat,
+    [j.hip_far[0] + far.x, ground - key.farAnkle - far.lift],
+    far.pitch + key.farFlat,
   )
-  // les bras balancent à l'opposé des jambes : au repos le bras proche est en arrière, comme sur l'illustration
-  const swing = (1 - Math.cos(turn)) / 2
-  const head = place(apply(root, j.neck), j.neck, lean * 0.3 + 1.1 * RAD * Math.sin(2 * turn + 1))
+  // les bras balancent à l'opposé des jambes : bras proche en arrière quand la jambe proche est en avant
+  const swing = now.swing - drawn.swing
+  const head = place(apply(root, j.neck), j.neck, lean * 0.3 + now.nod - drawn.nod)
+  const turn = 2 * Math.PI * u
   const byName: Record<string, Affine> = {
     torso: root,
     pelvis: root,
@@ -191,5 +225,14 @@ export function walkMatrices(u: number): Affine[] {
     shin_far: farLeg[1],
     foot_far: farLeg[2],
   }
-  return POSES.walk.layers.map((layer) => byName[layer.name] ?? IDENTITY)
+  return { pose: key.pose, matrices: POSES[key.pose].layers.map((layer) => byName[layer.name] ?? IDENTITY) }
+}
+
+/** Hauteur de la cheville proche posée sous la hanche, mesurée sur le dessin de contact. */
+const GROUND_BELOW_HIP = POSES.walk.joints.ankle_near[1] - POSES.walk.joints.hip_near[1]
+
+/** Décalage vertical qui pose la cheville proche d'un dessin de marche sur la ligne du sol de la garde. */
+export function walkGround(pose: 'walk' | 'walkPass'): number {
+  const key = WALK_KEYS.find((k) => k.pose === pose) ?? WALK_KEYS[0]
+  return POSES[pose].joints.hip_near[1] - bodyAt(key.at).rise + GROUND_BELOW_HIP
 }

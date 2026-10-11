@@ -1,7 +1,7 @@
 """Découpe les illustrations du personnage (garde, transition, marche) en calques pour le moteur.
 
 Usage : python3 tools/prepare_poses.py [--debug dossier]
-Lit art/hero-guard.png, art/hero-step.png et art/hero-walk.png (fond vert uni, 1024 x 1536).
+Lit art/hero-guard.png, hero-step.png, hero-walk.png et hero-walk-pass.png (fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
 """
@@ -24,49 +24,100 @@ WHITE = np.array([242, 238, 238], np.float32)
 # Logos de marque à effacer sur les baskets : dans chaque polygone, les pixels sombres deviennent blancs.
 LOGOS = dict(
     guard=[[(780, 1345), (822, 1345), (876, 1375), (876, 1403), (838, 1403), (780, 1368)]],
+    walkPass=[],
     walk=[[(108, 1293), (136, 1293), (216, 1335), (216, 1359), (180, 1359), (108, 1318)],
           [(765, 1400), (800, 1370), (848, 1370), (848, 1398), (820, 1426), (770, 1432)]],
     step=[],
 )
 
-# ---------- marche : articulations et polygones. « near » = côté proche (jambe avant, bras arrière) ----------
-WALK_JOINTS = dict(
-    hip_near=(560, 745), knee_near=(690, 1040), ankle_near=(760, 1320),
-    hip_far=(540, 745), knee_far=(350, 1060), ankle_far=(215, 1265),
-    shoulder_near=(410, 340), shoulder_far=(650, 400), neck=(590, 280), ribbon=(500, 185), ribbon_low=(222, 595),
-)
+# ---------- marche : deux dessins clés. « near » = côté proche de la caméra, « far » = côté éloigné ----------
 BELT = [(340, 668), (480, 668), (560, 658), (605, 656), (700, 640)]
-WALK_POLY = dict(   # du plus prioritaire au moins prioritaire
-    head=[(490, 40), (770, 40), (770, 250), (705, 285), (665, 308), (628, 296), (600, 268), (572, 262), (545, 238), (520, 235), (500, 205)],
-    arm_near=[(360, 285), (450, 300), (490, 380), (480, 470), (430, 540), (350, 600), (335, 640), (330, 700), (340, 885), (190, 885), (190, 700), (235, 640), (205, 570), (215, 470), (270, 380)],
-    arm_far=[(690, 440), (735, 470), (775, 540), (800, 640), (872, 740), (872, 852), (750, 852), (735, 720), (712, 650), (690, 600)],
-    foot_near=[(675, 1310), (712, 1288), (800, 1282), (840, 1300), (1012, 1380), (1012, 1500), (675, 1500)],
-    foot_far=[(95, 1262), (100, 1215), (180, 1228), (255, 1240), (275, 1275), (345, 1420), (345, 1500), (40, 1500), (40, 1320)],
-    hip=BELT[:4] + [(612, 760), (600, 900), (575, 935), (540, 900), (520, 850), (455, 845), (455, 960), (480, 1000), (490, 1165), (440, 1165), (400, 1050), (380, 940), (350, 930), (330, 860)],
-    thigh_near=[(605, 656), (700, 640), (725, 720), (760, 850), (805, 990), (862, 1085), (545, 1078), (505, 1030), (480, 1000), (455, 960), (455, 845), (520, 850), (540, 900), (575, 935), (600, 900), (612, 760)],
-    shin_near=[(545, 1078), (862, 1085), (872, 1325), (545, 1325)],
-    thigh_far=[(300, 930), (520, 1000), (520, 1050), (436, 1110), (264, 1010)],
-    shin_far=[(264, 1010), (436, 1110), (420, 1290), (150, 1290), (150, 1100)],
-)
 BAND = BELT + [(700, 600), (560, 612), (480, 622), (340, 622)]
-WALK_FILL = dict(   # zones cachées à reboucher, par calque
-    torso=[(410, 300), (480, 300), (500, 480), (480, 640), (350, 650), (345, 560), (380, 440)],
-    thigh_near=[(605, 656), (700, 640), (700, 600), (605, 612)], hip=BAND,
-    shin_near=[(545, 1078), (862, 1085), (850, 1010), (560, 1005)],
-    shin_far=[(264, 1010), (436, 1110), (480, 1060), (310, 960)],
-    foot_near=[(675, 1310), (712, 1288), (800, 1282), (840, 1300), (830, 1260), (690, 1265)],
-    foot_far=[(110, 1262), (180, 1228), (255, 1240), (275, 1275), (285, 1225), (180, 1195), (110, 1230)],
+# Contact : jambe proche en avant, jambe éloignée en arrière, bras proche en arrière.
+WALK = dict(
+    joints=dict(
+        hip_near=(560, 745), knee_near=(690, 1040), ankle_near=(760, 1320),
+        hip_far=(540, 745), knee_far=(350, 1060), ankle_far=(215, 1265),
+        shoulder_near=(410, 340), shoulder_far=(650, 400), neck=(590, 280), ribbon=(500, 185), ribbon_low=(222, 595),
+    ),
+    poly=dict(   # du plus prioritaire au moins prioritaire
+        head=[(490, 40), (770, 40), (770, 250), (705, 285), (665, 308), (628, 296), (600, 268), (572, 262), (545, 238), (520, 235), (500, 205)],
+        arm_near=[(360, 285), (450, 300), (490, 380), (480, 470), (430, 540), (350, 600), (335, 640), (330, 700), (340, 885), (190, 885), (190, 700), (235, 640), (205, 570), (215, 470), (270, 380)],
+        arm_far=[(690, 440), (735, 470), (775, 540), (800, 640), (872, 740), (872, 852), (750, 852), (735, 720), (712, 650), (690, 600)],
+        foot_near=[(675, 1310), (712, 1288), (800, 1282), (840, 1300), (1012, 1380), (1012, 1500), (675, 1500)],
+        foot_far=[(95, 1262), (100, 1215), (180, 1228), (255, 1240), (275, 1275), (345, 1420), (345, 1500), (40, 1500), (40, 1320)],
+        hip=BELT[:4] + [(612, 760), (600, 900), (575, 935), (540, 900), (520, 850), (455, 845), (455, 960), (480, 1000), (490, 1165), (440, 1165), (400, 1050), (380, 940), (350, 930), (330, 860)],
+        thigh_near=[(605, 656), (700, 640), (725, 720), (760, 850), (805, 990), (862, 1085), (545, 1078), (505, 1030), (480, 1000), (455, 960), (455, 845), (520, 850), (540, 900), (575, 935), (600, 900), (612, 760)],
+        shin_near=[(545, 1078), (862, 1085), (872, 1325), (545, 1325)],
+        thigh_far=[(300, 930), (520, 1000), (520, 1050), (436, 1110), (264, 1010)],
+        shin_far=[(264, 1010), (436, 1110), (420, 1290), (150, 1290), (150, 1100)],
+    ),
+    fill=dict(   # zones cachées à reboucher, par calque
+        torso=[(410, 300), (480, 300), (500, 480), (480, 640), (350, 650), (345, 560), (380, 440)],
+        thigh_near=[(605, 656), (700, 640), (700, 600), (605, 612)], hip=BAND,
+        shin_near=[(545, 1078), (862, 1085), (850, 1010), (560, 1005)],
+        shin_far=[(264, 1010), (436, 1110), (480, 1060), (310, 960)],
+        foot_near=[(675, 1310), (712, 1288), (800, 1282), (840, 1300), (830, 1260), (690, 1265)],
+        foot_far=[(110, 1262), (180, 1228), (255, 1240), (275, 1275), (285, 1225), (180, 1195), (110, 1230)],
+    ),
+    # Cuisses : la partie cachée est une forme arrondie le long de l'os (début, fin, épaisseur).
+    capsule=dict(thigh_near=((560, 750), (690, 1040), 210), thigh_far=((540, 755), (350, 1060), 190)),
+    knee=dict(thigh_near=((545, 1078), (862, 1085)), thigh_far=((264, 1010), (436, 1110))),
+    left=[(0, 100), (500, 100), (500, 235), (450, 250), (360, 285), (270, 380), (215, 470), (205, 570), (235, 640), (195, 700), (190, 885), (160, 1010), (0, 1010)],
+    knot=[(380, 120), (505, 120), (505, 235), (380, 235)],
+    behind_arm=[(190, 560), (245, 560), (245, 660), (190, 660)],
+    ribbon_low=[(40, 540), (215, 560), (240, 640), (200, 700), (40, 700)],
+    sash=[(150, 780), (400, 780), (400, 1010), (150, 1010)],
+    leftover_far=[(150, 900), (640, 900), (640, 1300), (150, 1300)],
+    leftover_near=[(600, 650), (900, 650), (900, 1100), (600, 1100)],
+    pelvis=(520, 820),
+    pants=[(400, 780), (450, 780), (450, 840), (400, 840)],
+    jacket=[(380, 600), (450, 600), (450, 640), (380, 640)],
 )
-# Cuisses : la partie cachée est une forme arrondie le long de l'os (début, fin, épaisseur).
-WALK_CAPSULE = dict(thigh_near=((560, 750), (690, 1040), 210), thigh_far=((540, 755), (350, 1060), 190))
-WALK_KNEE = dict(thigh_near=((545, 1078), (862, 1085)), thigh_far=((264, 1010), (436, 1110)))
+# Appui : jambe proche à la verticale, pied éloigné levé derrière. De la jambe éloignée on ne voit que le pied
+# et le bas du pantalon : sa cuisse et son tibia sont des formes pleines, cachées au repos.
+PASS_BELT = [(425, 700), (495, 695), (520, 650), (600, 640), (612, 640), (700, 632)]
+PASS_BAND = PASS_BELT + [(700, 590), (600, 598), (520, 606), (495, 650), (425, 655)]
+PASS = dict(
+    joints=dict(
+        hip_near=(565, 722), knee_near=(575, 1010), ankle_near=(585, 1310),
+        hip_far=(545, 722), knee_far=(681, 1008), ankle_far=(440, 1105),
+        shoulder_near=(490, 300), shoulder_far=(660, 360), neck=(595, 240), ribbon=(505, 135), ribbon_low=(318, 640),
+    ),
+    poly=dict(
+        head=[(495, 10), (770, 10), (770, 200), (700, 240), (655, 262), (620, 250), (596, 225), (570, 215), (545, 195), (520, 190), (500, 160)],
+        arm_near=[(400, 215), (505, 235), (535, 330), (530, 440), (505, 520), (470, 590), (430, 605), (412, 660), (415, 842), (295, 842), (295, 660), (318, 600), (280, 540), (290, 470), (345, 360)],
+        arm_far=[(700, 450), (745, 480), (775, 560), (800, 650), (857, 740), (857, 847), (745, 847), (725, 720), (705, 650), (690, 600), (690, 480)],
+        foot_near=[(525, 1300), (560, 1288), (615, 1285), (640, 1295), (850, 1400), (850, 1500), (520, 1500)],
+        foot_far=[(330, 1090), (440, 995), (505, 995), (520, 1085), (488, 1105), (492, 1335), (330, 1335)],
+        hip=PASS_BELT[:5] + [(625, 700), (640, 800), (660, 900), (600, 900), (590, 820), (500, 790), (480, 800), (470, 900), (440, 1010), (400, 1010), (380, 900), (390, 800)],
+        thigh_near=[(612, 640), (700, 632), (720, 700), (700, 900), (690, 1000), (440, 1000), (470, 900), (480, 800), (500, 790), (590, 820), (600, 900), (660, 900), (640, 800), (625, 700)],
+        shin_near=[(400, 1000), (700, 1000), (700, 1325), (400, 1325)],
+    ),
+    fill=dict(
+        torso=[(470, 240), (540, 250), (560, 440), (540, 600), (440, 640), (430, 560), (450, 400)],
+        thigh_near=[(612, 640), (700, 632), (700, 590), (612, 598)], hip=PASS_BAND,
+        shin_near=[(440, 1000), (690, 1000), (690, 940), (450, 940)],
+        foot_near=[(525, 1300), (560, 1288), (615, 1285), (640, 1295), (630, 1255), (535, 1260)],
+    ),
+    capsule=dict(thigh_near=((565, 735), (575, 1010), 200)),
+    solid=dict(thigh_far=((545, 740), (681, 1008), 150), shin_far=((681, 1008), (440, 1105), 130)),
+    knee=dict(thigh_near=((440, 1000), (690, 1000))),
+    left=[(0, 40), (505, 40), (505, 170), (480, 200), (400, 212), (345, 360), (290, 470), (280, 540), (318, 600), (295, 660), (295, 842), (0, 842)],
+    knot=[(380, 60), (510, 60), (510, 185), (380, 185)],
+    behind_arm=[(275, 600), (330, 600), (330, 690), (275, 690)],
+    ribbon_low=[(100, 600), (320, 610), (300, 800), (100, 842)],
+    sash=[(100, 845), (480, 845), (480, 1070), (100, 1070)],
+    leftover_near=[(600, 640), (900, 640), (900, 1100), (600, 1100)],
+    pelvis=(540, 810),
+    pants=[(520, 1050), (580, 1050), (580, 1150), (520, 1150)],
+    jacket=[(480, 560), (540, 560), (540, 600), (480, 600)],
+)
 WALK_ORDER = ['ribbons', 'ribbon_low', 'arm_far', 'pelvis', 'foot_far', 'shin_far', 'thigh_far', 'foot_near', 'shin_near', 'thigh_near', 'hip', 'torso', 'head', 'arm_near']
 WALK_PARENT = dict(hip='torso', ribbons='head', ribbon_low='torso', arm_far='torso', pelvis='torso', head='torso', arm_near='torso', torso=None,
                    thigh_near='torso', shin_near='thigh_near', foot_near='shin_near', thigh_far='torso', shin_far='thigh_far', foot_far='shin_far')
 WALK_PIVOT = dict(hip='hip_near', ribbons='ribbon', ribbon_low='ribbon_low', arm_far='shoulder_far', pelvis='hip_near', head='neck', arm_near='shoulder_near', torso='hip_near',
                   thigh_near='hip_near', shin_near='knee_near', foot_near='ankle_near', thigh_far='hip_far', shin_far='knee_far', foot_far='ankle_far')
-WALK_LEFT = [(0, 100), (500, 100), (500, 235), (450, 250), (360, 285), (270, 380), (215, 470), (205, 570), (235, 640), (195, 700), (190, 885), (160, 1010), (0, 1010)]
-WALK_RIBBON_LOW = [(40, 540), (215, 560), (240, 640), (200, 700), (40, 700)]
 
 # ---------- garde ----------
 GUARD_JOINTS = dict(waist=(560, 705), neck=(600, 300), ribbon=(510, 190), ribbon_low=(300, 650))
@@ -85,9 +136,12 @@ def poly(points) -> np.ndarray:
     return m.astype(bool)
 
 
+FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png', walkPass='hero-walk-pass.png')
+
+
 def load(name: str) -> np.ndarray:
     """Charge une illustration, efface les logos des baskets et retire le fond vert."""
-    rgb = np.asarray(Image.open(ART / f'hero-{name}.png').convert('RGB')).copy()
+    rgb = np.asarray(Image.open(ART / FILES[name]).convert('RGB')).copy()
     assert rgb.shape[:2] == (H, W), name
     for points in LOGOS[name]:
         zone = poly(points)
@@ -124,24 +178,25 @@ def fill_hidden(layer: np.ndarray, region: np.ndarray, color: np.ndarray) -> Non
     layer[hole, 3] = 255
 
 
-def cut_walk(art: np.ndarray) -> dict:
+def cut_walk(art: np.ndarray, c: dict) -> dict:
+    """Découpe un dessin de marche d'après sa configuration (WALK ou PASS)."""
     vis = art[..., 3] > 0
     red = is_red(art)
-    names = list(WALK_POLY)
+    names = list(c['poly'])
     label = np.full((H, W), -1, np.int16)
     for i, name in reversed(list(enumerate(names))):
-        label[poly(WALK_POLY[name]) & vis] = i
+        label[poly(c['poly'][name]) & vis] = i
     # l'écharpe de la hanche part vers la gauche : elle reste avec la hanche, pas avec les rubans du bandeau
-    sash = red & poly([(150, 780), (400, 780), (400, 1010), (150, 1010)]) & (label != names.index('arm_near'))
-    label[sash] = names.index('hip')
-    ribbons = vis & (label < 0) & poly(WALK_LEFT)
-    ribbons |= red & poly([(380, 120), (505, 120), (505, 235), (380, 235)]) & (label < 0)
-    ribbons |= red & (label == names.index('arm_near')) & poly([(190, 560), (245, 560), (245, 660), (190, 660)])
+    label[red & poly(c['sash']) & (label != names.index('arm_near')) & (label != names.index('foot_far'))] = names.index('hip')
+    ribbons = vis & (label < 0) & poly(c['left'])
+    ribbons |= red & poly(c['knot']) & (label < 0)
+    ribbons |= red & (label == names.index('arm_near')) & poly(c['behind_arm'])
     ribbons &= near_red(red)
-    label[(label < 0) & ~ribbons & vis & poly([(150, 900), (640, 900), (640, 1300), (150, 1300)])] = names.index('thigh_far')
-    # les bouts de lanière qui dépassent de la cuisse avant bougent avec elle
-    label[(label < 0) & ~ribbons & vis & poly([(600, 650), (900, 650), (900, 1100), (600, 1100)])] = names.index('thigh_near')
-    low = ribbons & poly(WALK_RIBBON_LOW)
+    if 'leftover_far' in c:
+        label[(label < 0) & ~ribbons & vis & poly(c['leftover_far'])] = names.index('thigh_far')
+    # les bouts de lanière qui dépassent de la cuisse proche bougent avec elle
+    label[(label < 0) & ~ribbons & vis & poly(c['leftover_near'])] = names.index('thigh_near')
+    low = ribbons & poly(c['ribbon_low'])
     layers = {name: art * ((label == i) & ~ribbons)[..., None] for i, name in enumerate(names)}
     layers['ribbons'] = art * (ribbons & ~low)[..., None]
     layers['ribbon_low'] = art * low[..., None]
@@ -149,24 +204,33 @@ def cut_walk(art: np.ndarray) -> dict:
 
     def cloth(points) -> np.ndarray:
         return np.median(art[poly(points) & ~red & vis][:, :3], axis=0)
-    pants = cloth([(400, 780), (450, 780), (450, 840), (400, 840)])
-    tone = dict(torso=cloth([(380, 600), (450, 600), (450, 640), (380, 640)]))
-    for name, pts in WALK_FILL.items():
+    pants = cloth(c['pants'])
+    tone = dict(torso=cloth(c['jacket']))
+    for name, pts in c['fill'].items():
         fill_hidden(layers[name], poly(pts) & vis, tone.get(name, pants))
-    for name, (start, end, thick) in WALK_CAPSULE.items():
+
+    def capsule(start, end, thick) -> np.ndarray:
         shape = np.zeros((H, W), np.uint8)
-        cv2.line(shape, start, end, 1, thick, cv2.LINE_AA)
-        fill_hidden(layers[name], shape.astype(bool) & (vis | (name == 'thigh_far')), pants)
+        cv2.line(shape, start, end, 255, thick, cv2.LINE_AA)
+        return shape
+    for name, (start, end, thick) in c['capsule'].items():
+        fill_hidden(layers[name], (capsule(start, end, thick) > 127) & (vis | (name == 'thigh_far')), pants)
+    # membres entièrement cachés sur ce dessin : une forme pleine de la couleur du pantalon
+    for name, (start, end, thick) in c.get('solid', {}).items():
+        layer = np.zeros((H, W, 4), np.uint8)
+        layer[..., :3] = pants
+        layer[..., 3] = cv2.GaussianBlur(capsule(start, end, thick), (0, 0), 1.2)
+        layers[name] = layer
     # bassin : une masse sombre sous les deux cuisses, pour qu'aucun jour n'apparaisse quand elles s'écartent
     pelvis = np.zeros((H, W, 4), np.uint8)
     mask = np.zeros((H, W), np.uint8)
-    cv2.ellipse(mask, (520, 820), (130, 120), 0, 0, 360, 255, -1)
+    cv2.ellipse(mask, c['pelvis'], (130, 120), 0, 0, 360, 255, -1)
     pelvis[..., :3] = pants
     pelvis[..., 3] = cv2.GaussianBlur(mask, (0, 0), 1.2)
     layers['pelvis'] = pelvis
     # la coupe du genou tombe en plein tissu : fondu sur le bord bas des cuisses
     yy, xx = np.mgrid[0:H, 0:W]
-    for name, (p0, p1) in WALK_KNEE.items():
+    for name, (p0, p1) in c['knee'].items():
         d = np.array(p1, float) - np.array(p0, float)
         n = np.array([-d[1], d[0]]) / np.linalg.norm(d)
         dist = (xx - p0[0]) * n[0] + (yy - p0[1]) * n[1]
@@ -248,11 +312,12 @@ def debug_sheet(name: str, layers: dict) -> None:
 
 
 def main() -> None:
-    arts = {name: load(name) for name in ('guard', 'step', 'walk')}
+    arts = {name: load(name) for name in FILES}
     poses = dict(
         guard=(cut_guard(arts['guard']), GUARD_PARENT, GUARD_PIVOT, GUARD_JOINTS),
         step=(dict(body=arts['step']), dict(body=None), dict(body='center'), dict(center=(512, 768))),
-        walk=(cut_walk(arts['walk']), WALK_PARENT, WALK_PIVOT, WALK_JOINTS),
+        walk=(cut_walk(arts['walk'], WALK), WALK_PARENT, WALK_PIVOT, WALK['joints']),
+        walkPass=(cut_walk(arts['walkPass'], PASS), WALK_PARENT, WALK_PIVOT, PASS['joints']),
     )
     blocks = []
     for name, (layers, parent, pivot, joints) in poses.items():

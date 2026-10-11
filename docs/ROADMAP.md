@@ -7,7 +7,8 @@
 - [x] Carton de titre et travelling d'ouverture.
 - [x] Personnage en position neutre, animé à partir d'une seule illustration.
 - [x] Garde, pose intermédiaire et marche dans la même vue, à partir de trois illustrations découpées en calques (à juger en mouvement).
-- [ ] Illustration du milieu du pas (jambes qui se croisent) pour assouplir la marche.
+- [x] Second dessin clé de la marche : appui sur la jambe proche, pied éloigné levé derrière.
+- [ ] Deux autres dessins clés : contact inversé, et jambe proche qui passe devant.
 - [ ] Pose de transition dessinée (trois quarts) entre la face et le profil.
 - [x] Ancien rig de face en 17 calques (`moussa_rig/`), remplacé dans le stage par les poses de trois quarts.
 
