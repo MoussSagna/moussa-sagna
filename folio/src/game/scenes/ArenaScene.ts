@@ -19,7 +19,7 @@ const GROUND_Y = 610;
 
 const COLOR_NIGHT = 0x070b12;
 const COLOR_NIGHT_BLUE = 0x101d2d;
-const COLOR_RED = 0xf51f3b;
+const COLOR_RED = 0xe8262d;
 
 /** Le métro traverse le viaduc en `TRAIN_RUN` secondes, toutes les `TRAIN_EVERY` secondes. */
 const TRAIN_EVERY = 17;

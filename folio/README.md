@@ -56,7 +56,7 @@ Dans l'arène : maintenir ← → (ou Q et D) pour marcher, appuyer deux fois vi
 ## Documentation
 
 - `docs/01-CONTEXTE-PROJET.md` — vision, objectifs et périmètre.
-- `docs/02-DIRECTION-ARTISTIQUE.md` — références visuelles et règles d'interface du site.
+- `docs/02-DIRECTION-ARTISTIQUE.md` — ce qui est propre au portfolio dans la direction artistique, et ses écarts avec celle de la racine.
 - `docs/03-ARCHITECTURE-TECHNIQUE.md` — architecture : la cible d'origine, puis l'architecture réelle, l'arène et le personnage.
 - `docs/04-ROADMAP-ET-PERIMETRE.md` — phases prévues.
 - `docs/05-CRITERES-DE-VALIDATION.md` — critères d'acceptation du premier sprint.
@@ -64,7 +64,7 @@ Dans l'arène : maintenir ← → (ou Q et D) pour marcher, appuyer deux fois vi
 - `docs/07-PERSONNAGE-MOUSSA.md` — assets de Moussa, découpage, limites.
 - `PROMPT-AGENT.md` — prompt du premier sprint, terminé. Gardé pour mémoire : les consignes à jour sont dans `CLAUDE.md`.
 
-La direction artistique commune aux deux projets est dans [`../docs/DIRECTION_ARTISTIQUE.md`](../docs/DIRECTION_ARTISTIQUE.md).
+La direction artistique du projet, qui fait foi pour la palette, la typographie et le personnage, est dans [`../docs/DIRECTION_ARTISTIQUE.md`](../docs/DIRECTION_ARTISTIQUE.md).
 
 ## Modifier les contenus
 
