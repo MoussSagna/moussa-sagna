@@ -141,7 +141,7 @@ function App() {
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↑</kbd> ou{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Z</kbd> pour sauter,{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">J</kbd> pour attaquer : un appui pour le
-        coup léger, un second pour enchaîner le coup moyen. {note}
+        coup léger, puis d'autres pour enchaîner le coup moyen et le coup fort. {note}
       </p>
     </main>
   )

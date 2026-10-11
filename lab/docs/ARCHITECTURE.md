@@ -34,7 +34,7 @@ Les lanternes, les néons et le trajet du métro sont positionnés par leurs coo
 
 ## Le personnage
 
-Le personnage est fait de vingt illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
+Le personnage est fait de vingt-trois illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
 
 | Pose | Illustration | Rôle |
 | --- | --- | --- |
@@ -56,6 +56,7 @@ Le personnage est fait de vingt illustrations dans la même vue (trois quarts à
 | `punchHit` | `../art/hero-punch-hit.png` | coup de poing léger : bras tendu |
 | `punchChain1`, `punchChain2` | `../art/hero-punch-chain-*.png` | transitions entre le jab et le direct : le bras avant se replie, puis le bras arrière part |
 | `punchMidHit`, `punchMidRecover` | `../art/hero-punch-mid-*.png` | coup de poing moyen : bras tendu, retour |
+| `punchHeavyStart`, `punchHeavyHit`, `punchHeavyRecover` | `../art/hero-punch-heavy-*.png` | coup de poing fort : armé, uppercut, retour |
 
 - **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas par pose et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
 - **Dessin** : `HeroLayer` dessine un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice du calque ; le fragment shader retrouve le pixel d'origine dans la toile (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.
@@ -100,19 +101,21 @@ La hauteur est calculée par le moteur : une montée (`JUMP.rise`) puis une reto
 
 ### Les coups de poing
 
-Il n'y a qu'une touche d'attaque. `HeroLayer.attack()` lance le coup léger depuis la garde ou la marche ; un nouvel appui pendant un coup met en attente le coup suivant de l'enchaînement (`CHAIN`), qui part dès la fin des images actives, à la place de la récupération. Un appui dans les `CHAIN_GRACE` secondes qui suivent le retour en garde poursuit aussi l'enchaînement, pour ne pas avoir à appuyer pendant le quart de seconde du coup ; passé ce délai, ou après toute autre action, l'appui repart du coup léger. Pour l'instant : léger, puis moyen.
+Il n'y a qu'une touche d'attaque. `HeroLayer.attack()` lance le coup léger depuis la garde ou la marche ; un nouvel appui pendant un coup met en attente le coup suivant de l'enchaînement (`CHAIN`), qui part dès la fin des images actives, à la place de la récupération. Un appui dans les `CHAIN_GRACE` secondes qui suivent le retour en garde poursuit aussi l'enchaînement, pour ne pas avoir à appuyer pendant le quart de seconde du coup ; passé ce délai, ou après toute autre action, l'appui repart du coup léger. L'enchaînement complet : léger, moyen, fort.
 
 `PUNCHES` décrit chaque coup : son minutage, repris d'un jeu de combat à 60 images par seconde, et un dessin par phase.
 
 | Coup | Démarrage | Actif | Récupération | Dessins |
 | --- | --- | --- | --- | --- |
 | Léger (jab du bras avant) | 4 | 3 | 7 | `punchStart`, `punchHit`, puis `punchStart` à nouveau |
+| Fort (uppercut du bras avant) | 11 | 6 | 20 | `punchHeavyStart`, `punchHeavyHit`, `punchHeavyRecover` |
 | Moyen (direct du bras arrière) | 6 | 4 | 11 | `punchChain1` et `punchChain2` (trois images chacun), `punchMidHit`, `punchMidRecover` |
 
 Montage des dessins :
 
 - **Léger** : illustrations entières, calées pour que le pied arrière tombe sur celui de la garde. Le pied avant fait un petit pas glissé.
 - **Moyen, impact** : illustration entière, calée sur le pied avant de la garde. Le pied arrière pivote sur sa pointe et les hanches tournent.
+- **Fort** : illustrations entières, calées sur le pied avant de la garde comme le direct.
 - **Transitions** : illustrations entières. Le pied avant y glisse de sa place du jab à celle du direct.
 - **Moyen, retour** : seulement le haut du corps, posé sur les jambes de la garde (`ON_GUARD_LEGS` dans `tools/prepare_poses.py`). Les jambes sautent donc en sortant de l'impact ; ce dessin reste à refaire en corps entier.
 
@@ -131,7 +134,7 @@ Il n'y a pas encore d'adversaire, donc pas de zone de frappe : le champ `reach` 
 - La marche n'utilise volontairement qu'un seul dessin. Un essai à trois dessins clés (branche `marche-poses`) a été abandonné : d'une illustration générée à l'autre, les plis, les rubans et les proportions changent, et chaque bascule se voyait comme une saccade.
 - En garde, les jambes et les bras ne sont pas articulés.
 - L'accroupi est un dessin entier qui respire d'un bloc : ni les bras, ni la tête, ni les rubans ne bougent séparément.
-- Chaque pose a son atlas. Les images sont toutes téléchargées au démarrage (environ 17 Mo), mais seules les `MAX_ATLASES` dernières poses utilisées sont gardées en mémoire vidéo : un atlas y pèse 10 à 20 Mo, et les garder tous (plus de 250 Mo) faisait perdre le contexte WebGL. En contrepartie, la première image d'une pose pas encore utilisée peut arriver avec un léger retard.
+- Chaque pose a son atlas. Les images sont toutes téléchargées au démarrage (environ 20 Mo), mais seules les `MAX_ATLASES` dernières poses utilisées sont gardées en mémoire vidéo : un atlas y pèse 10 à 20 Mo, et les garder tous (plus de 250 Mo) faisait perdre le contexte WebGL. En contrepartie, la première image d'une pose pas encore utilisée peut arriver avec un léger retard.
 - Le saut est fait de dessins fixes : rien ne bouge dans le dessin pendant le vol, rubans compris.
 - Les dashs sont une pose fixe qui glisse : rien ne bouge dans le dessin pendant le déplacement. Le premier des deux appuis lance brièvement la pose intermédiaire de la marche avant que le dash parte.
 
