@@ -34,15 +34,17 @@ Les lanternes, les néons et le trajet du métro sont positionnés par leurs coo
 
 ## Le personnage
 
-Le personnage est fait de trois illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
+Le personnage est fait de cinq illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
 
 | Pose | Illustration | Rôle |
 | --- | --- | --- |
 | `guard` | `art/hero-guard.png` | état neutre : garde, poings levés |
 | `step` | `art/hero-step.png` | pose intermédiaire, affichée un instant entre la garde et la marche |
 | `walk` | `art/hero-walk.png` | marche, jambes et bras articulés |
+| `dashForward` | `art/hero-dash-forward.png` | dash avant, un seul calque |
+| `dashBack` | `art/hero-dash-back.png` | dash arrière, un seul calque |
 
-- **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas (`guard.webp`, `step.webp`, `walk.webp`) et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
+- **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas par pose et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
 - **Dessin** : `HeroLayer` dessine un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice du calque ; le fragment shader retrouve le pixel d'origine dans la toile (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.
 - **Alignement** : chaque pose a un point d'appui (milieu des pieds, ligne des semelles). Les trois sont posés au même endroit du sol, placé par `PLACEMENT`, et suivent la caméra du décor avec la profondeur du sol.
 - **Reflet et ombre** : le personnage entier est d'abord dessiné une fois dans une texture hors écran, qui sert au reflet.
@@ -57,6 +59,12 @@ Le personnage est fait de trois illustrations dans la même vue (trois quarts à
 
 Le corps avance à `WALK_SPEED`, la vitesse exacte du pied posé, pour que les appuis ne patinent pas. Jouer le cycle à l'envers donne la marche arrière. `GAIT` règle la durée du cycle, la foulée, la levée des pieds et le balancement des bras.
 
+### Les dashs
+
+`HeroLayer.dash(direction)` affiche la pose de dash et déplace le personnage d'une distance fixe, vite au départ puis en freinant (`DASH` règle la distance et la durée de chaque sens). Pendant le déplacement, deux images fantômes de plus en plus transparentes sont dessinées à ses positions précédentes ; « Réduire les mouvements » les supprime. La pose de dash n'a qu'un calque, ce qui permet de la dessiner en transparence sans que des recouvrements apparaissent. À la fin, le personnage revient en garde. Un dash ne peut pas être relancé avant la fin du précédent.
+
+`App.tsx` déclenche un dash quand la même direction est pressée deux fois en moins de `DOUBLE_TAP_MS`, au clavier ou sur les boutons.
+
 ### Les changements d'état
 
 `HeroLayer.update` ne saute jamais directement de la garde à la marche : il affiche la pose `step` pendant `STEP_SECONDS`, puis la pose d'arrivée. Ce sont des coupes franches entre trois dessins proches, comme dans une animation dessinée, sans fondu. `StageEngine.walk` reçoit la direction (1, -1 ou 0) ; `App.tsx` la pilote au clavier et avec deux boutons à maintenir.
@@ -67,6 +75,7 @@ Le corps avance à `WALK_SPEED`, la vitesse exacte du pied posé, pour que les a
 - Les parties cachées (haut de la cuisse éloignée, buste sous le bras) sont des aplats sans détail.
 - Il manque une illustration du milieu du pas (jambes qui se croisent), le moment où le découpage est le plus faible.
 - En garde, les jambes et les bras ne sont pas articulés.
+- Les dashs sont une pose fixe qui glisse : rien ne bouge dans le dessin pendant le déplacement. Le premier des deux appuis lance brièvement la pose intermédiaire de la marche avant que le dash parte.
 
 ## Ajouter un plan
 

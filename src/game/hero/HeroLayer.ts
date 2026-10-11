@@ -5,11 +5,11 @@ import { BENDS, GAIT, WALK_SPEED, guardMatrices, walkMatrices } from './poseRig'
 import type { Affine } from './poseRig'
 import { FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from './shaders'
 
-const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas', 'uAtlasSize', 'uBend', 'uAxis'] as const
+const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas', 'uAtlasSize', 'uBend', 'uAxis', 'uAlpha'] as const
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -19,6 +19,8 @@ const GROUND = POSES.guard.anchor
 const OFFSETS: Record<PoseName, [number, number]> = {
   guard: [0, 0],
   step: [GROUND[0] - POSES.step.anchor[0], GROUND[1] - POSES.step.anchor[1]],
+  dashForward: [GROUND[0] - POSES.dashForward.anchor[0], GROUND[1] - POSES.dashForward.anchor[1]],
+  dashBack: [GROUND[0] - POSES.dashBack.anchor[0], GROUND[1] - POSES.dashBack.anchor[1]],
   // en marche, c'est la hanche qui est à l'aplomb du point d'appui
   walk: [GROUND[0] - POSES.walk.joints.hip_near[0], GROUND[1] - POSES.walk.anchor[1]],
 }
@@ -26,6 +28,19 @@ const OFFSETS: Record<PoseName, [number, number]> = {
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
 const STEP_SECONDS = 0.09
 const CALM_AMPLITUDE = 0.35
+
+/**
+ * Dash : distance en fraction de la largeur de l'écran, durée en secondes. Le déplacement part vite et
+ * freine. `ghosts` : retard (secondes) et opacité des images fantômes laissées derrière.
+ */
+const DASH = {
+  forward: { distance: 0.17, seconds: 0.3 },
+  back: { distance: 0.13, seconds: 0.26 },
+  ghosts: [
+    [0.09, 0.14],
+    [0.045, 0.3],
+  ] as [number, number][],
+}
 
 /** Marge autour du quad d'un ruban ondulé dans le shader, pour que rien ne soit coupé. */
 const RIBBON_MARGIN = 40
@@ -51,7 +66,9 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: PoseName = 'guard'
+  private pose: 'guard' | 'step' | 'walk' | 'dash' = 'guard'
+  /** Dash en cours : sens, position de départ et temps écoulé. */
+  private dashing = { direction: 1, from: PLACEMENT.x, time: 0 }
   /** Temps restant dans la pose intermédiaire. */
   private stepLeft = 0
   private phase = 0
@@ -72,14 +89,14 @@ export class HeroLayer {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW)
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-    // un atlas par pose, sur les unités de texture 0 à 2
+    // un atlas par pose, sur les premières unités de texture
     const loaded = await Promise.all(
       POSE_NAMES.map((name, unit) => loadTexture(gl, unit, asset(POSES[name].file), { alpha: true, premultiply: true, mipmap: true })),
     )
     if (!loaded.every(Boolean)) return false
 
-    // texture hors écran du reflet, sur l'unité 3
-    gl.activeTexture(gl.TEXTURE3)
+    // texture hors écran du reflet, sur l'unité qui suit
+    gl.activeTexture(gl.TEXTURE0 + POSE_NAMES.length)
     const texture = gl.createTexture()
     gl.bindTexture(gl.TEXTURE_2D, texture)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, REFLECTION.width, REFLECTION.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
@@ -93,13 +110,35 @@ export class HeroLayer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
 
     gl.useProgram(flat)
-    gl.uniform1i(this.flat.u.uTex, 3)
+    gl.uniform1i(this.flat.u.uTex, POSE_NAMES.length)
     this.ready = true
     return true
   }
 
+  /** Lance un dash : 1 vers l'avant, -1 vers l'arrière. Sans effet pendant un dash. */
+  dash(direction: number): void {
+    if (this.pose === 'dash' || direction === 0) return
+    this.pose = 'dash'
+    this.dashing = { direction: Math.sign(direction), from: this.x, time: 0 }
+  }
+
+  /** Position du personnage `time` secondes après le début du dash en cours. */
+  private dashX(time: number): number {
+    const move = this.dashing.direction > 0 ? DASH.forward : DASH.back
+    const k = Math.max(0, Math.min(1, time / move.seconds))
+    const eased = 1 - (1 - k) ** 3
+    return Math.max(PLACEMENT.minX, Math.min(PLACEMENT.maxX, this.dashing.from + this.dashing.direction * move.distance * eased))
+  }
+
   /** Fait avancer l'état du personnage. `direction` : 1 vers l'avant, -1 vers l'arrière, 0 à l'arrêt. */
   update(frame: FrameInfo, direction: number): void {
+    if (this.pose === 'dash') {
+      this.dashing.time += frame.delta
+      this.x = this.dashX(this.dashing.time)
+      const move = this.dashing.direction > 0 ? DASH.forward : DASH.back
+      if (this.dashing.time < move.seconds) return
+      this.pose = 'guard'
+    }
     const blocked = (direction > 0 && this.x >= PLACEMENT.maxX) || (direction < 0 && this.x <= PLACEMENT.minX)
     const moving = direction !== 0 && !blocked
     // garde <-> pose intermédiaire <-> marche : on ne saute jamais directement d'un bout à l'autre
@@ -138,7 +177,7 @@ export class HeroLayer {
     const left = sx - (GROUND[0] / CANVAS[0]) * w
     const top = sy - (GROUND[1] / CANVAS[1]) * h
 
-    const name = this.pose
+    const name: PoseName = this.pose !== 'dash' ? this.pose : this.dashing.direction > 0 ? 'dashForward' : 'dashBack'
     const pose = POSES[name]
     const amplitude = calm ? CALM_AMPLITUDE : 1
     const matrices: Affine[] | null =
@@ -146,12 +185,13 @@ export class HeroLayer {
     const offset = OFFSETS[name]
     const bends = BENDS[name]
 
-    const drawLayers = (vx: number, vy: number, vz: number, vw: number) => {
+    const drawLayers = (vx: number, vy: number, vz: number, vw: number, alpha = 1) => {
       gl.useProgram(layer.program)
       gl.enableVertexAttribArray(layer.attribute)
       gl.vertexAttribPointer(layer.attribute, 2, gl.FLOAT, false, 0, 0)
       const u = layer.u
       gl.uniform4f(u.uView, vx, vy, vz, vw)
+      gl.uniform1f(u.uAlpha, alpha)
       gl.uniform1i(u.uTex, POSE_NAMES.indexOf(name))
       gl.uniform2f(u.uAtlasSize, pose.atlasSize[0], pose.atlasSize[1])
       pose.layers.forEach((item, index) => {
@@ -199,7 +239,16 @@ export class HeroLayer {
     gl.uniform4f(flat.u.uRect, sx * 2 - 1, 1 - (sy - h * 0.006) * 2, h * 0.313 * (frame.height / frame.width), h * 0.031)
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
-    // 3. le personnage, calque par calque, du fond vers le premier plan
+    // 3. pendant un dash, des images fantômes à ses positions précédentes (la pose n'a qu'un calque, donc pas de recouvrement)
+    if (this.pose === 'dash' && !calm) {
+      for (const [delay, alpha] of DASH.ghosts) {
+        if (this.dashing.time <= delay) continue
+        const shift = (this.dashX(this.dashing.time - delay) - this.x) * camera.zoom
+        drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * (left + shift) - 1, 1 - 2 * top, alpha)
+      }
+    }
+
+    // 4. le personnage, calque par calque, du fond vers le premier plan
     drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * left - 1, 1 - 2 * top)
   }
 }

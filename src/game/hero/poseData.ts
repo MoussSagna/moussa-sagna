@@ -37,18 +37,6 @@ export const POSES = {
       { name: 'head', parent: 3, pivot: [600, 300], box: [497, 56, 284, 287], atlas: [1035, 841] },
     ] as PoseLayer[],
   },
-  step: {
-    file: 'hero/step.webp',
-    atlasSize: [2048, 2048] as Point,
-    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
-    anchor: [542, 1470] as Point,
-    joints: {
-      center: [512, 768] as Point,
-    },
-    layers: [
-      { name: 'body', parent: -1, pivot: [512, 768], box: [35, 41, 939, 1439], atlas: [0, 0] },
-    ] as PoseLayer[],
-  },
   walk: {
     file: 'hero/walk.webp',
     atlasSize: [2048, 2048] as Point,
@@ -82,6 +70,42 @@ export const POSES = {
       { name: 'torso', parent: -1, pivot: [560, 745], box: [24, 186, 696, 1150], atlas: [0, 0] },
       { name: 'head', parent: 11, pivot: [590, 280], box: [488, 50, 266, 260], atlas: [283, 1702] },
       { name: 'arm_near', parent: 11, pivot: [410, 340], box: [192, 277, 307, 617], atlas: [1184, 0] },
+    ] as PoseLayer[],
+  },
+  step: {
+    file: 'hero/step.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [542, 1470] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [35, 41, 939, 1439], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  dashForward: {
+    file: 'hero/dashForward.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [560, 1356] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [3, 301, 1012, 1064], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  dashBack: {
+    file: 'hero/dashBack.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [360, 1346] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [9, 169, 1023, 1186], atlas: [0, 0] },
     ] as PoseLayer[],
   },
 }

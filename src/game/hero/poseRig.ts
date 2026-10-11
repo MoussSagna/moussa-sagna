@@ -12,12 +12,14 @@ export interface Bend {
 }
 
 /** Rubans qui ondulent, par pose et par calque. Les autres calques sont rigides. */
-export const BENDS: Record<'guard' | 'step' | 'walk', Record<string, Bend>> = {
+export const BENDS: Record<keyof typeof POSES, Record<string, Bend>> = {
   guard: {
     ribbons: { amplitude: 9, length: 520, axis: [-0.906, 0.423] },
     ribbon_low: { amplitude: 7, length: 300, axis: [-0.555, 0.832] },
   },
   step: {},
+  dashForward: {},
+  dashBack: {},
   walk: {
     ribbons: { amplitude: 14, length: 520, axis: [-0.906, 0.423] },
     ribbon_low: { amplitude: 8, length: 200, axis: [-0.93, 0.368] },
