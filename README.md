@@ -2,7 +2,15 @@
 
 Portfolio de Moussa Sagna, développeur frontend, présenté comme un jeu de combat 2D dans l'esprit de *Guilty Gear Strive*.
 
-Premier écran en place : le stage **Tokyo Underground**, animé et en profondeur, avec le personnage en garde. Il marche avec les flèches gauche et droite (ou Q et D).
+Premier écran en place : le stage **Tokyo Underground**, animé et en profondeur, avec le personnage en garde.
+
+## Commandes du personnage
+
+| Action | Clavier | Boutons |
+| --- | --- | --- |
+| Avancer | maintenir → ou D | maintenir « Avancer » |
+| Reculer | maintenir ← ou Q (A sur un clavier QWERTY) | maintenir « Reculer » |
+| Dash avant ou arrière | deux appuis rapides dans le même sens | deux appuis rapides sur le bouton |
 
 ## Démarrer
 
@@ -37,7 +45,7 @@ tools/           scripts Python de préparation des images
 
 ## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md) : comment l'écran est rendu et comment ajouter un plan.
+- [Architecture](docs/ARCHITECTURE.md) : comment l'écran est rendu, comment le personnage est animé et comment ajouter un plan.
 - [Direction artistique](docs/DIRECTION_ARTISTIQUE.md) : palette, typographie, ton.
-- [Assets](docs/ASSETS.md) : préparer un décor ou un personnage.
+- [Assets](docs/ASSETS.md) : préparer un décor ou une pose du personnage.
 - [Feuille de route](docs/ROADMAP.md) : ce qui est fait et ce qui reste.

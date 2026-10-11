@@ -13,11 +13,13 @@ interface Props {
   introKey: number
   /** Déplacement du personnage : 1 vers l'avant, -1 vers l'arrière, 0 à l'arrêt. */
   walk: number
+  /** Dash demandé : `id` change à chaque demande, `direction` vaut 1 ou -1. */
+  dash: { id: number; direction: number }
   onUnavailable?: () => void
 }
 
-/** L'écran du stage : décor animé, personnage en position neutre, météo et carton de titre. */
-export function StageScreen({ options, introKey, walk, onUnavailable }: Props) {
+/** L'écran du stage : décor animé, personnage en garde, météo et carton de titre. */
+export function StageScreen({ options, introKey, walk, dash, onUnavailable }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLCanvasElement>(null)
   const hero = useRef<HTMLCanvasElement>(null)
@@ -55,6 +57,10 @@ export function StageScreen({ options, introKey, walk, onUnavailable }: Props) {
   }, [walk])
 
   useEffect(() => {
+    if (dash.id > 0) engine.current?.dash(dash.direction)
+  }, [dash])
+
+  useEffect(() => {
     if (introKey > 0) engine.current?.replayIntro()
     const timer = window.setTimeout(() => setFinishedKey(introKey), CARD_MS)
     return () => window.clearTimeout(timer)
@@ -71,7 +77,7 @@ export function StageScreen({ options, introKey, walk, onUnavailable }: Props) {
         className="absolute inset-0 block size-full"
         aria-label="Stage Tokyo Underground : une cour de temple sous la pluie, lune rouge, cerisier en fleurs et ville au néon"
       />
-      <canvas ref={hero} className="pointer-events-none absolute inset-0 block size-full" aria-label="Moussa en position neutre" />
+      <canvas ref={hero} className="pointer-events-none absolute inset-0 block size-full" aria-label="Moussa en garde" />
       <canvas ref={weather} className="pointer-events-none absolute inset-0 block size-full" aria-hidden="true" />
 
       <div key={`flash-${introKey}`} className="stage-flash pointer-events-none absolute inset-0 bg-white" />

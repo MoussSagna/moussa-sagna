@@ -50,6 +50,11 @@ export class StageEngine {
     return backdrop
   }
 
+  /** Lance un dash du personnage : 1 vers l'avant, -1 vers l'arrière. */
+  dash(direction: number): void {
+    this.hero.dash(direction)
+  }
+
   replayIntro(): void {
     this.introAt = performance.now()
   }

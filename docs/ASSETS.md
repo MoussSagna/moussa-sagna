@@ -21,9 +21,9 @@ Les scripts de `tools/` demandent Python 3 avec `pillow`, `numpy`, `opencv-pytho
 python3 tools/prepare_poses.py [--debug dossier]
 ```
 
-Le script lit `art/hero-guard.png`, `art/hero-step.png` et `art/hero-walk.png`. Pour chacune il retire le fond vert, efface les logos des baskets (`LOGOS`), découpe le personnage d'après des polygones tracés à la main, rebouche les zones cachées par des aplats de la couleur du tissu, et écrit :
+Le script lit `art/hero-guard.png`, `hero-step.png`, `hero-walk.png`, `hero-dash-forward.png` et `hero-dash-back.png`. Pour chacune il retire le fond vert, efface les logos des baskets (`LOGOS`), découpe le personnage d'après des polygones tracés à la main, rebouche les zones cachées par des aplats de la couleur du tissu, et écrit :
 
-- `public/assets/hero/guard.webp`, `step.webp`, `walk.webp` : un atlas par pose, en WebP sans perte, de côtés en puissances de deux pour que le moteur puisse générer les mipmaps ;
+- `public/assets/hero/guard.webp`, `step.webp`, `walk.webp`, `dashForward.webp`, `dashBack.webp` : un atlas par pose, en WebP sans perte, de côtés en puissances de deux pour que le moteur puisse générer les mipmaps ;
 - `src/game/hero/poseData.ts` : pour chaque pose, ses calques (place dans l'atlas et dans la toile, parent, pivot), ses articulations et son point d'appui.
 
 Avec `--debug`, il écrit aussi une planche des calques de chaque pose pour contrôler la découpe.
@@ -31,7 +31,7 @@ Avec `--debug`, il écrit aussi une planche des calques de chaque pose pour cont
 Découpe actuelle :
 
 - **garde** : rubans (deux calques), bas du corps, buste, tête ;
-- **pose intermédiaire** : un seul calque ;
+- **pose intermédiaire et dashs** : un seul calque chacun (liste `SINGLE`, avec l'aplomb des hanches donné à la main) ;
 - **marche** : rubans (deux calques), tête, buste, hanche, bassin, deux bras, et cuisse, tibia et pied pour chaque jambe.
 
 Pour une nouvelle illustration, il faut retracer ses polygones et ses articulations en haut du script, puis contrôler la planche de `--debug`.

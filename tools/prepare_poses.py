@@ -1,7 +1,8 @@
 """Découpe les illustrations du personnage (garde, transition, marche) en calques pour le moteur.
 
 Usage : python3 tools/prepare_poses.py [--debug dossier]
-Lit art/hero-guard.png, art/hero-step.png et art/hero-walk.png (fond vert uni, 1024 x 1536).
+Lit art/hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png et hero-dash-back.png
+(fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
 """
@@ -17,7 +18,7 @@ ART = ROOT / 'art'
 OUT = ROOT / 'public' / 'assets' / 'hero'
 DATA = ROOT / 'src' / 'game' / 'hero' / 'poseData.ts'
 DEBUG = Path(sys.argv[sys.argv.index('--debug') + 1]) if '--debug' in sys.argv else None
-PAD, ATLAS_WIDTH = 8, 2048
+PAD = 8
 W, H = 1024, 1536
 WHITE = np.array([242, 238, 238], np.float32)
 
@@ -27,7 +28,11 @@ LOGOS = dict(
     walk=[[(108, 1293), (136, 1293), (216, 1335), (216, 1359), (180, 1359), (108, 1318)],
           [(765, 1400), (800, 1370), (848, 1370), (848, 1398), (820, 1426), (770, 1432)]],
     step=[],
+    dashForward=[],
+    dashBack=[],
 )
+# Poses en un seul calque : le point d'appui horizontal est donné à la main (l'aplomb des hanches).
+SINGLE = dict(step=None, dashForward=560, dashBack=360)
 
 # ---------- marche : articulations et polygones. « near » = côté proche (jambe avant, bras arrière) ----------
 WALK_JOINTS = dict(
@@ -85,9 +90,12 @@ def poly(points) -> np.ndarray:
     return m.astype(bool)
 
 
+FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png', dashForward='hero-dash-forward.png', dashBack='hero-dash-back.png')
+
+
 def load(name: str) -> np.ndarray:
     """Charge une illustration, efface les logos des baskets et retire le fond vert."""
-    rgb = np.asarray(Image.open(ART / f'hero-{name}.png').convert('RGB')).copy()
+    rgb = np.asarray(Image.open(ART / FILES[name]).convert('RGB')).copy()
     assert rgb.shape[:2] == (H, W), name
     for points in LOGOS[name]:
         zone = poly(points)
@@ -208,22 +216,24 @@ def pack(name: str, layers: dict) -> tuple:
         crop[crop[..., 3] == 0] = 0
         crops[key] = np.pad(crop, ((PAD, PAD), (PAD, PAD), (0, 0)))
         boxes[key] = (int(x0 - PAD), int(y0 - PAD), int(x1 - x0 + 2 * PAD), int(y1 - y0 + 2 * PAD))
+    # côtés en puissances de deux (pour les mipmaps), au plus juste : une pose en un seul calque tient dans 1024 de large
+    atlas_width = 1024 if len(layers) == 1 and max(c.shape[1] for c in crops.values()) <= 1024 else 2048
     place, x, y, shelf = {}, 0, 0, 0
     for key in sorted(layers, key=lambda k: -crops[k].shape[0]):
         h, w = crops[key].shape[:2]
-        if x + w > ATLAS_WIDTH:
+        if x + w > atlas_width:
             x, y, shelf = 0, y + shelf, 0
         place[key] = (x, y)
         x, shelf = x + w, max(shelf, h)
     print(f'  {name} : hauteur utilisée {y + shelf}')
     height = 1 << (y + shelf - 1).bit_length()
-    atlas = np.zeros((height, ATLAS_WIDTH, 4), np.uint8)
+    atlas = np.zeros((height, atlas_width, 4), np.uint8)
     for key, (ax, ay) in place.items():
         h, w = crops[key].shape[:2]
         atlas[ay:ay + h, ax:ax + w] = crops[key]
     OUT.mkdir(parents=True, exist_ok=True)
     Image.fromarray(atlas).save(OUT / f'{name}.webp', lossless=True, quality=100, method=6)
-    return boxes, place, (ATLAS_WIDTH, height)
+    return boxes, place, (atlas_width, height)
 
 
 def anchor(art: np.ndarray) -> tuple:
@@ -248,17 +258,19 @@ def debug_sheet(name: str, layers: dict) -> None:
 
 
 def main() -> None:
-    arts = {name: load(name) for name in ('guard', 'step', 'walk')}
+    arts = {name: load(name) for name in FILES}
     poses = dict(
         guard=(cut_guard(arts['guard']), GUARD_PARENT, GUARD_PIVOT, GUARD_JOINTS),
-        step=(dict(body=arts['step']), dict(body=None), dict(body='center'), dict(center=(512, 768))),
         walk=(cut_walk(arts['walk']), WALK_PARENT, WALK_PIVOT, WALK_JOINTS),
     )
+    for name in SINGLE:
+        poses[name] = (dict(body=arts[name]), dict(body=None), dict(body='center'), dict(center=(512, 768)))
     blocks = []
     for name, (layers, parent, pivot, joints) in poses.items():
         boxes, place, size = pack(name, layers)
         order = list(layers)
         ax, ay = anchor(arts[name])
+        ax = SINGLE.get(name) or ax
         rows = []
         for key in order:
             px, py = joints[pivot[key]]

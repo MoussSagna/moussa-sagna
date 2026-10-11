@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { StageScreen } from './components/StageScreen'
 import type { StageOptions } from './game/types'
 
@@ -6,16 +6,35 @@ const prefersCalm = window.matchMedia('(prefers-reduced-motion: reduce)').matche
 
 /** Touches de déplacement. Q et A couvrent les claviers AZERTY et QWERTY. */
 const KEYS: Record<string, number> = { arrowright: 1, d: 1, arrowleft: -1, q: -1, a: -1 }
+/** Deux appuis sur la même direction en moins de ce délai (millisecondes) déclenchent un dash. */
+const DOUBLE_TAP_MS = 260
 
 function App() {
   const [options, setOptions] = useState<StageOptions>({ rain: true, petals: true, calm: prefersCalm })
   const [introKey, setIntroKey] = useState(0)
   const [walk, setWalk] = useState(0)
+  const [dash, setDash] = useState({ id: 0, direction: 1 })
+  const lastTap = useRef({ direction: 0, at: 0 })
   const [note, setNote] = useState('Bouge la souris sur le décor pour sentir la profondeur.')
 
   const onUnavailable = useCallback(() => {
     setNote("Le décor animé n'a pas pu se charger : il reste fixe, seules la pluie et les pétales bougent.")
   }, [])
+  /** Un appui sur une direction : le second appui rapproché dans le même sens lance un dash. */
+  const tap = useCallback((direction: number) => {
+    const now = performance.now()
+    const last = lastTap.current
+    if (last.direction === direction && now - last.at < DOUBLE_TAP_MS) {
+      setDash((current) => ({ id: current.id + 1, direction }))
+      lastTap.current = { direction: 0, at: 0 }
+    } else {
+      lastTap.current = { direction, at: now }
+    }
+  }, [])
+  const hold = (direction: number, held: boolean) => {
+    if (held) tap(direction)
+    setWalk(held ? direction : 0)
+  }
   const toggle = (key: keyof StageOptions) => setOptions((current) => ({ ...current, [key]: !current[key] }))
 
   useEffect(() => {
@@ -33,6 +52,7 @@ function App() {
       const typing = (target instanceof HTMLInputElement && target.type !== 'checkbox') || target instanceof HTMLTextAreaElement
       if (typing) return
       event.preventDefault()
+      if (!event.repeat) tap(KEYS[key])
       held.add(key)
       sync()
     }
@@ -52,17 +72,17 @@ function App() {
       window.removeEventListener('keyup', up)
       window.removeEventListener('blur', release)
     }
-  }, [])
+  }, [tap])
 
   return (
     <main className="mx-auto flex max-w-[1500px] flex-col gap-3.5 px-4 pt-4 pb-8">
       <h1 className="sr-only">Moussa Sagna, développeur frontend</h1>
-      <StageScreen options={options} introKey={introKey} walk={walk} onUnavailable={onUnavailable} />
+      <StageScreen options={options} introKey={introKey} walk={walk} dash={dash} onUnavailable={onUnavailable} />
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-muted">
         <div className="flex gap-2">
-          <HoldButton label="Reculer" onHold={(held) => setWalk(held ? -1 : 0)} />
-          <HoldButton label="Avancer" onHold={(held) => setWalk(held ? 1 : 0)} />
+          <HoldButton label="Reculer" onHold={(held) => hold(-1, held)} />
+          <HoldButton label="Avancer" onHold={(held) => hold(1, held)} />
         </div>
         <button
           type="button"
@@ -79,7 +99,7 @@ function App() {
         Maintiens <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">←</kbd>{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">→</kbd> ou{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Q</kbd>{' '}
-        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd> pour marcher. {note}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd> pour marcher, appuie deux fois vite pour un dash. {note}
       </p>
     </main>
   )

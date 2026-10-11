@@ -5,17 +5,29 @@
 - [x] Projet initialisé (Vite, React, TypeScript, Tailwind).
 - [x] Stage Tokyo Underground : profondeur, ciel, écrans, lanternes, métro, brume, sol mouillé, pluie, pétales.
 - [x] Carton de titre et travelling d'ouverture.
-- [x] Personnage en position neutre, animé à partir d'une seule illustration.
-- [x] Garde, pose intermédiaire et marche dans la même vue, à partir de trois illustrations découpées en calques (à juger en mouvement).
-- [ ] Illustration du milieu du pas (jambes qui se croisent) pour assouplir la marche.
-- [ ] Pose de transition dessinée (trois quarts) entre la face et le profil.
-- [x] Ancien rig de face en 17 calques (`moussa_rig/`), remplacé dans le stage par les poses de trois quarts.
+- [x] Personnage en garde de trois quarts : respiration, léger rebond sur les appuis, tête et rubans animés.
+- [x] Marche avant et arrière, jambes et bras articulés à partir d'une seule illustration, avec une pose intermédiaire au départ et à l'arrêt.
+- [x] Dash avant et dash arrière au double appui, avec images fantômes.
+- [x] Logos de marque effacés sur les baskets de la garde et de la marche.
+
+## Essais abandonnés
+
+- **Pose neutre de face** (`moussa_rig/`, 17 calques) : le passage de la face au profil sautait aux yeux, même avec un fondu. Toutes les poses sont maintenant dans la même vue.
+- **Planches de frames générées** : le personnage change trop d'une image à l'autre, l'animation tremble.
+- **Marche à plusieurs dessins clés** (branche `marche-poses`) : chaque changement de dessin se voyait comme une saccade. La marche reste sur un seul dessin animé en continu.
+
+## À reprendre sur le personnage
+
+- [ ] Effacer le logo des baskets sur la pose intermédiaire (`art/hero-step.png`).
+- [ ] Adoucir le pli du genou de la marche et articuler l'avant-bras.
+- [ ] Articuler les bras et les jambes de la garde.
+- [ ] Dashs : animer les rubans, ajouter un élan et une réception, et ne plus amorcer la marche au premier des deux appuis.
 
 ## Ensuite
 
 1. **Structure du portfolio** : écran titre, menu principal, puis les sections (projets, parcours, à propos, contact) en HTML par-dessus ou à côté de la scène. Ajouter **Zustand** à ce moment-là pour l'écran courant.
 2. **Transitions entre écrans** : séquences chorégraphiées avec **GSAP**.
-3. **Autres animations du personnage** : accroupi, saut, coups, touché. Une illustration par état, toujours dans la même vue, découpée par `tools/prepare_poses.py`.
+3. **Autres animations du personnage** : accroupi, saut, coups, touché, et une pose d'élan et de réception pour les dashs. Une illustration par état, toujours dans la même vue, découpée par `tools/prepare_poses.py`.
 4. **Sprites et moteur de combat** : à partir de plusieurs personnages et de nombreuses frames, passer le rendu des sprites sur **PixiJS**. Le décor en shader peut rester tel quel.
 5. **Adversaire** : un personnage original.
 6. **Mobile** : cadrage adapté, commandes tactiles, effets allégés.

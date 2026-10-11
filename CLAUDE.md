@@ -30,6 +30,8 @@ Lancer `npm run build && npm run preview`, ouvrir la page et regarder réellemen
 - `src/game/hero/poseData.ts` et les atlas de `public/assets/hero/` sont générés par `tools/prepare_poses.py` à partir des illustrations de `art/`. Ne pas les modifier à la main.
 - Les polygones de découpe et les articulations, en haut de `tools/prepare_poses.py`, sont tracés à la main pour les illustrations actuelles : une autre image demande de les retracer.
 - Toutes les poses du personnage doivent garder la même vue (trois quarts à profil, tourné vers la droite) et la même taille de tête. Une pose dans une autre vue fait sauter le personnage au changement d'état.
+- Les illustrations générées ne sont pas toutes à la même échelle : `POSE_SCALE`, dans `src/game/hero/HeroLayer.ts`, ramène chaque pose à la taille de tête de la garde. À mesurer pour chaque nouvelle image.
+- Ne pas faire alterner plusieurs illustrations dans une même animation continue : chaque changement de dessin se voit comme une saccade (essai abandonné sur la marche, voir `docs/ROADMAP.md`). Une animation = une illustration animée par le moteur.
 - Les illustrations générées portent parfois un logo de marque sur les baskets : `LOGOS`, dans `tools/prepare_poses.py`, l'efface. À vérifier pour chaque nouvelle image.
 - `moussa_rig/` est l'ancien rig de face. Le moteur ne l'utilise plus ; il est gardé comme source pour un éventuel écran de présentation.
 - La carte `depth.png` encode plusieurs informations par canal de couleur. Ne pas la recompresser en JPEG ni la redimensionner à la main.

@@ -35,7 +35,9 @@ Les titres portent une ombre dure décalée (rouge puis noir), sans flou.
 
 ## Le personnage
 
-Peau brun foncé, locks noires, bandeau rouge à longs pans, veste noire à capuche doublée de rouge, t-shirt blanc, cargo noir, gants rouges, baskets noir, blanc et rouge.
+Peau brun foncé, locks noires, bandeau rouge à longs pans, veste noire à capuche doublée de rouge avec motifs rouges sur les manches, débardeur blanc, collier, cargo noir à lanières rouges et chaînes, gants rouges à boucle carrée, baskets montantes noir, blanc et rouge sans logo de marque.
+
+Il est toujours dessiné de trois quarts à profil, tourné vers la droite : c'est la vue de toutes ses poses.
 
 ## Personnages d'autres éditeurs
 
