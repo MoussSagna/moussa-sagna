@@ -3,6 +3,7 @@ import { PLACEMENT } from '../hero/HeroLayer'
 import type { Strike } from '../hero/HeroLayer'
 import { CANVAS } from '../hero/poseData'
 import { FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from '../hero/shaders'
+import type { Opponent } from '../opponent'
 import type { Camera, FrameInfo } from '../types'
 
 const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas', 'uAtlasSize', 'uBend', 'uAxis', 'uAlpha', 'uSmear'] as const
@@ -46,7 +47,7 @@ const REFLECTION = { alpha: 0.2, squash: 0.5 }
 const CALM_AMPLITUDE = 0.35
 
 /** Le mannequin d'entraînement : une cible fixe, qui encaisse les coups et oscille sur son ressort. */
-export class DummyLayer {
+export class DummyLayer implements Opponent {
   /** Position sur le stage, en fraction de la largeur de l'écran. */
   readonly x = 0.64
   /** Distance entre l'axe du mannequin et la surface du buste côté personnage, en pixels de la toile. */
@@ -91,14 +92,15 @@ export class DummyLayer {
     return this.ready
   }
 
-  /** Encaisse un coup. `power` : de 0 (effleuré) à 1 (coup fort). */
-  hit(power: number): void {
+  /** Encaisse un coup. `power` : de 0 (effleuré) à 1 (coup fort). Il ne pare jamais. */
+  hit(power: number): boolean {
     this.hold = HIT.hold
     this.power = power
     // un coup reçu interrompt son attaque
     this.attackTime = -1
     this.angle = 0
     this.velocity = 0
+    return false
   }
 
   /** Lance le coup de tête du mannequin, s'il n'est pas déjà en train d'attaquer ou d'encaisser. */

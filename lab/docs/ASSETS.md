@@ -50,6 +50,14 @@ python3 tools/prepare_dummy.py
 
 Le script lit `../art/dummy-idle.png` (au repos) et `../art/dummy-hit.png` (coup reçu), retire le fond vert et écrit `public/assets/dummy/dummy.webp` : les deux dessins côte à côte, chacun sur sa toile de 1024 × 1536. Les deux illustrations doivent avoir le socle exactement au même endroit, et le mannequin tourné vers la gauche. Les rectangles du socle et du buste, le pivot du ressort et le point posé au sol sont dans `ATLAS`, en haut de `src/game/dummy/DummyLayer.ts` : à reprendre si l'illustration change.
 
+## Adversaire : `tools/prepare_rival.py`
+
+```bash
+python3 tools/prepare_rival.py
+```
+
+Le script lit tous les `../art/rival-*.png` (personnage tourné vers la gauche, mêmes contraintes que les poses du personnage), retire le fond vert et écrit une image par pose dans `public/assets/rival/`. Il affiche aussi l'étendue des appuis et le bord avant du corps, qui servent à régler le point posé au sol, `surface` et `gap` dans `src/game/rival/RivalLayer.ts`.
+
 ## Décor : `tools/prepare_stage.py`
 
 ```bash

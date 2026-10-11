@@ -401,10 +401,13 @@ export class HeroLayer {
     return { x: this.x + move.reach * pixel, height: move.height, power: move.power, stop: move.stop }
   }
 
-  /** Le coup de poing en cours a touché en `x` : il ne touchera plus, et une étincelle part du point d'impact. */
-  land(strike: Strike, x: number): void {
+  /**
+   * Le coup de poing en cours a touché en `x` : il ne touchera plus, et une étincelle part du point d'impact.
+   * `guarded` : le coup a été paré. L'enchaînement reste possible, comme sur un coup porté.
+   */
+  land(strike: Strike, x: number, guarded = false): void {
     this.punchLanded = true
-    this.impacts.push({ x, height: strike.height, age: 0, power: strike.power, blast: false, seed: this.impacts.length + strike.height })
+    this.impacts.push({ x, height: strike.height, age: 0, power: strike.power, blast: false, guard: guarded, seed: this.impacts.length + strike.height })
   }
 
   /** La boule de feu en vol, vue comme un coup : son avant, sa hauteur, sa puissance. */
@@ -413,10 +416,10 @@ export class HeroLayer {
     return { x: this.fireball.x + SPECIAL.radius * 0.5 * pixel, height: this.fireball.height, power: SPECIAL.power, stop: SPECIAL.stop }
   }
 
-  /** La boule de feu a touché en `x` : elle explose et disparaît. */
-  burst(x: number): void {
+  /** La boule de feu a touché en `x` : elle explose et disparaît. `guarded` : elle a été parée. */
+  burst(x: number, guarded = false): void {
     if (!this.fireball) return
-    this.impacts.push({ x, height: this.fireball.height, age: 0, power: SPECIAL.power, blast: true, seed: this.fireball.age * 40 })
+    this.impacts.push({ x, height: this.fireball.height, age: 0, power: SPECIAL.power, blast: true, guard: guarded, seed: this.fireball.age * 40 })
     this.fireball = null
   }
 
