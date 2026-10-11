@@ -131,7 +131,7 @@ Il n'y a pas encore d'adversaire, donc pas de zone de frappe : le champ `reach` 
 - La marche n'utilise volontairement qu'un seul dessin. Un essai à trois dessins clés (branche `marche-poses`) a été abandonné : d'une illustration générée à l'autre, les plis, les rubans et les proportions changent, et chaque bascule se voyait comme une saccade.
 - En garde, les jambes et les bras ne sont pas articulés.
 - L'accroupi est un dessin entier qui respire d'un bloc : ni les bras, ni la tête, ni les rubans ne bougent séparément.
-- Chaque pose a son atlas, mais un seul est lié à la fois (celui de la pose affichée) : le nombre de poses ne dépend plus des unités de texture du navigateur. En contrepartie, tous les atlas sont chargés au démarrage, soit environ 17 Mo d'images à télécharger.
+- Chaque pose a son atlas. Les images sont toutes téléchargées au démarrage (environ 17 Mo), mais seules les `MAX_ATLASES` dernières poses utilisées sont gardées en mémoire vidéo : un atlas y pèse 10 à 20 Mo, et les garder tous (plus de 250 Mo) faisait perdre le contexte WebGL. En contrepartie, la première image d'une pose pas encore utilisée peut arriver avec un léger retard.
 - Le saut est fait de dessins fixes : rien ne bouge dans le dessin pendant le vol, rubans compris.
 - Les dashs sont une pose fixe qui glisse : rien ne bouge dans le dessin pendant le déplacement. Le premier des deux appuis lance brièvement la pose intermédiaire de la marche avant que le dash parte.
 

@@ -1,4 +1,4 @@
-import { asset, createProgram, createTexture, uniforms } from '../gl'
+import { asset, createProgram, loadImage, uploadTexture, uniforms } from '../gl'
 import type { Camera, FrameInfo } from '../types'
 import { CANVAS, POSES } from './poseData'
 import { BENDS, GAIT, WALK_SPEED, guardMatrices, heldMatrix, scaleAbout, walkMatrices } from './poseRig'
@@ -103,6 +103,11 @@ const HELD: PoseName[] = ['crouch', 'block', 'crouchBlock']
 /** Unités de texture : l'atlas de la pose affichée, puis la texture du reflet. */
 const ATLAS_UNIT = 0
 const REFLECTION_UNIT = 1
+/**
+ * Nombre d'atlas gardés en mémoire vidéo. Un atlas pèse 10 à 20 Mo une fois décompressé : les garder
+ * tous (plus de 250 Mo) fait perdre le contexte WebGL sur les appareils modestes.
+ */
+const MAX_ATLASES = 6
 const CALM_AMPLITUDE = 0.35
 
 /**
@@ -151,6 +156,8 @@ export class HeroLayer {
   /** Temps écoulé depuis le début du saut en cours. */
   private jumpTime = 0
   /** L'atlas de chaque pose. Un seul est lié à la fois, celui de la pose affichée. */
+  private images = new Map<PoseName, HTMLImageElement>()
+  /** Atlas envoyés à la carte graphique, du moins récemment utilisé au plus récent. */
   private atlases = new Map<PoseName, WebGLTexture>()
   /** Dash en cours : sens, position de départ et temps écoulé. */
   private dashing = { direction: 1, from: PLACEMENT.x, time: 0 }
@@ -174,14 +181,13 @@ export class HeroLayer {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW)
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-    // un atlas par pose ; ils ne restent pas liés, pour ne pas dépendre du nombre d'unités de texture du navigateur
-    const loaded = await Promise.all(
-      POSE_NAMES.map((name) => createTexture(gl, ATLAS_UNIT, asset(POSES[name].file), { alpha: true, premultiply: true, mipmap: true })),
-    )
-    for (const [index, texture] of loaded.entries()) {
-      if (!texture) return false
-      this.atlases.set(POSE_NAMES[index], texture)
+    // une image par pose, chargée d'avance ; elle n'est envoyée à la carte graphique qu'au moment de servir
+    const loaded = await Promise.all(POSE_NAMES.map((name) => loadImage(asset(POSES[name].file))))
+    for (const [index, image] of loaded.entries()) {
+      if (!image) return false
+      this.images.set(POSE_NAMES[index], image)
     }
+    this.atlas('guard')
 
     // texture hors écran du reflet, sur sa propre unité
     gl.activeTexture(gl.TEXTURE0 + REFLECTION_UNIT)
@@ -209,6 +215,29 @@ export class HeroLayer {
     if (!free || direction === 0) return
     this.pose = 'dash'
     this.dashing = { direction: Math.sign(direction), from: this.x, time: 0 }
+  }
+
+  /** L'atlas d'une pose, envoyé à la carte graphique s'il n'y est pas ; les moins récemment utilisés sont libérés. */
+  private atlas(name: PoseName): WebGLTexture | null {
+    const gl = this.gl
+    if (!gl) return null
+    let texture = this.atlases.get(name) ?? null
+    if (texture) {
+      this.atlases.delete(name)
+    } else {
+      const image = this.images.get(name)
+      if (!image) return null
+      texture = uploadTexture(gl, ATLAS_UNIT, image, { alpha: true, premultiply: true, mipmap: true })
+      if (!texture) return null
+    }
+    this.atlases.set(name, texture)
+    for (const [old, stale] of this.atlases) {
+      if (this.atlases.size <= MAX_ATLASES) break
+      if (old === 'guard') continue
+      gl.deleteTexture(stale)
+      this.atlases.delete(old)
+    }
+    return texture
   }
 
   /**
@@ -416,7 +445,7 @@ export class HeroLayer {
       gl.uniform4f(u.uView, vx, vy, vz, vw)
       gl.uniform1f(u.uAlpha, alpha)
       gl.activeTexture(gl.TEXTURE0 + ATLAS_UNIT)
-      gl.bindTexture(gl.TEXTURE_2D, this.atlases.get(name) ?? null)
+      gl.bindTexture(gl.TEXTURE_2D, this.atlas(name))
       gl.uniform1i(u.uTex, ATLAS_UNIT)
       gl.uniform2f(u.uAtlasSize, pose.atlasSize[0], pose.atlasSize[1])
       pose.layers.forEach((item, index) => {
