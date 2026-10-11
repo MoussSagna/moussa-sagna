@@ -18,7 +18,7 @@
 
 ## À reprendre sur le personnage
 
-- [ ] Effacer le logo des baskets sur la pose intermédiaire (`art/hero-step.png`).
+- [ ] Effacer le logo des baskets sur la pose intermédiaire (`../art/hero-step.png`).
 - [ ] Adoucir le pli du genou de la marche et articuler l'avant-bras.
 - [ ] Articuler les bras et les jambes de la garde.
 - [ ] Dashs : animer les rubans, ajouter un élan et une réception, et ne plus amorcer la marche au premier des deux appuis.

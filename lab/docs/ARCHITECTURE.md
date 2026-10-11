@@ -38,11 +38,11 @@ Le personnage est fait de cinq illustrations dans la même vue (trois quarts à 
 
 | Pose | Illustration | Rôle |
 | --- | --- | --- |
-| `guard` | `art/hero-guard.png` | état neutre : garde, poings levés |
-| `step` | `art/hero-step.png` | pose intermédiaire, affichée un instant entre la garde et la marche |
-| `walk` | `art/hero-walk.png` | marche, jambes et bras articulés |
-| `dashForward` | `art/hero-dash-forward.png` | dash avant, un seul calque |
-| `dashBack` | `art/hero-dash-back.png` | dash arrière, un seul calque |
+| `guard` | `../art/hero-guard.png` | état neutre : garde, poings levés |
+| `step` | `../art/hero-step.png` | pose intermédiaire, affichée un instant entre la garde et la marche |
+| `walk` | `../art/hero-walk.png` | marche, jambes et bras articulés |
+| `dashForward` | `../art/hero-dash-forward.png` | dash avant, un seul calque |
+| `dashBack` | `../art/hero-dash-back.png` | dash arrière, un seul calque |
 
 - **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas par pose et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
 - **Dessin** : `HeroLayer` dessine un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice du calque ; le fragment shader retrouve le pixel d'origine dans la toile (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.

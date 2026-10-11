@@ -1,38 +1,29 @@
 # Consignes pour travailler sur ce dépôt
 
-Portfolio de Moussa Sagna sous forme de jeu de combat 2D (style Guilty Gear Strive). Lire `docs/ARCHITECTURE.md` avant de toucher au rendu.
+Portfolio de Moussa Sagna, développeur frontend, sous forme de jeu de combat 2D (style Guilty Gear Strive). Le dépôt contient deux projets côte à côte et des ressources communes.
 
-## Commandes
+## Organisation
 
-- `npm run dev` : développement
-- `npm run build` : `tsc -b` puis build Vite. Doit passer avant tout commit.
-- `npm run lint` : oxlint. Zéro avertissement.
+| Dossier | Rôle |
+| --- | --- |
+| `lab/` | Moteur WebGL d'essai : on y met au point le stage et les animations du personnage. Voir `lab/CLAUDE.md`. |
+| `folio/` | Le portfolio Phaser, le site qui sera mis en ligne. |
+| `art/` | Illustrations sources du personnage, une par pose. Communes aux deux projets. |
+| `docs/` | Documentation commune (direction artistique). |
 
-Il n'y a pas encore de tests automatisés.
+Chaque projet a son propre `package.json` : les commandes se lancent depuis `lab/` ou depuis `folio/`, jamais depuis la racine. Chaque projet a aussi son propre `CLAUDE.md`, qui complète celui-ci.
 
-## Règles du projet
+## Règles communes
 
 - **Langue** : interface et documentation en français, avec les accents. Noms de code (variables, fichiers, types) en anglais.
-- **Séparation jeu / interface** : `src/game/` ne dépend pas de React. React (`src/components/`) crée les canvas, instancie le moteur dans un `useEffect` et le détruit au démontage.
-- **Une seule boucle, une seule caméra** : `StageEngine` possède le `requestAnimationFrame` et calcule la caméra ; chaque plan reçoit `FrameInfo` et `Camera`. Ne pas ajouter de seconde boucle.
-- **TypeScript** : `erasableSyntaxOnly` est actif, donc pas d'`enum` ni de propriétés déclarées dans les paramètres de constructeur.
-- **Dépendances** : n'en ajouter que lorsqu'un écran en a réellement besoin (voir la feuille de route).
-- **Couleurs et polices** : uniquement via les jetons `@theme` de `src/index.css`.
-- **Accessibilité** : respecter l'option « Réduire les mouvements » (`options.calm`) dans tout nouvel effet, et `prefers-reduced-motion` pour les animations CSS.
-- **Assets** : les images vivent dans `public/assets/` et sont chargées avec `asset('dossier/fichier')`. Rien n'est chargé depuis un autre site, sauf les polices Google.
+- **Un projet à la fois** : un changement dans `lab/` ne touche pas à `folio/`, et inversement. Ce qui passe de l'un à l'autre (images découpées, réglages d'animation) est reporté volontairement et noté dans le message de commit.
+- **Illustrations** : une seule copie de chaque source, dans `art/`. Ne pas dupliquer une illustration dans un projet ; seuls les fichiers générés à partir d'elle (atlas, données) y vivent.
+- **Fichiers lourds** : pas d'archives ni de dossiers de références dans le dépôt. Seul ce dont un projet a besoin pour se construire ou s'exécuter est suivi.
+- **Vérifier un changement de rendu** : un build qui passe ne prouve pas que le rendu est bon. Ouvrir la page, regarder réellement l'écran, et dire clairement ce qui a été vérifié à l'œil et ce qui ne l'a pas été.
 
-## Vérifier un changement de rendu
+## Le personnage
 
-Lancer `npm run build && npm run preview`, ouvrir la page et regarder réellement l'écran. Un build qui passe ne prouve pas que le rendu est bon. Dire clairement ce qui a été vérifié à l'œil et ce qui ne l'a pas été.
-
-## Pièges connus
-
-- `src/game/hero/poseData.ts` et les atlas de `public/assets/hero/` sont générés par `tools/prepare_poses.py` à partir des illustrations de `art/`. Ne pas les modifier à la main.
-- Les polygones de découpe et les articulations, en haut de `tools/prepare_poses.py`, sont tracés à la main pour les illustrations actuelles : une autre image demande de les retracer.
-- Toutes les poses du personnage doivent garder la même vue (trois quarts à profil, tourné vers la droite) et la même taille de tête. Une pose dans une autre vue fait sauter le personnage au changement d'état.
-- Les illustrations générées ne sont pas toutes à la même échelle : `POSE_SCALE`, dans `src/game/hero/HeroLayer.ts`, ramène chaque pose à la taille de tête de la garde. À mesurer pour chaque nouvelle image.
-- Ne pas faire alterner plusieurs illustrations dans une même animation continue : chaque changement de dessin se voit comme une saccade (essai abandonné sur la marche, voir `docs/ROADMAP.md`). Une animation = une illustration animée par le moteur.
-- Les illustrations générées portent parfois un logo de marque sur les baskets : `LOGOS`, dans `tools/prepare_poses.py`, l'efface. À vérifier pour chaque nouvelle image.
-- `moussa_rig/` est l'ancien rig de face. Le moteur ne l'utilise plus ; il est gardé comme source pour un éventuel écran de présentation.
-- La carte `depth.png` encode plusieurs informations par canal de couleur. Ne pas la recompresser en JPEG ni la redimensionner à la main.
+- Toutes ses poses gardent la même vue (trois quarts à profil, tourné vers la droite) et la même taille de tête. Une pose dans une autre vue fait sauter le personnage au changement d'état.
+- Une animation = une illustration animée par le moteur. Faire alterner plusieurs illustrations générées dans une même animation continue produit une saccade à chaque changement de dessin.
+- Les illustrations générées portent parfois un logo de marque sur les baskets : il doit être effacé avant toute mise en ligne.
 - Les personnages d'autres éditeurs (Ryu, M. Bison…) sont protégés : pour un site public, préférer des adversaires originaux.

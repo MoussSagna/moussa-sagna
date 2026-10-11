@@ -1,5 +1,7 @@
 # Préparer les images
 
+Les chemins sont relatifs à `lab/` et les scripts se lancent depuis `lab/`. Les illustrations sources sont dans `art/`, à la racine du dépôt, pour servir aussi au folio.
+
 Les scripts de `tools/` demandent Python 3 avec `pillow`, `numpy`, `opencv-python` et `scipy`.
 
 ## Ce qu'il faut fournir
@@ -21,7 +23,7 @@ Les scripts de `tools/` demandent Python 3 avec `pillow`, `numpy`, `opencv-pytho
 python3 tools/prepare_poses.py [--debug dossier]
 ```
 
-Le script lit `art/hero-guard.png`, `hero-step.png`, `hero-walk.png`, `hero-dash-forward.png` et `hero-dash-back.png`. Pour chacune il retire le fond vert, efface les logos des baskets (`LOGOS`), découpe le personnage d'après des polygones tracés à la main, rebouche les zones cachées par des aplats de la couleur du tissu, et écrit :
+Le script lit `../art/hero-guard.png`, `hero-step.png`, `hero-walk.png`, `hero-dash-forward.png` et `hero-dash-back.png`. Pour chacune il retire le fond vert, efface les logos des baskets (`LOGOS`), découpe le personnage d'après des polygones tracés à la main, rebouche les zones cachées par des aplats de la couleur du tissu, et écrit :
 
 - `public/assets/hero/guard.webp`, `step.webp`, `walk.webp`, `dashForward.webp`, `dashBack.webp` : un atlas par pose, en WebP sans perte, de côtés en puissances de deux pour que le moteur puisse générer les mipmaps ;
 - `src/game/hero/poseData.ts` : pour chaque pose, ses calques (place dans l'atlas et dans la toile, parent, pivot), ses articulations et son point d'appui.
@@ -36,7 +38,7 @@ Découpe actuelle :
 
 Pour une nouvelle illustration, il faut retracer ses polygones et ses articulations en haut du script, puis contrôler la planche de `--debug`.
 
-`moussa_rig/`, `tools/prepare_rig.py` et `tools/rig/` sont l'ancien rig de face, que le moteur n'utilise plus. `art/hero-source.png` est l'illustration de face d'origine.
+`moussa_rig/`, `tools/prepare_rig.py` et `tools/rig/` sont l'ancien rig de face, que le moteur n'utilise plus. `../art/hero-source.png` est l'illustration de face d'origine.
 
 ## Décor : `tools/prepare_stage.py`
 

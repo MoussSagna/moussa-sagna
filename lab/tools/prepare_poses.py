@@ -1,7 +1,7 @@
 """Découpe les illustrations du personnage (garde, transition, marche) en calques pour le moteur.
 
-Usage : python3 tools/prepare_poses.py [--debug dossier]
-Lit art/hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png et hero-dash-back.png
+Usage (depuis lab/) : python3 tools/prepare_poses.py [--debug dossier]
+Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png et hero-dash-back.png
 (fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
@@ -13,8 +13,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
-ROOT = Path(__file__).resolve().parent.parent
-ART = ROOT / 'art'
+ROOT = Path(__file__).resolve().parent.parent    # le dossier lab/
+ART = ROOT.parent / 'art'                        # les illustrations sont à la racine du dépôt, communes au lab et au folio
 OUT = ROOT / 'public' / 'assets' / 'hero'
 DATA = ROOT / 'src' / 'game' / 'hero' / 'poseData.ts'
 DEBUG = Path(sys.argv[sys.argv.index('--debug') + 1]) if '--debug' in sys.argv else None
