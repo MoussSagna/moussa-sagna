@@ -83,6 +83,11 @@ export class StageEngine {
     this.hero.special()
   }
 
+  /** Fait attaquer le mannequin : un coup de tête, pour tester les coups reçus et parés. */
+  dummyAttack(): void {
+    this.dummy.attack()
+  }
+
   /** Lance un saut vertical du personnage. */
   jump(): void {
     this.hero.jump()
@@ -137,6 +142,14 @@ export class StageEngine {
     if (punch && punch.x >= surface) {
       this.hero.land(punch, surface)
       react(punch)
+    }
+    // le coup de tête du mannequin : encaissé, ou paré si le personnage est en parade
+    const blow = this.dummy.strike(pixel)
+    if (blow && this.hero.front(pixel) >= blow.x) {
+      this.dummy.land()
+      const guarded = this.hero.takeHit(blow, pixel)
+      this.stop = blow.stop * (guarded ? 0.5 : 1) * (calm ? 0.5 : 1)
+      this.shake = Math.max(this.shake, blow.power * (guarded ? 0.4 : 1))
     }
     const ball = this.hero.fireballStrike(pixel)
     if (ball && ball.x >= surface) {

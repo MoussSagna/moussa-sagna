@@ -57,6 +57,7 @@ Le personnage est fait de vingt-neuf illustrations dans la même vue (trois quar
 | `punchStart` | `../art/hero-punch-start.png` | coup de poing léger : bras à mi-course, au démarrage et au retour |
 | `punchHit` | `../art/hero-punch-hit.png` | coup de poing léger : bras tendu |
 | `specialCharge`, `specialThrow`, `specialRecover` | `../art/hero-special-*.png` | attaque spéciale : charge à la hanche, lancer à deux mains, retour |
+| `hurt`, `hurtRecover` | `../art/hero-hurt.png`, `../art/hero-hurt-recover.png` | coup encaissé : tête projetée en arrière, puis retour |
 | `specialIn1`, `specialIn2`, `specialIn3` | `../art/hero-special-in-*.png` | attaque spéciale : dessins intermédiaires avant la charge, avant le lancer et avant le retour |
 | `punchChain1`, `punchChain2` | `../art/hero-punch-chain-*.png` | transitions entre le jab et le direct : le bras avant se replie, puis le bras arrière part |
 | `punchMidHit`, `punchMidRecover` | `../art/hero-punch-mid-*.png` | coup de poing moyen : bras tendu, retour |
@@ -157,6 +158,15 @@ Un coup qui touche déclenche quatre choses : le mannequin réagit, une étincel
 
 « Réduire les mouvements » supprime la secousse, divise l'arrêt sur image par deux et atténue les étincelles.
 
+### Les coups reçus
+
+Le mannequin peut attaquer, pour tester (`DummyLayer.attack()`, touche K ou bouton « Le mannequin attaque ») : un coup de tête fait avec son dessin au repos. Il se penche en arrière, se détend vers l'avant et reste un instant au bout de sa course, où il peut toucher (`ATTACK`). Un coup reçu pendant qu'il s'arme interrompt son attaque.
+
+Si sa tête atteint l'avant du corps du personnage (`HeroLayer.front`), `HeroLayer.takeHit` décide :
+
+- **Coup encaissé** : tout ce que faisait le personnage est interrompu. Il affiche `hurt` puis `hurtRecover`, recule en freinant et ne peut rien faire avant la fin (`HURT`). Étincelle rouge, arrêt sur image et secousse complets.
+- **Coup paré** : s'il est en parade, debout ou accroupi, il garde sa pose, recule moins, et la parade tient encore un instant même si la touche est relâchée (`GUARD_HIT`). L'étincelle est bleue, l'arrêt sur image est deux fois plus court et la secousse plus faible.
+
 Toucher conditionne aussi la suite de l'enchaînement :
 
 - **Un coup dans le vide ne s'enchaîne pas** : le coup suivant ne part que si le coup en cours a touché. Sinon il va au bout de sa récupération, et l'appui suivant relance le coup léger.
@@ -175,6 +185,8 @@ Toucher conditionne aussi la suite de l'enchaînement :
 - L'accroupi est un dessin entier qui respire d'un bloc : ni les bras, ni la tête, ni les rubans ne bougent séparément.
 - Chaque pose a son atlas. Les images sont toutes téléchargées au démarrage (environ 26 Mo), mais seules les `MAX_ATLASES` dernières poses utilisées sont gardées en mémoire vidéo : un atlas y pèse 10 à 20 Mo, et les garder tous (plus de 250 Mo) faisait perdre le contexte WebGL. En contrepartie, la première image d'une pose pas encore utilisée peut arriver avec un léger retard.
 - Le saut est fait de dessins fixes : rien ne bouge dans le dessin pendant le vol, rubans compris.
+- Le mannequin est dessiné derrière le personnage : quand il se penche pour frapper, sa tête passe derrière lui au lieu de le recouvrir.
+- Le personnage n'a qu'un dessin de coup encaissé, debout : touché accroupi ou en l'air, il se retrouve debout au sol. La parade ne protège pas encore selon la hauteur du coup, et ses poses de passage (`blockStep`) ne parent pas.
 - Le mannequin n'a qu'un dessin de coup reçu, le même pour un coup léger au buste et un uppercut à la tête, et la zone de frappe est une simple distance : un coup porté en sautant ou accroupi toucherait de la même façon.
 - Les dashs sont une pose fixe qui glisse : rien ne bouge dans le dessin pendant le déplacement. Le premier des deux appuis lance brièvement la pose intermédiaire de la marche avant que le dash parte.
 
