@@ -20,6 +20,8 @@ export class StageEngine {
   options: StageOptions = { rain: true, petals: true, calm: false }
   /** Déplacement demandé pour le personnage : 1 vers l'avant, -1 vers l'arrière, 0 à l'arrêt. */
   walk = 0
+  /** Vrai tant que le personnage doit rester accroupi. */
+  crouch = false
   private backdrop: StageBackdrop
   private hero: HeroLayer
   private weather: WeatherLayer
@@ -111,7 +113,7 @@ export class StageEngine {
     }
     const info: FrameInfo = { time, delta, width: this.size.width, height: this.size.height }
     this.backdrop.draw(info, camera, calm)
-    this.hero.update(info, this.walk)
+    this.hero.update(info, this.walk, this.crouch)
     this.hero.draw(info, camera, calm)
     this.weather.draw(info, -camera.ox * 0.5, this.options)
   }

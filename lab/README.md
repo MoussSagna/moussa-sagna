@@ -11,6 +11,7 @@ Le lab sert à mettre au point le stage et les animations du personnage avant de
 | Avancer | maintenir → ou D | maintenir « Avancer » |
 | Reculer | maintenir ← ou Q (A sur un clavier QWERTY) | maintenir « Reculer » |
 | Dash avant ou arrière | deux appuis rapides dans le même sens | deux appuis rapides sur le bouton |
+| S'accroupir | maintenir ↓ ou S | maintenir « S'accroupir » |
 
 ## Démarrer
 

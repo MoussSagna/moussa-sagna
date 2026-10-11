@@ -1,7 +1,7 @@
 import { asset, createProgram, loadTexture, uniforms } from '../gl'
 import type { Camera, FrameInfo } from '../types'
 import { CANVAS, POSES } from './poseData'
-import { BENDS, GAIT, WALK_SPEED, guardMatrices, walkMatrices } from './poseRig'
+import { BENDS, GAIT, WALK_SPEED, crouchMatrix, guardMatrices, walkMatrices } from './poseRig'
 import type { Affine } from './poseRig'
 import { FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from './shaders'
 
@@ -9,7 +9,7 @@ const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas'
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -22,6 +22,8 @@ const FEET: Record<PoseName, [number, number]> = {
   step: POSES.step.anchor,
   dashForward: POSES.dashForward.anchor,
   dashBack: POSES.dashBack.anchor,
+  crouchStep: POSES.crouchStep.anchor,
+  crouch: POSES.crouch.anchor,
   // en marche, c'est la hanche qui est à l'aplomb du point d'appui
   walk: [POSES.walk.joints.hip_near[0], POSES.walk.anchor[1]],
 }
@@ -30,10 +32,12 @@ const FEET: Record<PoseName, [number, number]> = {
  * Agrandissement de chaque pose autour de ses pieds, pour que la tête garde la taille de celle de la garde.
  * Les illustrations de dash sont dessinées plus petit : valeurs mesurées sur la hauteur de la tête.
  */
-const POSE_SCALE: Record<PoseName, number> = { guard: 1, step: 1, walk: 1, dashForward: 1.07, dashBack: 1.15 }
+const POSE_SCALE: Record<PoseName, number> = { guard: 1, step: 1, walk: 1, dashForward: 1.07, dashBack: 1.15, crouchStep: 1, crouch: 1 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
 const STEP_SECONDS = 0.09
+/** Durée de la pose à mi-descente entre la garde et l'accroupi, en secondes. */
+const CROUCH_STEP_SECONDS = 0.07
 const CALM_AMPLITUDE = 0.35
 
 /**
@@ -73,7 +77,7 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: 'guard' | 'step' | 'walk' | 'dash' = 'guard'
+  private pose: 'guard' | 'step' | 'walk' | 'dash' | 'crouchStep' | 'crouch' = 'guard'
   /** Dash en cours : sens, position de départ et temps écoulé. */
   private dashing = { direction: 1, from: PLACEMENT.x, time: 0 }
   /** Temps restant dans la pose intermédiaire. */
@@ -122,9 +126,9 @@ export class HeroLayer {
     return true
   }
 
-  /** Lance un dash : 1 vers l'avant, -1 vers l'arrière. Sans effet pendant un dash. */
+  /** Lance un dash : 1 vers l'avant, -1 vers l'arrière. Sans effet pendant un dash ou accroupi. */
   dash(direction: number): void {
-    if (this.pose === 'dash' || direction === 0) return
+    if (this.pose === 'dash' || this.pose === 'crouch' || this.pose === 'crouchStep' || direction === 0) return
     this.pose = 'dash'
     this.dashing = { direction: Math.sign(direction), from: this.x, time: 0 }
   }
@@ -137,8 +141,11 @@ export class HeroLayer {
     return Math.max(PLACEMENT.minX, Math.min(PLACEMENT.maxX, this.dashing.from + this.dashing.direction * move.distance * eased))
   }
 
-  /** Fait avancer l'état du personnage. `direction` : 1 vers l'avant, -1 vers l'arrière, 0 à l'arrêt. */
-  update(frame: FrameInfo, direction: number): void {
+  /**
+   * Fait avancer l'état du personnage. `direction` : 1 vers l'avant, -1 vers l'arrière, 0 à l'arrêt.
+   * `crouch` : s'accroupir tant que c'est vrai ; accroupi, le personnage ne se déplace pas.
+   */
+  update(frame: FrameInfo, direction: number, crouch: boolean): void {
     if (this.pose === 'dash') {
       this.dashing.time += frame.delta
       this.x = this.dashX(this.dashing.time)
@@ -146,8 +153,21 @@ export class HeroLayer {
       if (this.dashing.time < move.seconds) return
       this.pose = 'guard'
     }
+    // garde <-> mi-descente <-> accroupi, sur le même principe que la marche
+    if (this.pose === 'crouchStep') {
+      this.stepLeft -= frame.delta
+      if (this.stepLeft <= 0) this.pose = crouch ? 'crouch' : 'guard'
+      return
+    }
+    if (this.pose === 'crouch' ? !crouch : crouch && this.pose === 'guard') {
+      this.pose = 'crouchStep'
+      this.stepLeft = CROUCH_STEP_SECONDS
+      return
+    }
+    if (this.pose === 'crouch') return
     const blocked = (direction > 0 && this.x >= PLACEMENT.maxX) || (direction < 0 && this.x <= PLACEMENT.minX)
-    const moving = direction !== 0 && !blocked
+    // demander l'accroupi en marchant arrête d'abord la marche : le personnage repasse par la garde
+    const moving = direction !== 0 && !blocked && !crouch
     // garde <-> pose intermédiaire <-> marche : on ne saute jamais directement d'un bout à l'autre
     if (this.pose === 'step') {
       this.stepLeft -= frame.delta
@@ -188,7 +208,13 @@ export class HeroLayer {
     const pose = POSES[name]
     const amplitude = calm ? CALM_AMPLITUDE : 1
     const matrices: Affine[] | null =
-      name === 'guard' ? guardMatrices(frame.time, amplitude) : name === 'walk' ? walkMatrices(this.phase) : null
+      name === 'guard'
+        ? guardMatrices(frame.time, amplitude)
+        : name === 'walk'
+          ? walkMatrices(this.phase)
+          : name === 'crouch'
+            ? [crouchMatrix(frame.time, amplitude)]
+            : null
     const feet = FEET[name]
     const scale = POSE_SCALE[name]
     const bends = BENDS[name]

@@ -34,7 +34,7 @@ Les lanternes, les néons et le trajet du métro sont positionnés par leurs coo
 
 ## Le personnage
 
-Le personnage est fait de cinq illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
+Le personnage est fait de sept illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
 
 | Pose | Illustration | Rôle |
 | --- | --- | --- |
@@ -43,6 +43,8 @@ Le personnage est fait de cinq illustrations dans la même vue (trois quarts à 
 | `walk` | `../art/hero-walk.png` | marche, jambes et bras articulés |
 | `dashForward` | `../art/hero-dash-forward.png` | dash avant, un seul calque |
 | `dashBack` | `../art/hero-dash-back.png` | dash arrière, un seul calque |
+| `crouchStep` | `../art/hero-crouch-step.png` | mi-descente, affichée un instant entre la garde et l'accroupi |
+| `crouch` | `../art/hero-crouch.png` | accroupi, un seul calque |
 
 - **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas par pose et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
 - **Dessin** : `HeroLayer` dessine un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice du calque ; le fragment shader retrouve le pixel d'origine dans la toile (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.
@@ -65,6 +67,12 @@ Le corps avance à `WALK_SPEED`, la vitesse exacte du pied posé, pour que les a
 
 `App.tsx` déclenche un dash quand la même direction est pressée deux fois en moins de `DOUBLE_TAP_MS`, au clavier ou sur les boutons.
 
+### L'accroupi
+
+Tant que `StageEngine.crouch` est vrai, le personnage passe de la garde à la pose `crouchStep` pendant `CROUCH_STEP_SECONDS`, puis reste en `crouch` ; il fait le chemin inverse quand on relâche. Accroupi, il ne marche pas et ne dashe pas. S'il marchait, il repasse d'abord par la garde. La pose `crouch` respire : `crouchMatrix` tasse à peine tout le dessin vers le sol, semelles fixes.
+
+`App.tsx` maintient l'accroupi avec la flèche bas, S ou le bouton « S'accroupir ».
+
 ### Les changements d'état
 
 `HeroLayer.update` ne saute jamais directement de la garde à la marche : il affiche la pose `step` pendant `STEP_SECONDS`, puis la pose d'arrivée. Ce sont des coupes franches entre trois dessins proches, comme dans une animation dessinée, sans fondu. `StageEngine.walk` reçoit la direction (1, -1 ou 0) ; `App.tsx` la pilote au clavier et avec deux boutons à maintenir.
@@ -75,6 +83,8 @@ Le corps avance à `WALK_SPEED`, la vitesse exacte du pied posé, pour que les a
 - Les parties cachées (haut de la cuisse éloignée, buste sous le bras) sont des aplats sans détail.
 - La marche n'utilise volontairement qu'un seul dessin. Un essai à trois dessins clés (branche `marche-poses`) a été abandonné : d'une illustration générée à l'autre, les plis, les rubans et les proportions changent, et chaque bascule se voyait comme une saccade.
 - En garde, les jambes et les bras ne sont pas articulés.
+- L'accroupi est un dessin entier qui respire d'un bloc : ni les bras, ni la tête, ni les rubans ne bougent séparément.
+- Avec sept atlas et la texture du reflet, le personnage occupe huit unités de texture, le minimum garanti par WebGL. Une pose de plus demandera de regrouper des atlas ou de ne lier que celui de la pose affichée.
 - Les dashs sont une pose fixe qui glisse : rien ne bouge dans le dessin pendant le déplacement. Le premier des deux appuis lance brièvement la pose intermédiaire de la marche avant que le dash parte.
 
 ## Ajouter un plan

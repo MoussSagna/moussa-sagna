@@ -1,7 +1,8 @@
 """Découpe les illustrations du personnage (garde, transition, marche) en calques pour le moteur.
 
 Usage (depuis lab/) : python3 tools/prepare_poses.py [--debug dossier]
-Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png et hero-dash-back.png
+Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png, hero-dash-back.png,
+hero-crouch-step.png et hero-crouch.png
 (fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
@@ -28,11 +29,13 @@ LOGOS = dict(
     walk=[[(108, 1293), (136, 1293), (216, 1335), (216, 1359), (180, 1359), (108, 1318)],
           [(765, 1400), (800, 1370), (848, 1370), (848, 1398), (820, 1426), (770, 1432)]],
     step=[],
+    crouchStep=[],
+    crouch=[],
     dashForward=[],
     dashBack=[],
 )
 # Poses en un seul calque : le point d'appui horizontal est donné à la main (l'aplomb des hanches).
-SINGLE = dict(step=None, dashForward=560, dashBack=360)
+SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=None)
 
 # ---------- marche : articulations et polygones. « near » = côté proche (jambe avant, bras arrière) ----------
 WALK_JOINTS = dict(
@@ -90,7 +93,8 @@ def poly(points) -> np.ndarray:
     return m.astype(bool)
 
 
-FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png', dashForward='hero-dash-forward.png', dashBack='hero-dash-back.png')
+FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png', dashForward='hero-dash-forward.png', dashBack='hero-dash-back.png',
+             crouchStep='hero-crouch-step.png', crouch='hero-crouch.png')
 
 
 def load(name: str) -> np.ndarray:
@@ -110,6 +114,11 @@ def load(name: str) -> np.ndarray:
     col = np.clip((f - (1 - a) * bg) / a, 0, 255)
     col[..., 1] = np.minimum(col[..., 1], np.maximum(col[..., 0], col[..., 2]))
     alpha[alpha < 0.06] = 0
+    # poussières : un pixel isolé du fond suffit à agrandir le rectangle d'un calque jusqu'au bord de l'image
+    count, labels, stats, _ = cv2.connectedComponentsWithStats((alpha > 0).astype(np.uint8), connectivity=8)
+    for i in range(1, count):
+        if stats[i, cv2.CC_STAT_AREA] < 30:
+            alpha[labels == i] = 0
     return np.dstack([col, alpha * 255]).astype(np.uint8)
 
 

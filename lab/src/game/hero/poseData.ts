@@ -108,4 +108,28 @@ export const POSES = {
       { name: 'body', parent: -1, pivot: [512, 768], box: [9, 169, 1023, 1186], atlas: [0, 0] },
     ] as PoseLayer[],
   },
+  crouchStep: {
+    file: 'hero/crouchStep.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [524, 1435] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [33, 192, 971, 1252], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  crouch: {
+    file: 'hero/crouch.webp',
+    atlasSize: [1024, 1024] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [548, 1416] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [1, 440, 994, 986], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
 }
