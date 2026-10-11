@@ -29,6 +29,12 @@ export const BENDS: Record<keyof typeof POSES, Record<string, Bend>> = {
   jumpRise: {},
   jumpPeak: {},
   jumpLand: {},
+  punchStart: {},
+  punchHit: {},
+  punchChain1: {},
+  punchChain2: {},
+  punchMidHit: {},
+  punchMidRecover: {},
   walk: {
     ribbons: { amplitude: 14, length: 520, axis: [-0.906, 0.423] },
     ribbon_low: { amplitude: 8, length: 200, axis: [-0.93, 0.368] },

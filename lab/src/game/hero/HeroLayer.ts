@@ -1,4 +1,4 @@
-import { asset, createProgram, createTexture, uniforms } from '../gl'
+import { asset, createProgram, loadImage, uploadTexture, uniforms } from '../gl'
 import type { Camera, FrameInfo } from '../types'
 import { CANVAS, POSES } from './poseData'
 import { BENDS, GAIT, WALK_SPEED, guardMatrices, heldMatrix, scaleAbout, walkMatrices } from './poseRig'
@@ -9,7 +9,7 @@ const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas'
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -31,6 +31,12 @@ const FEET: Record<PoseName, [number, number]> = {
   jumpRise: POSES.jumpRise.anchor,
   jumpPeak: POSES.jumpPeak.anchor,
   jumpLand: POSES.jumpLand.anchor,
+  punchStart: POSES.punchStart.anchor,
+  punchHit: POSES.punchHit.anchor,
+  punchChain1: POSES.punchChain1.anchor,
+  punchChain2: POSES.punchChain2.anchor,
+  punchMidHit: POSES.punchMidHit.anchor,
+  punchMidRecover: POSES.punchMidRecover.anchor,
   // en marche, c'est la hanche qui est à l'aplomb du point d'appui
   walk: [POSES.walk.joints.hip_near[0], POSES.walk.anchor[1]],
 }
@@ -42,6 +48,8 @@ const FEET: Record<PoseName, [number, number]> = {
 const POSE_SCALE: Record<PoseName, number> = {
   guard: 1, step: 1, walk: 1, dashForward: 1.07, dashBack: 1.15, crouchStep: 1, crouch: 1, blockStep: 1, block: 1, crouchBlock: 1,
   jumpStart: 1, jumpRise: 1, jumpPeak: 0.93, jumpLand: 1,
+  punchStart: 1, punchHit: 1,
+  punchChain1: 1, punchChain2: 1, punchMidHit: 1, punchMidRecover: 1,
 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
@@ -69,12 +77,37 @@ const JUMP = {
   stretch: 0.07,
 }
 
+/**
+ * Coups de poing debout. Durées en secondes, calquées sur des coups de jeu de combat à 60 images par
+ * seconde (démarrage, actif, récupération). `reach` : distance entre l'aplomb des hanches et le bout du
+ * poing tendu, en pixels de la toile, pour la future zone de frappe.
+ * Chaque coup a ses dessins par phase ; le démarrage peut en avoir plusieurs, qui se partagent sa durée.
+ * Le léger réutilise son dessin de démarrage pour la récupération. Le moyen ne s'obtient qu'en enchaînant
+ * après le léger : son démarrage est fait des deux dessins de transition entre le jab et le direct.
+ */
+const PUNCHES = {
+  light: { startup: 4 / 60, active: 3 / 60, recovery: 7 / 60, reach: 580, start: ['punchStart'], hit: 'punchHit', recover: 'punchStart' },
+  medium: { startup: 6 / 60, active: 4 / 60, recovery: 11 / 60, reach: 560, start: ['punchChain1', 'punchChain2'], hit: 'punchMidHit', recover: 'punchMidRecover' },
+} satisfies Record<string, { startup: number; active: number; recovery: number; reach: number; start: PoseName[]; hit: PoseName; recover: PoseName }>
+export type PunchStrength = keyof typeof PUNCHES
+
+/**
+ * Enchaînement : une seule touche d'attaque. Un nouvel appui pendant un coup met le suivant en attente ;
+ * il part dès la fin des images actives, sans attendre la récupération.
+ */
+const CHAIN: Partial<Record<PunchStrength, PunchStrength>> = { light: 'medium' }
+
 /** Poses tenues en un seul calque, qui respirent d'un bloc. */
 const HELD: PoseName[] = ['crouch', 'block', 'crouchBlock']
 
 /** Unités de texture : l'atlas de la pose affichée, puis la texture du reflet. */
 const ATLAS_UNIT = 0
 const REFLECTION_UNIT = 1
+/**
+ * Nombre d'atlas gardés en mémoire vidéo. Un atlas pèse 10 à 20 Mo une fois décompressé : les garder
+ * tous (plus de 250 Mo) fait perdre le contexte WebGL sur les appareils modestes.
+ */
+const MAX_ATLASES = 6
 const CALM_AMPLITUDE = 0.35
 
 /**
@@ -114,10 +147,17 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand'> | 'dash' | 'jump' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchMidHit' | 'punchMidRecover'> | 'dash' | 'jump' | 'punch' = 'guard'
+  /** Temps écoulé depuis le début du coup de poing en cours. */
+  private punchTime = 0
+  private punchStrength: PunchStrength = 'light'
+  /** Vrai si la touche d'attaque a été pressée à nouveau pendant le coup en cours. */
+  private punchQueued = false
   /** Temps écoulé depuis le début du saut en cours. */
   private jumpTime = 0
   /** L'atlas de chaque pose. Un seul est lié à la fois, celui de la pose affichée. */
+  private images = new Map<PoseName, HTMLImageElement>()
+  /** Atlas envoyés à la carte graphique, du moins récemment utilisé au plus récent. */
   private atlases = new Map<PoseName, WebGLTexture>()
   /** Dash en cours : sens, position de départ et temps écoulé. */
   private dashing = { direction: 1, from: PLACEMENT.x, time: 0 }
@@ -141,14 +181,13 @@ export class HeroLayer {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW)
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-    // un atlas par pose ; ils ne restent pas liés, pour ne pas dépendre du nombre d'unités de texture du navigateur
-    const loaded = await Promise.all(
-      POSE_NAMES.map((name) => createTexture(gl, ATLAS_UNIT, asset(POSES[name].file), { alpha: true, premultiply: true, mipmap: true })),
-    )
-    for (const [index, texture] of loaded.entries()) {
-      if (!texture) return false
-      this.atlases.set(POSE_NAMES[index], texture)
+    // une image par pose, chargée d'avance ; elle n'est envoyée à la carte graphique qu'au moment de servir
+    const loaded = await Promise.all(POSE_NAMES.map((name) => loadImage(asset(POSES[name].file))))
+    for (const [index, image] of loaded.entries()) {
+      if (!image) return false
+      this.images.set(POSE_NAMES[index], image)
     }
+    this.atlas('guard')
 
     // texture hors écran du reflet, sur sa propre unité
     gl.activeTexture(gl.TEXTURE0 + REFLECTION_UNIT)
@@ -176,6 +215,56 @@ export class HeroLayer {
     if (!free || direction === 0) return
     this.pose = 'dash'
     this.dashing = { direction: Math.sign(direction), from: this.x, time: 0 }
+  }
+
+  /** L'atlas d'une pose, envoyé à la carte graphique s'il n'y est pas ; les moins récemment utilisés sont libérés. */
+  private atlas(name: PoseName): WebGLTexture | null {
+    const gl = this.gl
+    if (!gl) return null
+    let texture = this.atlases.get(name) ?? null
+    if (texture) {
+      this.atlases.delete(name)
+    } else {
+      const image = this.images.get(name)
+      if (!image) return null
+      texture = uploadTexture(gl, ATLAS_UNIT, image, { alpha: true, premultiply: true, mipmap: true })
+      if (!texture) return null
+    }
+    this.atlases.set(name, texture)
+    for (const [old, stale] of this.atlases) {
+      if (this.atlases.size <= MAX_ATLASES) break
+      if (old === 'guard') continue
+      gl.deleteTexture(stale)
+      this.atlases.delete(old)
+    }
+    return texture
+  }
+
+  /**
+   * Touche d'attaque. Depuis la garde ou la marche, lance le coup léger ; pendant un coup, met en attente
+   * le coup suivant de l'enchaînement.
+   */
+  attack(): void {
+    if (this.pose === 'punch') {
+      if (CHAIN[this.punchStrength]) this.punchQueued = true
+      return
+    }
+    const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
+    if (!free) return
+    this.pose = 'punch'
+    this.punchStrength = 'light'
+    this.punchTime = 0
+    this.punchQueued = false
+  }
+
+  /** Dessin du coup de poing en cours : démarrage, bras tendu pendant les images actives, puis récupération. */
+  private punchPose(): PoseName {
+    const move = PUNCHES[this.punchStrength]
+    if (this.punchTime < move.startup) {
+      const start: PoseName[] = move.start
+      return start[Math.min(start.length - 1, Math.floor((this.punchTime / move.startup) * start.length))]
+    }
+    return this.punchTime < move.startup + move.active ? move.hit : move.recover
   }
 
   /** Lance un saut vertical. Possible seulement depuis la garde ou la marche. */
@@ -234,6 +323,20 @@ export class HeroLayer {
       this.x = this.dashX(this.dashing.time)
       const move = this.dashing.direction > 0 ? DASH.forward : DASH.back
       if (this.dashing.time < move.seconds) return
+      this.pose = 'guard'
+    }
+    if (this.pose === 'punch') {
+      this.punchTime += frame.delta
+      const move = PUNCHES[this.punchStrength]
+      const next = CHAIN[this.punchStrength]
+      if (next && this.punchQueued && this.punchTime >= move.startup + move.active) {
+        // le coup suivant remplace la récupération de celui-ci
+        this.punchStrength = next
+        this.punchTime = 0
+        this.punchQueued = false
+        return
+      }
+      if (this.punchTime < move.startup + move.active + move.recovery) return
       this.pose = 'guard'
     }
     if (this.pose === 'jump') {
@@ -311,6 +414,8 @@ export class HeroLayer {
     const name: PoseName =
       this.pose === 'jump'
         ? (jump?.name ?? 'guard')
+        : this.pose === 'punch'
+          ? this.punchPose()
         : this.pose === 'dash'
           ? this.dashing.direction > 0
             ? 'dashForward'
@@ -340,7 +445,7 @@ export class HeroLayer {
       gl.uniform4f(u.uView, vx, vy, vz, vw)
       gl.uniform1f(u.uAlpha, alpha)
       gl.activeTexture(gl.TEXTURE0 + ATLAS_UNIT)
-      gl.bindTexture(gl.TEXTURE_2D, this.atlases.get(name) ?? null)
+      gl.bindTexture(gl.TEXTURE_2D, this.atlas(name))
       gl.uniform1i(u.uTex, ATLAS_UNIT)
       gl.uniform2f(u.uAtlasSize, pose.atlasSize[0], pose.atlasSize[1])
       pose.layers.forEach((item, index) => {

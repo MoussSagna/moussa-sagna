@@ -14,6 +14,7 @@ Le lab sert à mettre au point le stage et les animations du personnage avant de
 | S'accroupir | maintenir ↓ ou S | maintenir « S'accroupir » |
 | Parer (debout ou accroupi) | maintenir Espace | maintenir « Parer » |
 | Sauter | ↑ ou Z (W sur un clavier QWERTY) | « Sauter » |
+| Attaquer | J : un appui pour le coup léger, un second pour enchaîner le coup moyen | « Attaquer » |
 
 ## Démarrer
 

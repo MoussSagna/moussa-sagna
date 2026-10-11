@@ -49,41 +49,37 @@ interface TextureOptions {
   mipmap?: boolean
 }
 
-/**
- * Charge une image dans une texture et la laisse liée à l'unité `unit`.
- * Résout `null` si l'image est introuvable.
- */
-export function createTexture(
-  gl: WebGLRenderingContext,
-  unit: number,
-  src: string,
-  options: TextureOptions = {},
-): Promise<WebGLTexture | null> {
+/** Charge et décode une image. Résout `null` si elle est introuvable. */
+export function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const image = new Image()
-    image.onload = () => {
-      const texture = gl.createTexture()
-      gl.activeTexture(gl.TEXTURE0 + unit)
-      gl.bindTexture(gl.TEXTURE_2D, texture)
-      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, options.premultiply ? 1 : 0)
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, options.mipmap ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR)
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-      const format = options.alpha ? gl.RGBA : gl.RGB
-      gl.texImage2D(gl.TEXTURE_2D, 0, format, format, gl.UNSIGNED_BYTE, image)
-      // les mipmaps demandent une image dont les côtés sont des puissances de deux
-      if (options.mipmap) gl.generateMipmap(gl.TEXTURE_2D)
-      resolve(texture)
-    }
+    image.onload = () => resolve(image)
     image.onerror = () => resolve(null)
     image.src = src
   })
 }
 
+/** Envoie une image déjà chargée dans une nouvelle texture, laissée liée à l'unité `unit`. */
+export function uploadTexture(gl: WebGLRenderingContext, unit: number, image: HTMLImageElement, options: TextureOptions = {}): WebGLTexture | null {
+  const texture = gl.createTexture()
+  gl.activeTexture(gl.TEXTURE0 + unit)
+  gl.bindTexture(gl.TEXTURE_2D, texture)
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, options.premultiply ? 1 : 0)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, options.mipmap ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+  const format = options.alpha ? gl.RGBA : gl.RGB
+  gl.texImage2D(gl.TEXTURE_2D, 0, format, format, gl.UNSIGNED_BYTE, image)
+  // les mipmaps demandent une image dont les côtés sont des puissances de deux
+  if (options.mipmap) gl.generateMipmap(gl.TEXTURE_2D)
+  return texture
+}
+
 /** Charge une image dans une unité de texture, où elle reste. Résout `false` si l'image est introuvable. */
 export async function loadTexture(gl: WebGLRenderingContext, unit: number, src: string, options: TextureOptions = {}): Promise<boolean> {
-  return (await createTexture(gl, unit, src, options)) !== null
+  const image = await loadImage(src)
+  return image !== null && uploadTexture(gl, unit, image, options) !== null
 }
 
 export const asset = (path: string): string => `${import.meta.env.BASE_URL}assets/${path}`

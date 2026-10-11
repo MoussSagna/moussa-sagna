@@ -59,6 +59,11 @@ export class StageEngine {
     this.hero.dash(direction)
   }
 
+  /** Touche d'attaque : lance un coup de poing ou enchaîne sur le suivant. */
+  attack(): void {
+    this.hero.attack()
+  }
+
   /** Lance un saut vertical du personnage. */
   jump(): void {
     this.hero.jump()
