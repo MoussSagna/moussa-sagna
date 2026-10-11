@@ -157,6 +157,11 @@ Un coup qui touche déclenche quatre choses : le mannequin réagit, une étincel
 
 « Réduire les mouvements » supprime la secousse, divise l'arrêt sur image par deux et atténue les étincelles.
 
+Toucher conditionne aussi la suite de l'enchaînement :
+
+- **Un coup dans le vide ne s'enchaîne pas** : le coup suivant ne part que si le coup en cours a touché. Sinon il va au bout de sa récupération, et l'appui suivant relance le coup léger.
+- **Annulation par l'attaque spéciale** : la touche d'attaque spéciale pressée pendant un coup est retenue ; si le coup touche, la boule de feu part dès la fin de ses images actives, à la place de la récupération. Dans le vide, l'appui est perdu.
+
 ### Les changements d'état
 
 `HeroLayer.update` ne saute jamais directement de la garde à la marche : il affiche la pose `step` pendant `STEP_SECONDS`, puis la pose d'arrivée. Ce sont des coupes franches entre trois dessins proches, comme dans une animation dessinée, sans fondu. `StageEngine.walk` reçoit la direction (1, -1 ou 0) ; `App.tsx` la pilote au clavier et avec deux boutons à maintenir.

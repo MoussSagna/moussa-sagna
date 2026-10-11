@@ -13,6 +13,7 @@
 - [x] Saut vertical en quatre dessins, avec ombre et reflet qui suivent la hauteur (à juger en mouvement).
 - [x] Coups de poing léger et moyen debout, minutés comme dans un jeu de combat. Le léger a un jeu de jambes de boxe (à juger en mouvement).
 - [x] Mannequin d'entraînement : les coups et la boule de feu le touchent, avec arrêt sur image, étincelle, secousse et oscillation sur son ressort (à juger en mouvement).
+- [x] Enchaînement seulement si le coup touche, et annulation de la récupération d'un coup par l'attaque spéciale.
 - [x] Un seul atlas lié à la fois : plus de limite au nombre de poses.
 - [x] Logos de marque effacés sur les baskets de la garde et de la marche.
 

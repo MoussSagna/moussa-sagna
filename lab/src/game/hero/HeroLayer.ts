@@ -110,7 +110,10 @@ export type PunchStrength = keyof typeof PUNCHES
 
 /**
  * Enchaînement : une seule touche d'attaque. Un nouvel appui pendant un coup met le suivant en attente ;
- * il part dès la fin des images actives, sans attendre la récupération.
+ * il part dès la fin des images actives, sans attendre la récupération, mais seulement si le coup a touché.
+ * Un coup dans le vide va au bout de sa récupération et l'enchaînement repart du coup léger.
+ * Annulation : de la même façon, la touche d'attaque spéciale pressée pendant un coup qui touche remplace
+ * sa récupération par l'attaque spéciale.
  */
 const CHAIN: Partial<Record<PunchStrength, PunchStrength>> = { light: 'medium', medium: 'heavy' }
 /**
@@ -233,6 +236,8 @@ export class HeroLayer {
   wall = PLACEMENT.maxX
   /** Vrai dès que le coup de poing en cours a touché : un coup ne touche qu'une fois. */
   private punchLanded = false
+  /** Vrai si l'attaque spéciale a été demandée pendant le coup en cours : elle annulera sa récupération s'il touche. */
+  private specialQueued = false
   /** Impacts en cours : position, hauteur au-dessus du sol, âge, et s'il s'agit d'une explosion. */
   private impacts: { x: number; height: number; age: number; power: number; blast: boolean; seed: number }[] = []
   /** Temps écoulé depuis le début du coup de poing en cours. */
@@ -347,12 +352,13 @@ export class HeroLayer {
     const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
     if (!free) return
     // juste après un coup, l'appui poursuit l'enchaînement ; sinon il repart du coup léger
-    const next = this.sincePunch < CHAIN_GRACE ? CHAIN[this.punchStrength] : undefined
+    const next = this.sincePunch < CHAIN_GRACE && this.punchLanded ? CHAIN[this.punchStrength] : undefined
     this.pose = 'punch'
     this.punchStrength = next ?? 'light'
     this.punchTime = 0
     this.punchQueued = false
     this.punchLanded = false
+    this.specialQueued = false
   }
 
   /** Limite avant du personnage : le bord du stage, ou l'adversaire s'il est plus près. */
@@ -406,8 +412,15 @@ export class HeroLayer {
     return this.punchTime < move.startup + move.active ? move.hit : move.recover
   }
 
-  /** Lance l'attaque spéciale. Possible seulement depuis la garde ou la marche, et une boule de feu à la fois. */
+  /**
+   * Lance l'attaque spéciale. Possible depuis la garde ou la marche, et une boule de feu à la fois.
+   * Pendant un coup de poing, elle est mise en attente : elle annule la récupération du coup s'il touche.
+   */
   special(): void {
+    if (this.pose === 'punch') {
+      if (!this.fireball) this.specialQueued = true
+      return
+    }
     const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
     if (!free || this.fireball) return
     this.pose = 'special'
@@ -527,12 +540,23 @@ export class HeroLayer {
       this.punchTime += frame.delta
       const move = PUNCHES[this.punchStrength]
       const next = CHAIN[this.punchStrength]
-      if (next && this.punchQueued && this.punchTime >= move.startup + move.active) {
+      const cancellable = this.punchLanded && this.punchTime >= move.startup + move.active
+      if (cancellable && this.specialQueued) {
+        // l'attaque spéciale remplace la récupération du coup
+        this.pose = 'special'
+        this.specialTime = 0
+        this.specialQueued = false
+        this.punchQueued = false
+        this.sincePunch = Infinity
+        return
+      }
+      if (next && this.punchQueued && cancellable) {
         // le coup suivant remplace la récupération de celui-ci
         this.punchStrength = next
         this.punchTime = 0
         this.punchQueued = false
         this.punchLanded = false
+        this.specialQueued = false
         return
       }
       if (this.punchTime < move.startup + move.active + move.recovery) return
