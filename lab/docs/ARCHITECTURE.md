@@ -99,18 +99,22 @@ La hauteur est calculée par le moteur : une montée (`JUMP.rise`) puis une reto
 
 ### Les coups de poing
 
-`HeroLayer.punch(strength)` lance un coup de poing debout, depuis la garde ou la marche. `PUNCHES` décrit chaque coup : son minutage, repris d'un jeu de combat à 60 images par seconde, et un dessin par phase (démarrage, actif, récupération).
+Il n'y a qu'une touche d'attaque. `HeroLayer.attack()` lance le coup léger depuis la garde ou la marche ; un nouvel appui pendant un coup met en attente le coup suivant de l'enchaînement (`CHAIN`), qui part dès la fin des images actives, à la place de la récupération. Pour l'instant : léger, puis moyen.
+
+`PUNCHES` décrit chaque coup : son minutage, repris d'un jeu de combat à 60 images par seconde, et un dessin par phase.
 
 | Coup | Démarrage | Actif | Récupération | Dessins |
 | --- | --- | --- | --- | --- |
 | Léger (jab du bras avant) | 4 | 3 | 7 | `punchStart`, `punchHit`, puis `punchStart` à nouveau |
 | Moyen (direct du bras arrière) | 6 | 4 | 11 | `punchMidStart`, `punchMidHit`, `punchMidRecover` |
 
-Un coup ne peut pas être interrompu ni enchaîné avant la fin.
+Montage des dessins :
 
-Les deux coups ne sont pas montés de la même façon. Le **léger** utilise ses illustrations entières, avec un jeu de jambes de boxe : elles sont calées pour que le pied arrière tombe sur celui de la garde, et le pied avant fait un petit pas glissé pendant que le corps s'abaisse et s'engage. Le **moyen** ne prend que le haut du corps de ses illustrations, coupé sous la ceinture et posé sur les jambes de la garde (`ON_GUARD_LEGS` dans `tools/prepare_poses.py`) : ses pieds ne bougent pas du tout. Il reste à refaire sur le modèle du léger.
+- **Léger** : illustrations entières, calées pour que le pied arrière tombe sur celui de la garde. Le pied avant fait un petit pas glissé.
+- **Moyen, impact** : illustration entière, calée sur le pied avant de la garde. Le pied arrière pivote sur sa pointe et les hanches tournent.
+- **Moyen, armé et retour** : seulement le haut du corps, posé sur les jambes de la garde (`ON_GUARD_LEGS` dans `tools/prepare_poses.py`). Les jambes sautent donc d'un état à l'autre autour de l'impact ; ces deux dessins restent à refaire en corps entier.
 
-Il n'y a pas encore d'adversaire, donc pas de zone de frappe : le champ `reach` note seulement la portée du poing pour plus tard. `App.tsx` déclenche le coup léger avec J et le moyen avec K, ou avec leurs boutons.
+Il n'y a pas encore d'adversaire, donc pas de zone de frappe : le champ `reach` note seulement la portée du poing pour plus tard. `App.tsx` déclenche l'attaque avec J ou le bouton « Attaquer ».
 
 ### Les changements d'état
 

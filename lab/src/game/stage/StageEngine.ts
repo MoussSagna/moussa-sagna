@@ -1,5 +1,4 @@
 import { HeroLayer } from '../hero/HeroLayer'
-import type { PunchStrength } from '../hero/HeroLayer'
 import type { Camera, FrameInfo, StageOptions } from '../types'
 import { StageBackdrop } from './StageBackdrop'
 import { WeatherLayer } from './WeatherLayer'
@@ -60,9 +59,9 @@ export class StageEngine {
     this.hero.dash(direction)
   }
 
-  /** Lance un coup de poing du personnage. */
-  punch(strength: PunchStrength): void {
-    this.hero.punch(strength)
+  /** Touche d'attaque : lance un coup de poing ou enchaîne sur le suivant. */
+  attack(): void {
+    this.hero.attack()
   }
 
   /** Lance un saut vertical du personnage. */

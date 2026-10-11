@@ -54,11 +54,13 @@ FAINT_LOGOS = dict(jumpStart=[[(150, 1228), (188, 1226), (204, 1262), (205, 1296
 SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=None, blockStep=None, block=None, crouchBlock=None,
               jumpStart=None, jumpRise=520, jumpPeak=520, jumpLand=None,
               # jab : calé pour que le pied arrière tombe sur celui de la garde ; le pied avant fait son petit pas
-              punchStart=483, punchHit=475)
+              punchStart=483, punchHit=475,
+              # direct : corps entier, calé sur le pied avant de la garde ; le pied arrière pivote sur place
+              punchMidHit=518)
 # Coups donnés depuis la garde : le haut du corps vient de l'illustration du coup, les jambes restent celles de la
 # garde, pour que les pieds ne bougent pas. Valeur : décalage qui amène la boucle de ceinture du coup sur celle de
 # la garde (557, 693).
-ON_GUARD_LEGS = dict(punchMidStart=(17, 87), punchMidHit=(41, 58), punchMidRecover=(-13, 68))
+ON_GUARD_LEGS = dict(punchMidStart=(17, 87), punchMidRecover=(-13, 68))
 
 # ---------- marche : articulations et polygones. « near » = côté proche (jambe avant, bras arrière) ----------
 WALK_JOINTS = dict(

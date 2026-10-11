@@ -88,6 +88,12 @@ const PUNCHES = {
 } satisfies Record<string, { startup: number; active: number; recovery: number; reach: number; poses: [PoseName, PoseName, PoseName] }>
 export type PunchStrength = keyof typeof PUNCHES
 
+/**
+ * Enchaînement : une seule touche d'attaque. Un nouvel appui pendant un coup met le suivant en attente ;
+ * il part dès la fin des images actives, sans attendre la récupération.
+ */
+const CHAIN: Partial<Record<PunchStrength, PunchStrength>> = { light: 'medium' }
+
 /** Poses tenues en un seul calque, qui respirent d'un bloc. */
 const HELD: PoseName[] = ['crouch', 'block', 'crouchBlock']
 
@@ -137,6 +143,8 @@ export class HeroLayer {
   /** Temps écoulé depuis le début du coup de poing en cours. */
   private punchTime = 0
   private punchStrength: PunchStrength = 'light'
+  /** Vrai si la touche d'attaque a été pressée à nouveau pendant le coup en cours. */
+  private punchQueued = false
   /** Temps écoulé depuis le début du saut en cours. */
   private jumpTime = 0
   /** L'atlas de chaque pose. Un seul est lié à la fois, celui de la pose affichée. */
@@ -200,13 +208,21 @@ export class HeroLayer {
     this.dashing = { direction: Math.sign(direction), from: this.x, time: 0 }
   }
 
-  /** Lance un coup de poing. Possible seulement depuis la garde ou la marche. */
-  punch(strength: PunchStrength): void {
+  /**
+   * Touche d'attaque. Depuis la garde ou la marche, lance le coup léger ; pendant un coup, met en attente
+   * le coup suivant de l'enchaînement.
+   */
+  attack(): void {
+    if (this.pose === 'punch') {
+      if (CHAIN[this.punchStrength]) this.punchQueued = true
+      return
+    }
     const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
     if (!free) return
     this.pose = 'punch'
-    this.punchStrength = strength
+    this.punchStrength = 'light'
     this.punchTime = 0
+    this.punchQueued = false
   }
 
   /** Dessin du coup de poing en cours : démarrage, bras tendu pendant les images actives, puis récupération. */
@@ -277,6 +293,14 @@ export class HeroLayer {
     if (this.pose === 'punch') {
       this.punchTime += frame.delta
       const move = PUNCHES[this.punchStrength]
+      const next = CHAIN[this.punchStrength]
+      if (next && this.punchQueued && this.punchTime >= move.startup + move.active) {
+        // le coup suivant remplace la récupération de celui-ci
+        this.punchStrength = next
+        this.punchTime = 0
+        this.punchQueued = false
+        return
+      }
       if (this.punchTime < move.startup + move.active + move.recovery) return
       this.pose = 'guard'
     }
