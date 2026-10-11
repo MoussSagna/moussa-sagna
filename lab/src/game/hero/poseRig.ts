@@ -92,7 +92,7 @@ function place(target: Point, pivot: Point, angle: number, scale = 1): Affine {
 }
 
 /** Mise à l'échelle autour d'un point fixe. */
-function scaleAbout(pivot: Point, sx: number, sy: number): Affine {
+export function scaleAbout(pivot: Point, sx: number, sy: number): Affine {
   return [sx, 0, 0, sy, pivot[0] * (1 - sx), pivot[1] * (1 - sy)]
 }
 

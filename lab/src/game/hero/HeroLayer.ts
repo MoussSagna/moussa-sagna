@@ -1,7 +1,7 @@
 import { asset, createProgram, createTexture, uniforms } from '../gl'
 import type { Camera, FrameInfo } from '../types'
 import { CANVAS, POSES } from './poseData'
-import { BENDS, GAIT, WALK_SPEED, guardMatrices, heldMatrix, walkMatrices } from './poseRig'
+import { BENDS, GAIT, WALK_SPEED, guardMatrices, heldMatrix, scaleAbout, walkMatrices } from './poseRig'
 import type { Affine } from './poseRig'
 import { FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from './shaders'
 
@@ -54,8 +54,18 @@ const BLOCK_STEP_SECONDS = 0.05
 /**
  * Saut vertical. Durées en secondes, hauteur en pixels de la toile (du sol au point le plus haut des pieds).
  * `tuck` : part du vol après laquelle le corps se regroupe ; avant, il est encore en extension.
+ * Un seul dessin couvre presque tout le vol : c'est sa déformation continue qui donne le mouvement.
  */
-const JUMP = { start: 0.07, air: 0.62, land: 0.11, height: 430, tuck: 0.3 }
+const JUMP = {
+  start: 0.1,
+  air: 0.74,
+  land: 0.14,
+  height: 600,
+  tuck: 0.14,
+  /** Déformation du dessin : tassement à l'impulsion et à la réception, étirement à pleine vitesse. */
+  squash: 0.09,
+  stretch: 0.07,
+}
 
 /** Poses tenues en un seul calque, qui respirent d'un bloc. */
 const HELD: PoseName[] = ['crouch', 'block', 'crouchBlock']
@@ -174,13 +184,33 @@ export class HeroLayer {
     this.jumpTime = 0
   }
 
-  /** Dessin et hauteur des pieds (pixels de la toile) à l'instant courant du saut. */
-  private jumpState(): { name: PoseName; lift: number } {
+  /**
+   * Dessin, hauteur des pieds (pixels de la toile) et déformation (largeur, hauteur) à l'instant courant du saut.
+   * Le dessin se tasse pendant l'impulsion, s'étire quand il va vite, reprend sa forme au sommet,
+   * puis s'écrase à la réception avant de se redresser.
+   */
+  private jumpState(): { name: PoseName; lift: number; sx: number; sy: number } {
     const t = this.jumpTime - JUMP.start
-    if (t < 0) return { name: 'jumpStart', lift: 0 }
+    if (t < 0) {
+      const p = 1 + t / JUMP.start
+      const squash = JUMP.squash * p * p
+      return { name: 'jumpStart', lift: 0, sx: 1 + squash * 0.5, sy: 1 - squash }
+    }
     const k = t / JUMP.air
-    if (k >= 1) return { name: 'jumpLand', lift: 0 }
-    return { name: k < JUMP.tuck ? 'jumpRise' : 'jumpPeak', lift: JUMP.height * 4 * k * (1 - k) }
+    if (k >= 1) {
+      const q = Math.min(1, (t - JUMP.air) / JUMP.land)
+      const squash = JUMP.squash * (1 - q) ** 2
+      return { name: 'jumpLand', lift: 0, sx: 1 + squash * 0.5, sy: 1 - squash }
+    }
+    // vitesse verticale : 1 au décollage, 0 au sommet, 1 à la retombée
+    const speed = Math.abs(1 - 2 * k)
+    const stretch = JUMP.stretch * speed * speed
+    return {
+      name: k < JUMP.tuck ? 'jumpRise' : 'jumpPeak',
+      lift: JUMP.height * 4 * k * (1 - k),
+      sx: 1 - stretch * 0.6,
+      sy: 1 + stretch,
+    }
   }
 
   /** Position du personnage `time` secondes après le début du dash en cours. */
@@ -286,6 +316,8 @@ export class HeroLayer {
           : this.pose
     const pose = POSES[name]
     const amplitude = calm ? CALM_AMPLITUDE : 1
+    const feet = FEET[name]
+    const scale = POSE_SCALE[name]
     const matrices: Affine[] | null =
       name === 'guard'
         ? guardMatrices(frame.time, amplitude)
@@ -293,9 +325,9 @@ export class HeroLayer {
           ? walkMatrices(this.phase)
           : HELD.includes(name)
             ? [heldMatrix(POSES[name].anchor, frame.time, amplitude)]
-            : null
-    const feet = FEET[name]
-    const scale = POSE_SCALE[name]
+            : jump
+              ? [scaleAbout(feet, 1 + (jump.sx - 1) * amplitude, 1 + (jump.sy - 1) * amplitude)]
+              : null
     const bends = BENDS[name]
 
     const drawLayers = (vx: number, vy: number, vz: number, vw: number, alpha = 1, raise = 0) => {
