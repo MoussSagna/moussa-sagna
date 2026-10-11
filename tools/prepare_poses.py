@@ -1,7 +1,7 @@
 """Découpe les illustrations du personnage (garde, transition, marche) en calques pour le moteur.
 
 Usage : python3 tools/prepare_poses.py [--debug dossier]
-Lit art/hero-guard.png, hero-step.png, hero-walk.png et hero-walk-pass.png (fond vert uni, 1024 x 1536).
+Lit art/hero-guard.png, hero-step.png, hero-walk.png, hero-walk-pass.png et hero-walk-reach.png (fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
 """
@@ -25,6 +25,7 @@ WHITE = np.array([242, 238, 238], np.float32)
 LOGOS = dict(
     guard=[[(780, 1345), (822, 1345), (876, 1375), (876, 1403), (838, 1403), (780, 1368)]],
     walkPass=[],
+    walkReach=[],
     walk=[[(108, 1293), (136, 1293), (216, 1335), (216, 1359), (180, 1359), (108, 1318)],
           [(765, 1400), (800, 1370), (848, 1370), (848, 1398), (820, 1426), (770, 1432)]],
     step=[],
@@ -113,6 +114,48 @@ PASS = dict(
     pants=[(520, 1050), (580, 1050), (580, 1150), (520, 1150)],
     jacket=[(480, 560), (540, 560), (540, 600), (480, 600)],
 )
+# Avancée : jambe proche en appui, déjà en arrière de la hanche ; jambe éloignée levée devant, genou plié.
+REACH_BELT = [(425, 705), (480, 698), (520, 655), (600, 642), (612, 642), (700, 634)]
+REACH_BAND = REACH_BELT + [(700, 590), (600, 598), (520, 608), (480, 652), (425, 660)]
+REACH = dict(
+    joints=dict(
+        hip_near=(565, 735), knee_near=(520, 1035), ankle_near=(470, 1310),
+        hip_far=(545, 735), knee_far=(853, 843), ankle_far=(785, 1105),
+        shoulder_near=(495, 305), shoulder_far=(665, 365), neck=(605, 245), ribbon=(515, 140), ribbon_low=(318, 640),
+    ),
+    poly=dict(
+        head=[(505, 10), (775, 10), (775, 200), (705, 245), (668, 268), (630, 255), (605, 232), (580, 222), (555, 200), (530, 195), (512, 165)],
+        arm_near=[(405, 225), (510, 245), (540, 330), (535, 440), (510, 520), (470, 592), (432, 605), (415, 665), (418, 882), (288, 882), (290, 665), (318, 600), (275, 545), (292, 470), (345, 340)],
+        arm_far=[(695, 455), (740, 480), (770, 560), (800, 650), (852, 740), (852, 812), (745, 812), (725, 720), (705, 650), (690, 600), (690, 480)],
+        foot_near=[(350, 1305), (430, 1290), (500, 1288), (530, 1300), (690, 1400), (690, 1500), (345, 1500)],
+        foot_far=[(670, 1100), (740, 1085), (820, 1080), (860, 1095), (990, 1200), (990, 1300), (670, 1300)],
+        hip=REACH_BELT[:5] + [(625, 700), (645, 800), (655, 925), (600, 925), (590, 830), (500, 790), (480, 800), (470, 900), (440, 1000), (400, 1000), (380, 900), (395, 800)],
+        thigh_far=[(650, 740), (700, 745), (860, 790), (890, 880), (655, 985)],
+        shin_far=[(655, 985), (890, 880), (900, 960), (895, 1100), (645, 1105)],
+        thigh_near=[(480, 640), (700, 634), (700, 745), (650, 740), (650, 960), (640, 1000), (610, 1035), (415, 1040), (440, 950), (470, 800)],
+        shin_near=[(330, 1035), (620, 1030), (620, 1325), (330, 1325)],
+    ),
+    fill=dict(
+        torso=[(470, 245), (545, 255), (565, 440), (545, 600), (440, 640), (432, 560), (455, 400)],
+        thigh_near=[(612, 642), (700, 634), (700, 590), (612, 598)], hip=REACH_BAND,
+        shin_near=[(415, 1040), (610, 1035), (630, 975), (440, 975)],
+        shin_far=[(655, 985), (890, 880), (870, 830), (640, 935)],
+        foot_near=[(350, 1305), (430, 1290), (500, 1288), (530, 1300), (525, 1260), (360, 1265)],
+        foot_far=[(670, 1100), (740, 1085), (820, 1080), (860, 1095), (850, 1050), (680, 1055)],
+    ),
+    capsule=dict(thigh_near=((565, 740), (520, 1035), 200), thigh_far=((545, 745), (853, 843), 170)),
+    knee=dict(thigh_near=((415, 1040), (610, 1035)), thigh_far=((655, 985), (890, 880))),
+    left=[(0, 40), (515, 40), (515, 175), (490, 205), (405, 222), (345, 340), (292, 470), (275, 545), (318, 600), (290, 665), (288, 842), (0, 842)],
+    knot=[(380, 60), (520, 60), (520, 190), (380, 190)],
+    behind_arm=[(270, 600), (330, 600), (330, 690), (270, 690)],
+    ribbon_low=[(100, 600), (320, 605), (300, 800), (100, 842)],
+    sash=[(200, 845), (570, 845), (570, 1140), (200, 1140)],
+    leftover_far=[(650, 740), (900, 740), (900, 1100), (650, 1100)],
+    leftover_near=[(560, 640), (650, 640), (650, 1040), (560, 1040)],
+    pelvis=(545, 815),
+    pants=[(450, 1150), (530, 1150), (530, 1230), (450, 1230)],
+    jacket=[(480, 560), (540, 560), (540, 600), (480, 600)],
+)
 WALK_ORDER = ['ribbons', 'ribbon_low', 'arm_far', 'pelvis', 'foot_far', 'shin_far', 'thigh_far', 'foot_near', 'shin_near', 'thigh_near', 'hip', 'torso', 'head', 'arm_near']
 WALK_PARENT = dict(hip='torso', ribbons='head', ribbon_low='torso', arm_far='torso', pelvis='torso', head='torso', arm_near='torso', torso=None,
                    thigh_near='torso', shin_near='thigh_near', foot_near='shin_near', thigh_far='torso', shin_far='thigh_far', foot_far='shin_far')
@@ -136,7 +179,7 @@ def poly(points) -> np.ndarray:
     return m.astype(bool)
 
 
-FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png', walkPass='hero-walk-pass.png')
+FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png', walkPass='hero-walk-pass.png', walkReach='hero-walk-reach.png')
 
 
 def load(name: str) -> np.ndarray:
@@ -318,6 +361,7 @@ def main() -> None:
         step=(dict(body=arts['step']), dict(body=None), dict(body='center'), dict(center=(512, 768))),
         walk=(cut_walk(arts['walk'], WALK), WALK_PARENT, WALK_PIVOT, WALK['joints']),
         walkPass=(cut_walk(arts['walkPass'], PASS), WALK_PARENT, WALK_PIVOT, PASS['joints']),
+        walkReach=(cut_walk(arts['walkReach'], REACH), WALK_PARENT, WALK_PIVOT, REACH['joints']),
     )
     blocks = []
     for name, (layers, parent, pivot, joints) in poses.items():

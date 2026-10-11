@@ -26,6 +26,10 @@ export const BENDS: Record<keyof typeof POSES, Record<string, Bend>> = {
     ribbons: { amplitude: 14, length: 520, axis: [-0.906, 0.423] },
     ribbon_low: { amplitude: 8, length: 240, axis: [-0.8, 0.6] },
   },
+  walkReach: {
+    ribbons: { amplitude: 14, length: 520, axis: [-0.906, 0.423] },
+    ribbon_low: { amplitude: 8, length: 240, axis: [-0.8, 0.6] },
+  },
 }
 
 /** Garde : durée d'une respiration et d'un rebond sur les appuis (secondes), amplitudes. */
@@ -41,9 +45,9 @@ export const GAIT = {
   reach: 170,
   /** Part du cycle où un pied est au sol ; au-dessus de 0,5 les deux pieds sont posés un instant. */
   stance: 0.56,
-  /** Levée du pied : au décollage du talon, puis coup de talon vers l'arrière au début du retour. */
+  /** Levée du pied : au décollage du talon, puis hauteur du pied pendant tout son retour vers l'avant. */
   heelLift: 55,
-  kick: 150,
+  kick: 140,
   kickPitch: 28,
   heelStrike: -14,
   toeOff: 30,
@@ -59,9 +63,12 @@ export const GAIT = {
  * `farAnkle` : hauteur de la cheville éloignée, en pixels au-dessus de la cheville proche posée.
  * `farFlat` : angle qui remet le pied éloigné à plat.
  */
-const WALK_KEYS: { pose: 'walk' | 'walkPass'; at: number; from: number; to: number; farAnkle: number; farFlat: number }[] = [
+export type WalkDrawing = 'walk' | 'walkPass' | 'walkReach'
+
+const WALK_KEYS: { pose: WalkDrawing; at: number; from: number; to: number; farAnkle: number; farFlat: number }[] = [
   { pose: 'walk', at: 0, from: 0, to: 1, farAnkle: 14, farFlat: -20 },
-  { pose: 'walkPass', at: 0.247, from: 0.13, to: 0.37, farAnkle: 14, farFlat: -54 },
+  { pose: 'walkPass', at: 0.247, from: 0.13, to: 0.36, farAnkle: 14, farFlat: -54 },
+  { pose: 'walkReach', at: 0.45, from: 0.36, to: 0.5, farAnkle: 14, farFlat: -8 },
 ]
 
 /** Vitesse du corps en pixels de la toile par seconde : exactement celle du pied posé, donc rien ne patine. */
@@ -137,11 +144,11 @@ function footAt(phase: number): { x: number; lift: number; pitch: number } {
     }
   }
   const s = (p - GAIT.stance) / (1 - GAIT.stance)
-  // le pied monte haut derrière juste après avoir quitté le sol, puis redescend en avançant
+  // le pied monte vite derrière, reste haut pendant qu'il avance (genou levé) et ne redescend qu'à la pose
   const land = smooth((s - 0.45) / 0.5)
   return {
     x: GAIT.reach * (2 * smooth(s) - 1),
-    lift: GAIT.heelLift * (1 - s) ** 2 + GAIT.kick * 9.48 * s * (1 - s) ** 3,
+    lift: GAIT.heelLift * (1 - s) ** 2 + GAIT.kick * Math.sqrt(Math.sin(Math.PI * s)),
     pitch: (GAIT.toeOff + GAIT.kickPitch * Math.sin(Math.PI * Math.min(1, s / 0.6))) * (1 - land) + GAIT.heelStrike * land,
   }
 }
@@ -181,7 +188,7 @@ function bodyAt(u: number): { rise: number; lean: number; swing: number; nod: nu
  * Marche : choisit le dessin clé de la phase `u` (0 à 1) et calcule une matrice par calque de ce dessin.
  * Aux changements de dessin, les deux squelettes sont dans la même pose : seul le dessin change.
  */
-export function walkPose(u: number): { pose: 'walk' | 'walkPass'; matrices: Affine[] } {
+export function walkPose(u: number): { pose: WalkDrawing; matrices: Affine[] } {
   const key = WALK_KEYS.find((k, index) => index > 0 && u >= k.from && u < k.to) ?? WALK_KEYS[0]
   const j = POSES[key.pose].joints
   const now = bodyAt(u)
@@ -232,7 +239,7 @@ export function walkPose(u: number): { pose: 'walk' | 'walkPass'; matrices: Affi
 const GROUND_BELOW_HIP = POSES.walk.joints.ankle_near[1] - POSES.walk.joints.hip_near[1]
 
 /** Décalage vertical qui pose la cheville proche d'un dessin de marche sur la ligne du sol de la garde. */
-export function walkGround(pose: 'walk' | 'walkPass'): number {
+export function walkGround(pose: WalkDrawing): number {
   const key = WALK_KEYS.find((k) => k.pose === pose) ?? WALK_KEYS[0]
   return POSES[pose].joints.hip_near[1] - bodyAt(key.at).rise + GROUND_BELOW_HIP
 }

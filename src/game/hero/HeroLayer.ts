@@ -2,14 +2,14 @@ import { asset, createProgram, loadTexture, uniforms } from '../gl'
 import type { Camera, FrameInfo } from '../types'
 import { CANVAS, POSES } from './poseData'
 import { BENDS, GAIT, WALK_SPEED, guardMatrices, walkGround, walkPose } from './poseRig'
-import type { Affine } from './poseRig'
+import type { Affine, WalkDrawing } from './poseRig'
 import { FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from './shaders'
 
 const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas', 'uAtlasSize', 'uBend', 'uAxis'] as const
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'walkPass']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'walkPass', 'walkReach']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -22,9 +22,10 @@ const OFFSETS: Record<PoseName, [number, number]> = {
   // en marche, la hanche est à l'aplomb du point d'appui et la cheville posée est à la même hauteur pour tous les dessins
   walk: walkOffset('walk'),
   walkPass: walkOffset('walkPass'),
+  walkReach: walkOffset('walkReach'),
 }
 
-function walkOffset(pose: 'walk' | 'walkPass'): [number, number] {
+function walkOffset(pose: WalkDrawing): [number, number] {
   const sole = POSES.walk.anchor[1] - POSES.walk.joints.ankle_near[1]
   return [GROUND[0] - POSES[pose].joints.hip_near[0], GROUND[1] - sole - walkGround(pose)]
 }

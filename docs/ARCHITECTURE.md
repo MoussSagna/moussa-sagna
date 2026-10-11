@@ -34,7 +34,7 @@ Les lanternes, les néons et le trajet du métro sont positionnés par leurs coo
 
 ## Le personnage
 
-Le personnage est fait de quatre illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
+Le personnage est fait de cinq illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
 
 | Pose | Illustration | Rôle |
 | --- | --- | --- |
@@ -42,8 +42,9 @@ Le personnage est fait de quatre illustrations dans la même vue (trois quarts �
 | `step` | `art/hero-step.png` | pose intermédiaire, affichée un instant entre la garde et la marche |
 | `walk` | `art/hero-walk.png` | marche, dessin de contact : jambe proche en avant, jambes et bras articulés |
 | `walkPass` | `art/hero-walk-pass.png` | marche, dessin d'appui : jambe proche à la verticale, pied éloigné levé derrière |
+| `walkReach` | `art/hero-walk-reach.png` | marche, dessin d'avancée : jambe éloignée levée devant, genou plié |
 
-- **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas par pose (`guard.webp`, `step.webp`, `walk.webp`, `walkPass.webp`) et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
+- **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas par pose (`guard.webp`, `step.webp`, `walk.webp`, `walkPass.webp`, `walkReach.webp`) et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
 - **Dessin** : `HeroLayer` dessine un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice du calque ; le fragment shader retrouve le pixel d'origine dans la toile (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.
 - **Alignement** : chaque pose a un point d'appui (milieu des pieds, ligne des semelles). Les trois sont posés au même endroit du sol, placé par `PLACEMENT`, et suivent la caméra du décor avec la profondeur du sol.
 - **Reflet et ombre** : le personnage entier est d'abord dessiné une fois dans une texture hors écran, qui sert au reflet.
@@ -68,7 +69,7 @@ La marche s'appuie sur plusieurs dessins clés (`WALK_KEYS`). Chacun a été des
 
 - Les membres de la marche sont des pièces rigides qui tournent : les plis du pantalon ne se redessinent pas et le genou marque un angle quand il plie.
 - Les parties cachées (haut de la cuisse éloignée, buste sous le bras) sont des aplats sans détail.
-- Il manque deux dessins clés : le contact inversé (jambe éloignée en avant) et l'appui sur la jambe éloignée, quand la jambe proche passe devant. Cette moitié du cycle est encore calculée à partir du seul dessin de contact.
+- Les trois dessins clés couvrent le demi-cycle où la jambe proche est en appui. Il manque ceux de l'autre moitié : le contact inversé (jambe éloignée en avant) et l'appui sur la jambe éloignée, quand la jambe proche passe devant. Cette moitié est encore calculée à partir du seul dessin de contact.
 - En garde, les jambes et les bras ne sont pas articulés.
 
 ## Ajouter un plan
