@@ -3,13 +3,14 @@ import type { Camera, FrameInfo } from '../types'
 import { CANVAS, POSES } from './poseData'
 import { BENDS, GAIT, WALK_SPEED, guardMatrices, heldMatrix, scaleAbout, walkMatrices } from './poseRig'
 import type { Affine } from './poseRig'
-import { FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from './shaders'
+import { FIRE_FRAGMENT, FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from './shaders'
 
 const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas', 'uAtlasSize', 'uBend', 'uAxis', 'uAlpha', 'uSmear'] as const
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
+const FIRE_UNIFORMS = ['uRect', 'uT', 'uPower', 'uTail', 'uWobble'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -36,6 +37,9 @@ const FEET: Record<PoseName, [number, number]> = {
   punchHeavyStart: POSES.punchHeavyStart.anchor,
   punchHeavyHit: POSES.punchHeavyHit.anchor,
   punchHeavyRecover: POSES.punchHeavyRecover.anchor,
+  specialCharge: POSES.specialCharge.anchor,
+  specialThrow: POSES.specialThrow.anchor,
+  specialRecover: POSES.specialRecover.anchor,
   punchChain1: POSES.punchChain1.anchor,
   punchChain2: POSES.punchChain2.anchor,
   punchMidHit: POSES.punchMidHit.anchor,
@@ -54,6 +58,7 @@ const POSE_SCALE: Record<PoseName, number> = {
   punchStart: 1, punchHit: 1,
   punchChain1: 1, punchChain2: 1, punchMidHit: 1, punchMidRecover: 1,
   punchHeavyStart: 1, punchHeavyHit: 1, punchHeavyRecover: 1,
+  specialCharge: 1, specialThrow: 1, specialRecover: 1,
 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
@@ -106,6 +111,21 @@ const CHAIN: Partial<Record<PunchStrength, PunchStrength>> = { light: 'medium', 
  * suivant au lieu de recommencer au premier. Sans lui, il faudrait appuyer pendant le quart de seconde du coup.
  */
 const CHAIN_GRACE = 0.35
+
+/**
+ * Attaque spéciale : une boule de feu lancée à deux mains. Durées en secondes ; positions des mains dans
+ * les illustrations de charge et de lancer, rayons en pixels de la toile ; vitesse en largeurs d'écran par seconde.
+ */
+const SPECIAL = {
+  charge: 0.3,
+  throw: 0.16,
+  recover: 0.42,
+  chargeHands: [150, 575] as [number, number],
+  throwHands: [1010, 515] as [number, number],
+  chargeRadius: 130,
+  radius: 190,
+  speed: 1.05,
+}
 
 /** Poses tenues en un seul calque, qui respirent d'un bloc. */
 const HELD: PoseName[] = ['crouch', 'block', 'crouchBlock']
@@ -166,7 +186,12 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover'> | 'dash' | 'jump' | 'punch' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover'> | 'dash' | 'jump' | 'punch' | 'special' = 'guard'
+  /** Temps écoulé depuis le début de l'attaque spéciale en cours. */
+  private specialTime = 0
+  /** Boule de feu en vol : position (fraction de la largeur du stage), hauteur au-dessus du sol (pixels de la toile), âge. */
+  private fireball: { x: number; height: number; age: number } | null = null
+  private fire: Program<(typeof FIRE_UNIFORMS)[number]> | null = null
   /** Temps écoulé depuis le début du coup de poing en cours. */
   private punchTime = 0
   private punchStrength: PunchStrength = 'light'
@@ -198,6 +223,9 @@ export class HeroLayer {
     if (!layer || !flat) return false
     this.layer = { program: layer, attribute: gl.getAttribLocation(layer, 'a'), u: uniforms(gl, layer, LAYER_UNIFORMS) }
     this.flat = { program: flat, attribute: gl.getAttribLocation(flat, 'a'), u: uniforms(gl, flat, FLAT_UNIFORMS) }
+    const fire = createProgram(gl, FLAT_VERTEX, FIRE_FRAGMENT)
+    if (!fire) return false
+    this.fire = { program: fire, attribute: gl.getAttribLocation(fire, 'a'), u: uniforms(gl, fire, FIRE_UNIFORMS) }
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer())
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW)
     gl.enable(gl.BLEND)
@@ -290,6 +318,14 @@ export class HeroLayer {
     return this.punchTime < move.startup + move.active ? move.hit : move.recover
   }
 
+  /** Lance l'attaque spéciale. Possible seulement depuis la garde ou la marche, et une boule de feu à la fois. */
+  special(): void {
+    const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
+    if (!free || this.fireball) return
+    this.pose = 'special'
+    this.specialTime = 0
+  }
+
   /** Lance un saut vertical. Possible seulement depuis la garde ou la marche. */
   jump(): void {
     const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
@@ -363,6 +399,24 @@ export class HeroLayer {
       this.x = this.dashX(this.dashing.time)
       const move = this.dashing.direction > 0 ? DASH.forward : DASH.back
       if (this.dashing.time < move.seconds) return
+      this.pose = 'guard'
+    }
+    // la boule de feu vit sa vie, quoi que fasse le personnage ensuite
+    if (this.fireball) {
+      this.fireball.age += frame.delta
+      this.fireball.x += SPECIAL.speed * frame.delta
+      if (this.fireball.x > 1.2) this.fireball = null
+    }
+    if (this.pose === 'special') {
+      const before = this.specialTime
+      this.specialTime += frame.delta
+      if (before < SPECIAL.charge && this.specialTime >= SPECIAL.charge) {
+        // elle part des mains tendues de la pose de lancer
+        const pixel = (PLACEMENT.scale / CANVAS[1]) * (frame.height / frame.width)
+        const feet = FEET.specialThrow
+        this.fireball = { x: this.x + (SPECIAL.throwHands[0] - feet[0]) * pixel, height: feet[1] - SPECIAL.throwHands[1], age: 0 }
+      }
+      if (this.specialTime < SPECIAL.charge + SPECIAL.throw + SPECIAL.recover) return
       this.pose = 'guard'
     }
     // le délai de grâce ne court qu'en garde : toute autre action l'annule
@@ -460,6 +514,12 @@ export class HeroLayer {
         ? (jump?.name ?? 'guard')
         : this.pose === 'punch'
           ? this.punchPose()
+        : this.pose === 'special'
+          ? this.specialTime < SPECIAL.charge
+            ? 'specialCharge'
+            : this.specialTime < SPECIAL.charge + SPECIAL.throw
+              ? 'specialThrow'
+              : 'specialRecover'
         : this.pose === 'dash'
           ? this.dashing.direction > 0
             ? 'dashForward'
@@ -558,5 +618,40 @@ export class HeroLayer {
 
     // 4. le personnage, calque par calque, du fond vers le premier plan
     drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * left - 1, 1 - 2 * top, 1, lift)
+
+    // 5. la boule de feu : elle grossit dans les mains pendant la charge, puis vole devant le personnage
+    const fire = this.fire
+    const charging = this.pose === 'special' && this.specialTime < SPECIAL.charge
+    if (!fire || (!charging && !this.fireball)) return
+    gl.useProgram(fire.program)
+    gl.enableVertexAttribArray(fire.attribute)
+    gl.vertexAttribPointer(fire.attribute, 2, gl.FLOAT, false, 0, 0)
+    gl.uniform1f(fire.u.uT, frame.time)
+    gl.uniform1f(fire.u.uWobble, calm ? 0.4 : 1)
+    const unitX = (2 * w) / CANVAS[0]
+    const unitY = (2 * h) / CANVAS[1]
+    /** Dessine une boule : centre en coordonnées d'écran, rayons en pixels de la toile. */
+    const ball = (x: number, y: number, rx: number, ry: number, power: number, tail: number) => {
+      gl.uniform1f(fire.u.uPower, power)
+      gl.uniform1f(fire.u.uTail, tail)
+      gl.uniform4f(fire.u.uRect, x * 2 - 1, 1 - y * 2, rx * unitX, ry * unitY)
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    }
+    if (charging) {
+      const k = this.specialTime / SPECIAL.charge
+      const hands = SPECIAL.chargeHands
+      const x = left + ((hands[0] - feet[0]) * scale + GROUND[0]) * (w / CANVAS[0])
+      const y = top + ((hands[1] - feet[1]) * scale + GROUND[1]) * (h / CANVAS[1])
+      ball(x, y, SPECIAL.chargeRadius * k, SPECIAL.chargeRadius * k, 0.5 + 0.5 * k, 0)
+    }
+    if (this.fireball) {
+      const x = (this.fireball.x + PLACEMENT.depth * camera.ox - 0.5) * camera.zoom + 0.5
+      const y = sy - this.fireball.height * (h / CANVAS[1])
+      const grow = Math.min(1, 0.5 + this.fireball.age / 0.08)
+      // lueur sur le sol mouillé, sous la boule
+      ball(x, sy, SPECIAL.radius * 2.2, SPECIAL.radius * 0.28, 0.3 * grow, 0)
+      // le quad est une fois et demie plus large que haut ; le cœur est au tiers avant
+      ball(x - (SPECIAL.radius * 0.5 * unitX) / 2, y, SPECIAL.radius * 1.5 * grow, SPECIAL.radius * grow, 1, 1)
+    }
   }
 }

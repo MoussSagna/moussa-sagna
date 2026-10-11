@@ -57,3 +57,21 @@ void main(){
   if(uShadow>.5){float r=length((v-.5)*2.);gl_FragColor=vec4(0.,0.,0.,1.)*smoothstep(1.,.15,r)*.6;return;}
   gl_FragColor=texture2D(uTex,v)*uAlpha;
 }`
+
+// Boule de feu : entièrement calculée, sans image. Un cœur presque blanc, un corps orangé puis rouge,
+// des flammes qui ondulent, et une queue derrière elle quand elle vole (uTail).
+export const FIRE_FRAGMENT = `precision mediump float;
+varying vec2 v; uniform float uT,uPower,uTail,uWobble;
+void main(){
+  vec2 p=(v-.5)*2.;
+  // en vol, le quad est plus large que haut : le cœur est décalé vers l'avant et la queue s'étire derrière
+  vec2 c=vec2(p.x*mix(1.,1.5,uTail)-.5*uTail,p.y);
+  float back=step(c.x,0.);
+  float d=length(vec2(c.x*mix(1.,mix(1.,.45,uTail),back),c.y));
+  float flame=sin(c.y*9.+uT*14.+c.x*6.)*sin(c.x*7.-uT*18.)*.14+sin(atan(c.y,c.x)*5.+uT*9.)*.06;
+  d+=flame*uWobble*mix(.35,1.,back*uTail);
+  float i=smoothstep(1.,0.,d);
+  vec3 col=vec3(.91,.15,.18)*i*1.25+vec3(1.,.55,.2)*pow(i,2.5)+vec3(1.)*pow(i,6.);
+  // couleur plus forte que l'opacité : la boule éclaire ce qu'elle recouvre au lieu de le masquer
+  gl_FragColor=vec4(col,min(1.,i*.75))*uPower;
+}`

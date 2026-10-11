@@ -2,7 +2,7 @@
 
 Usage (depuis lab/) : python3 tools/prepare_poses.py [--debug dossier]
 Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png, hero-dash-back.png,
-hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png et les neuf hero-punch-*.png
+hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png les neuf hero-punch-*.png et les trois hero-special-*.png
 (fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
@@ -40,6 +40,9 @@ LOGOS = dict(
     punchStart=[[(34, 1262), (58, 1262), (58, 1308), (34, 1308)]],
     punchHit=[[(32, 1242), (58, 1242), (58, 1292), (32, 1292)]],
     punchChain1=[],
+    specialCharge=[],
+    specialThrow=[],
+    specialRecover=[],
     punchHeavyStart=[],
     punchHeavyHit=[],
     punchHeavyRecover=[],
@@ -64,7 +67,9 @@ SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=
               # transitions jab -> direct : le pied avant glisse de sa place du jab à celle du direct
               punchChain1=495, punchChain2=500,
               # coup fort : calé sur le pied avant, comme le direct
-              punchHeavyStart=518, punchHeavyHit=526, punchHeavyRecover=518)
+              punchHeavyStart=518, punchHeavyHit=526, punchHeavyRecover=518,
+              # attaque spéciale : calée sur le pied avant
+              specialCharge=526, specialThrow=534, specialRecover=518)
 # Coups donnés depuis la garde : le haut du corps vient de l'illustration du coup, les jambes restent celles de la
 # garde, pour que les pieds ne bougent pas. Valeur : décalage qui amène la boucle de ceinture du coup sur celle de
 # la garde (557, 693).
@@ -132,6 +137,7 @@ FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png',
              jumpStart='hero-jump-start.png', jumpRise='hero-jump-rise.png', jumpPeak='hero-jump-peak.png', jumpLand='hero-jump-land.png',
              punchStart='hero-punch-start.png', punchHit='hero-punch-hit.png',
              punchHeavyStart='hero-punch-heavy-start.png', punchHeavyHit='hero-punch-heavy-hit.png', punchHeavyRecover='hero-punch-heavy-recover.png',
+             specialCharge='hero-special-charge.png', specialThrow='hero-special-throw.png', specialRecover='hero-special-recover.png',
              punchChain1='hero-punch-chain-1.png', punchChain2='hero-punch-chain-2.png', punchMidHit='hero-punch-mid-hit.png', punchMidRecover='hero-punch-mid-recover.png')
 
 

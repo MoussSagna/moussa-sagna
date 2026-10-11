@@ -312,6 +312,42 @@ export const POSES = {
       { name: 'body', parent: -1, pivot: [512, 768], box: [8, 112, 1005, 1336], atlas: [0, 0] },
     ] as PoseLayer[],
   },
+  specialCharge: {
+    file: 'hero/specialCharge.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [526, 1410] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [3, 118, 1013, 1301], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  specialThrow: {
+    file: 'hero/specialThrow.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [534, 1345] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [10, 220, 1004, 1134], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  specialRecover: {
+    file: 'hero/specialRecover.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [518, 1425] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [8, 125, 1002, 1310], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
   punchMidRecover: {
     file: 'hero/punchMidRecover.webp',
     atlasSize: [2048, 1024] as Point,
