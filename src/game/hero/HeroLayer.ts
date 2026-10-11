@@ -16,14 +16,21 @@ const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, ma
 
 /** Point de la toile posé sur le sol : le milieu des appuis de la garde. Les autres poses s'y alignent. */
 const GROUND = POSES.guard.anchor
-const OFFSETS: Record<PoseName, [number, number]> = {
-  guard: [0, 0],
-  step: [GROUND[0] - POSES.step.anchor[0], GROUND[1] - POSES.step.anchor[1]],
-  dashForward: [GROUND[0] - POSES.dashForward.anchor[0], GROUND[1] - POSES.dashForward.anchor[1]],
-  dashBack: [GROUND[0] - POSES.dashBack.anchor[0], GROUND[1] - POSES.dashBack.anchor[1]],
+/** Point de chaque pose posé sur ce point du sol, dans sa propre toile. */
+const FEET: Record<PoseName, [number, number]> = {
+  guard: POSES.guard.anchor,
+  step: POSES.step.anchor,
+  dashForward: POSES.dashForward.anchor,
+  dashBack: POSES.dashBack.anchor,
   // en marche, c'est la hanche qui est à l'aplomb du point d'appui
-  walk: [GROUND[0] - POSES.walk.joints.hip_near[0], GROUND[1] - POSES.walk.anchor[1]],
+  walk: [POSES.walk.joints.hip_near[0], POSES.walk.anchor[1]],
 }
+
+/**
+ * Agrandissement de chaque pose autour de ses pieds, pour que la tête garde la taille de celle de la garde.
+ * Les illustrations de dash sont dessinées plus petit : valeurs mesurées sur la hauteur de la tête.
+ */
+const POSE_SCALE: Record<PoseName, number> = { guard: 1, step: 1, walk: 1, dashForward: 1.07, dashBack: 1.15 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
 const STEP_SECONDS = 0.09
@@ -182,7 +189,8 @@ export class HeroLayer {
     const amplitude = calm ? CALM_AMPLITUDE : 1
     const matrices: Affine[] | null =
       name === 'guard' ? guardMatrices(frame.time, amplitude) : name === 'walk' ? walkMatrices(this.phase) : null
-    const offset = OFFSETS[name]
+    const feet = FEET[name]
+    const scale = POSE_SCALE[name]
     const bends = BENDS[name]
 
     const drawLayers = (vx: number, vy: number, vz: number, vw: number, alpha = 1) => {
@@ -200,8 +208,11 @@ export class HeroLayer {
         const margin = bend ? RIBBON_MARGIN : 0
         const [bx, by, bw, bh] = item.box
         gl.uniform4f(u.uQuad, bx - margin, by - margin, bw + 2 * margin, bh + 2 * margin)
-        gl.uniform3f(u.uMx, m ? m[0] : 1, m ? m[2] : 0, (m ? m[4] : 0) + offset[0])
-        gl.uniform3f(u.uMy, m ? m[1] : 0, m ? m[3] : 1, (m ? m[5] : 0) + offset[1])
+        // la pose est agrandie autour de ses pieds, puis ses pieds sont posés sur le point du sol
+        const mx = [m ? m[0] : 1, m ? m[2] : 0, (m ? m[4] : 0) - feet[0]]
+        const my = [m ? m[1] : 0, m ? m[3] : 1, (m ? m[5] : 0) - feet[1]]
+        gl.uniform3f(u.uMx, mx[0] * scale, mx[1] * scale, mx[2] * scale + GROUND[0])
+        gl.uniform3f(u.uMy, my[0] * scale, my[1] * scale, my[2] * scale + GROUND[1])
         gl.uniform4f(u.uBox, bx, by, bw, bh)
         gl.uniform2f(u.uAtlas, item.atlas[0], item.atlas[1])
         gl.uniform4f(u.uBend, bend ? bend.amplitude * amplitude : 0, bend ? bend.length : 1, frame.time * (name === 'walk' ? 7 : 2.4) + index, 0)

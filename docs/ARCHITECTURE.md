@@ -46,7 +46,7 @@ Le personnage est fait de cinq illustrations dans la même vue (trois quarts à 
 
 - **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas par pose et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
 - **Dessin** : `HeroLayer` dessine un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice du calque ; le fragment shader retrouve le pixel d'origine dans la toile (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.
-- **Alignement** : chaque pose a un point d'appui (milieu des pieds, ligne des semelles). Les trois sont posés au même endroit du sol, placé par `PLACEMENT`, et suivent la caméra du décor avec la profondeur du sol.
+- **Alignement** : chaque pose a un point d'appui (milieu des pieds, ligne des semelles). Toutes sont posées au même endroit du sol, placé par `PLACEMENT`, et suivent la caméra du décor avec la profondeur du sol. `POSE_SCALE` agrandit autour de ce point les poses dessinées plus petit que la garde, pour que la tête garde la même taille.
 - **Reflet et ombre** : le personnage entier est d'abord dessiné une fois dans une texture hors écran, qui sert au reflet.
 
 ### La garde
