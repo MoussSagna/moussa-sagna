@@ -53,15 +53,17 @@ const BLOCK_STEP_SECONDS = 0.05
 
 /**
  * Saut vertical. Durées en secondes, hauteur en pixels de la toile (du sol au point le plus haut des pieds).
- * `tuck` : part du vol après laquelle le corps se regroupe ; avant, il est encore en extension.
+ * `tuck` : part de la montée après laquelle le corps se regroupe ; avant, il est encore en extension.
  * Un seul dessin couvre presque tout le vol : c'est sa déformation continue qui donne le mouvement.
  */
 const JUMP = {
   start: 0.1,
-  air: 0.74,
+  /** Montée puis retombée : la retombée est plus courte, le personnage tombe plus vite qu'il ne monte. */
+  rise: 0.4,
+  fall: 0.27,
   land: 0.14,
   height: 600,
-  tuck: 0.14,
+  tuck: 0.26,
   /** Déformation du dessin : tassement à l'impulsion et à la réception, étirement à pleine vitesse. */
   squash: 0.09,
   stretch: 0.07,
@@ -196,18 +198,18 @@ export class HeroLayer {
       const squash = JUMP.squash * p * p
       return { name: 'jumpStart', lift: 0, sx: 1 + squash * 0.5, sy: 1 - squash }
     }
-    const k = t / JUMP.air
-    if (k >= 1) {
-      const q = Math.min(1, (t - JUMP.air) / JUMP.land)
+    if (t >= JUMP.rise + JUMP.fall) {
+      const q = Math.min(1, (t - JUMP.rise - JUMP.fall) / JUMP.land)
       const squash = JUMP.squash * (1 - q) ** 2
       return { name: 'jumpLand', lift: 0, sx: 1 + squash * 0.5, sy: 1 - squash }
     }
-    // vitesse verticale : 1 au décollage, 0 au sommet, 1 à la retombée
-    const speed = Math.abs(1 - 2 * k)
+    // deux demi-paraboles qui se rejoignent au sommet ; vitesse verticale : 1 au décollage, 0 au sommet, 1 à la retombée
+    const rising = t < JUMP.rise
+    const speed = rising ? 1 - t / JUMP.rise : (t - JUMP.rise) / JUMP.fall
     const stretch = JUMP.stretch * speed * speed
     return {
-      name: k < JUMP.tuck ? 'jumpRise' : 'jumpPeak',
-      lift: JUMP.height * 4 * k * (1 - k),
+      name: rising && t / JUMP.rise < JUMP.tuck ? 'jumpRise' : 'jumpPeak',
+      lift: JUMP.height * (1 - speed * speed),
       sx: 1 - stretch * 0.6,
       sy: 1 + stretch,
     }
@@ -236,7 +238,7 @@ export class HeroLayer {
     }
     if (this.pose === 'jump') {
       this.jumpTime += frame.delta
-      if (this.jumpTime < JUMP.start + JUMP.air + JUMP.land) return
+      if (this.jumpTime < JUMP.start + JUMP.rise + JUMP.fall + JUMP.land) return
       this.pose = 'guard'
     }
     // poses de passage : elles durent un instant, puis on arrive selon ce qui est encore demandé
