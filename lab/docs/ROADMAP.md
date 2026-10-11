@@ -27,7 +27,8 @@
 - [ ] Adoucir le pli du genou de la marche et articuler l'avant-bras.
 - [ ] Articuler les bras et les jambes de la garde.
 - [x] Une seule touche d'attaque, qui enchaîne le coup léger puis le moyen.
-- [ ] Poing moyen : refaire l'armé et le retour en corps entier, comme l'impact.
+- [x] Deux dessins de transition entre le jab et le direct.
+- [ ] Poing moyen : refaire le retour en corps entier, comme l'impact.
 - [ ] Coup fort, troisième de l'enchaînement.
 - [ ] Accroupi : animer séparément la tête et les rubans.
 - [ ] Alléger le chargement : environ 17 Mo d'atlas sont téléchargés au démarrage.

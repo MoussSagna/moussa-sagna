@@ -2,7 +2,7 @@
 
 Usage (depuis lab/) : python3 tools/prepare_poses.py [--debug dossier]
 Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png, hero-dash-back.png,
-hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png et les cinq hero-punch-*.png
+hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png et les six hero-punch-*.png
 (fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
@@ -39,7 +39,8 @@ LOGOS = dict(
     jumpPeak=[],
     punchStart=[[(34, 1262), (58, 1262), (58, 1308), (34, 1308)]],
     punchHit=[[(32, 1242), (58, 1242), (58, 1292), (32, 1292)]],
-    punchMidStart=[],
+    punchChain1=[],
+    punchChain2=[],
     punchMidHit=[],
     punchMidRecover=[],
     jumpLand=[[(155, 1275), (195, 1285), (200, 1325), (165, 1325)]],
@@ -56,11 +57,13 @@ SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=
               # jab : calé pour que le pied arrière tombe sur celui de la garde ; le pied avant fait son petit pas
               punchStart=483, punchHit=475,
               # direct : corps entier, calé sur le pied avant de la garde ; le pied arrière pivote sur place
-              punchMidHit=518)
+              punchMidHit=518,
+              # transitions jab -> direct : le pied avant glisse de sa place du jab à celle du direct
+              punchChain1=495, punchChain2=500)
 # Coups donnés depuis la garde : le haut du corps vient de l'illustration du coup, les jambes restent celles de la
 # garde, pour que les pieds ne bougent pas. Valeur : décalage qui amène la boucle de ceinture du coup sur celle de
 # la garde (557, 693).
-ON_GUARD_LEGS = dict(punchMidStart=(17, 87), punchMidRecover=(-13, 68))
+ON_GUARD_LEGS = dict(punchMidRecover=(-13, 68))
 
 # ---------- marche : articulations et polygones. « near » = côté proche (jambe avant, bras arrière) ----------
 WALK_JOINTS = dict(
@@ -123,7 +126,7 @@ FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png',
              blockStep='hero-block-step.png', block='hero-block.png', crouchBlock='hero-crouch-block.png',
              jumpStart='hero-jump-start.png', jumpRise='hero-jump-rise.png', jumpPeak='hero-jump-peak.png', jumpLand='hero-jump-land.png',
              punchStart='hero-punch-start.png', punchHit='hero-punch-hit.png',
-             punchMidStart='hero-punch-mid-start.png', punchMidHit='hero-punch-mid-hit.png', punchMidRecover='hero-punch-mid-recover.png')
+             punchChain1='hero-punch-chain-1.png', punchChain2='hero-punch-chain-2.png', punchMidHit='hero-punch-mid-hit.png', punchMidRecover='hero-punch-mid-recover.png')
 
 
 def load(name: str) -> np.ndarray:

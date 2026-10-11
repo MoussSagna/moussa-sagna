@@ -9,7 +9,7 @@ const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas'
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchMidStart', 'punchMidHit', 'punchMidRecover']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -33,7 +33,8 @@ const FEET: Record<PoseName, [number, number]> = {
   jumpLand: POSES.jumpLand.anchor,
   punchStart: POSES.punchStart.anchor,
   punchHit: POSES.punchHit.anchor,
-  punchMidStart: POSES.punchMidStart.anchor,
+  punchChain1: POSES.punchChain1.anchor,
+  punchChain2: POSES.punchChain2.anchor,
   punchMidHit: POSES.punchMidHit.anchor,
   punchMidRecover: POSES.punchMidRecover.anchor,
   // en marche, c'est la hanche qui est à l'aplomb du point d'appui
@@ -48,7 +49,7 @@ const POSE_SCALE: Record<PoseName, number> = {
   guard: 1, step: 1, walk: 1, dashForward: 1.07, dashBack: 1.15, crouchStep: 1, crouch: 1, blockStep: 1, block: 1, crouchBlock: 1,
   jumpStart: 1, jumpRise: 1, jumpPeak: 0.93, jumpLand: 1,
   punchStart: 1, punchHit: 1,
-  punchMidStart: 1, punchMidHit: 1, punchMidRecover: 1,
+  punchChain1: 1, punchChain2: 1, punchMidHit: 1, punchMidRecover: 1,
 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
@@ -80,12 +81,14 @@ const JUMP = {
  * Coups de poing debout. Durées en secondes, calquées sur des coups de jeu de combat à 60 images par
  * seconde (démarrage, actif, récupération). `reach` : distance entre l'aplomb des hanches et le bout du
  * poing tendu, en pixels de la toile, pour la future zone de frappe.
- * Chaque coup a un dessin par phase ; le léger réutilise son dessin de démarrage pour la récupération.
+ * Chaque coup a ses dessins par phase ; le démarrage peut en avoir plusieurs, qui se partagent sa durée.
+ * Le léger réutilise son dessin de démarrage pour la récupération. Le moyen ne s'obtient qu'en enchaînant
+ * après le léger : son démarrage est fait des deux dessins de transition entre le jab et le direct.
  */
 const PUNCHES = {
-  light: { startup: 4 / 60, active: 3 / 60, recovery: 7 / 60, reach: 580, poses: ['punchStart', 'punchHit', 'punchStart'] },
-  medium: { startup: 6 / 60, active: 4 / 60, recovery: 11 / 60, reach: 560, poses: ['punchMidStart', 'punchMidHit', 'punchMidRecover'] },
-} satisfies Record<string, { startup: number; active: number; recovery: number; reach: number; poses: [PoseName, PoseName, PoseName] }>
+  light: { startup: 4 / 60, active: 3 / 60, recovery: 7 / 60, reach: 580, start: ['punchStart'], hit: 'punchHit', recover: 'punchStart' },
+  medium: { startup: 6 / 60, active: 4 / 60, recovery: 11 / 60, reach: 560, start: ['punchChain1', 'punchChain2'], hit: 'punchMidHit', recover: 'punchMidRecover' },
+} satisfies Record<string, { startup: number; active: number; recovery: number; reach: number; start: PoseName[]; hit: PoseName; recover: PoseName }>
 export type PunchStrength = keyof typeof PUNCHES
 
 /**
@@ -139,7 +142,7 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchMidStart' | 'punchMidHit' | 'punchMidRecover'> | 'dash' | 'jump' | 'punch' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchMidHit' | 'punchMidRecover'> | 'dash' | 'jump' | 'punch' = 'guard'
   /** Temps écoulé depuis le début du coup de poing en cours. */
   private punchTime = 0
   private punchStrength: PunchStrength = 'light'
@@ -228,8 +231,11 @@ export class HeroLayer {
   /** Dessin du coup de poing en cours : démarrage, bras tendu pendant les images actives, puis récupération. */
   private punchPose(): PoseName {
     const move = PUNCHES[this.punchStrength]
-    const phase = this.punchTime < move.startup ? 0 : this.punchTime < move.startup + move.active ? 1 : 2
-    return move.poses[phase]
+    if (this.punchTime < move.startup) {
+      const start: PoseName[] = move.start
+      return start[Math.min(start.length - 1, Math.floor((this.punchTime / move.startup) * start.length))]
+    }
+    return this.punchTime < move.startup + move.active ? move.hit : move.recover
   }
 
   /** Lance un saut vertical. Possible seulement depuis la garde ou la marche. */

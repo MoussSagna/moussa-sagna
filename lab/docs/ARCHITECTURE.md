@@ -34,7 +34,7 @@ Les lanternes, les néons et le trajet du métro sont positionnés par leurs coo
 
 ## Le personnage
 
-Le personnage est fait de dix-neuf illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
+Le personnage est fait de vingt illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
 
 | Pose | Illustration | Rôle |
 | --- | --- | --- |
@@ -54,7 +54,8 @@ Le personnage est fait de dix-neuf illustrations dans la même vue (trois quarts
 | `jumpLand` | `../art/hero-jump-land.png` | saut : réception, au sol |
 | `punchStart` | `../art/hero-punch-start.png` | coup de poing léger : bras à mi-course, au démarrage et au retour |
 | `punchHit` | `../art/hero-punch-hit.png` | coup de poing léger : bras tendu |
-| `punchMidStart`, `punchMidHit`, `punchMidRecover` | `../art/hero-punch-mid-*.png` | coup de poing moyen : armé, bras tendu, retour |
+| `punchChain1`, `punchChain2` | `../art/hero-punch-chain-*.png` | transitions entre le jab et le direct : le bras avant se replie, puis le bras arrière part |
+| `punchMidHit`, `punchMidRecover` | `../art/hero-punch-mid-*.png` | coup de poing moyen : bras tendu, retour |
 
 - **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas par pose et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
 - **Dessin** : `HeroLayer` dessine un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice du calque ; le fragment shader retrouve le pixel d'origine dans la toile (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.
@@ -106,13 +107,16 @@ Il n'y a qu'une touche d'attaque. `HeroLayer.attack()` lance le coup léger depu
 | Coup | Démarrage | Actif | Récupération | Dessins |
 | --- | --- | --- | --- | --- |
 | Léger (jab du bras avant) | 4 | 3 | 7 | `punchStart`, `punchHit`, puis `punchStart` à nouveau |
-| Moyen (direct du bras arrière) | 6 | 4 | 11 | `punchMidStart`, `punchMidHit`, `punchMidRecover` |
+| Moyen (direct du bras arrière) | 6 | 4 | 11 | `punchChain1` et `punchChain2` (trois images chacun), `punchMidHit`, `punchMidRecover` |
 
 Montage des dessins :
 
 - **Léger** : illustrations entières, calées pour que le pied arrière tombe sur celui de la garde. Le pied avant fait un petit pas glissé.
 - **Moyen, impact** : illustration entière, calée sur le pied avant de la garde. Le pied arrière pivote sur sa pointe et les hanches tournent.
-- **Moyen, armé et retour** : seulement le haut du corps, posé sur les jambes de la garde (`ON_GUARD_LEGS` dans `tools/prepare_poses.py`). Les jambes sautent donc d'un état à l'autre autour de l'impact ; ces deux dessins restent à refaire en corps entier.
+- **Transitions** : illustrations entières. Le pied avant y glisse de sa place du jab à celle du direct.
+- **Moyen, retour** : seulement le haut du corps, posé sur les jambes de la garde (`ON_GUARD_LEGS` dans `tools/prepare_poses.py`). Les jambes sautent donc en sortant de l'impact ; ce dessin reste à refaire en corps entier.
+
+L'enchaînement fait se suivre quatre illustrations en un quart de seconde. C'est une exception assumée à la règle « une animation = une illustration » : ce sont des poses franchement différentes d'un coup rapide, pas des dessins proches en boucle.
 
 Il n'y a pas encore d'adversaire, donc pas de zone de frappe : le champ `reach` note seulement la portée du poing pour plus tard. `App.tsx` déclenche l'attaque avec J ou le bouton « Attaquer ».
 
