@@ -10,7 +10,7 @@ const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 const FIRE_UNIFORMS = ['uRect', 'uT', 'uPower', 'uTail', 'uWobble'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -38,6 +38,9 @@ const FEET: Record<PoseName, [number, number]> = {
   punchHeavyHit: POSES.punchHeavyHit.anchor,
   punchHeavyRecover: POSES.punchHeavyRecover.anchor,
   specialCharge: POSES.specialCharge.anchor,
+  specialIn1: POSES.specialIn1.anchor,
+  specialIn2: POSES.specialIn2.anchor,
+  specialIn3: POSES.specialIn3.anchor,
   specialThrow: POSES.specialThrow.anchor,
   specialRecover: POSES.specialRecover.anchor,
   punchChain1: POSES.punchChain1.anchor,
@@ -58,7 +61,8 @@ const POSE_SCALE: Record<PoseName, number> = {
   punchStart: 1, punchHit: 1,
   punchChain1: 1, punchChain2: 1, punchMidHit: 1, punchMidRecover: 1,
   punchHeavyStart: 1, punchHeavyHit: 1, punchHeavyRecover: 1,
-  specialCharge: 1, specialThrow: 1, specialRecover: 1,
+  specialCharge: 1, specialThrow: 1.12, specialRecover: 1,
+  specialIn1: 1, specialIn2: 1, specialIn3: 1,
 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
@@ -117,15 +121,25 @@ const CHAIN_GRACE = 0.35
  * les illustrations de charge et de lancer, rayons en pixels de la toile ; vitesse en largeurs d'écran par seconde.
  */
 const SPECIAL = {
-  charge: 0.3,
-  throw: 0.16,
-  recover: 0.42,
-  chargeHands: [150, 575] as [number, number],
-  throwHands: [1010, 515] as [number, number],
+  /**
+   * Les dessins dans l'ordre, avec leur durée. `hands` : position des mains dans l'illustration, tant que
+   * la boule y grossit. `launch` : la boule part des mains au début de ce dessin.
+   */
+  steps: [
+    { pose: 'specialIn1', seconds: 0.08, hands: [215, 580] },
+    { pose: 'specialCharge', seconds: 0.2, hands: [150, 575] },
+    { pose: 'specialIn2', seconds: 0.07, hands: [935, 590] },
+    { pose: 'specialThrow', seconds: 0.16, hands: [1010, 515], launch: true },
+    { pose: 'specialIn3', seconds: 0.12 },
+    { pose: 'specialRecover', seconds: 0.3 },
+  ] as { pose: PoseName; seconds: number; hands?: [number, number]; launch?: boolean }[],
   chargeRadius: 130,
   radius: 190,
   speed: 1.05,
 }
+/** Instant du lancer et durée totale de l'attaque spéciale. */
+const SPECIAL_LAUNCH = SPECIAL.steps.slice(0, SPECIAL.steps.findIndex((step) => step.launch)).reduce((sum, step) => sum + step.seconds, 0)
+const SPECIAL_TOTAL = SPECIAL.steps.reduce((sum, step) => sum + step.seconds, 0)
 
 /** Poses tenues en un seul calque, qui respirent d'un bloc. */
 const HELD: PoseName[] = ['crouch', 'block', 'crouchBlock']
@@ -186,7 +200,7 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover'> | 'dash' | 'jump' | 'punch' | 'special' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3'> | 'dash' | 'jump' | 'punch' | 'special' = 'guard'
   /** Temps écoulé depuis le début de l'attaque spéciale en cours. */
   private specialTime = 0
   /** Boule de feu en vol : position (fraction de la largeur du stage), hauteur au-dessus du sol (pixels de la toile), âge. */
@@ -326,6 +340,16 @@ export class HeroLayer {
     this.specialTime = 0
   }
 
+  /** Le dessin en cours de l'attaque spéciale. */
+  private specialStep(): (typeof SPECIAL.steps)[number] {
+    let end = 0
+    for (const step of SPECIAL.steps) {
+      end += step.seconds
+      if (this.specialTime < end) return step
+    }
+    return SPECIAL.steps[SPECIAL.steps.length - 1]
+  }
+
   /** Lance un saut vertical. Possible seulement depuis la garde ou la marche. */
   jump(): void {
     const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
@@ -410,13 +434,16 @@ export class HeroLayer {
     if (this.pose === 'special') {
       const before = this.specialTime
       this.specialTime += frame.delta
-      if (before < SPECIAL.charge && this.specialTime >= SPECIAL.charge) {
-        // elle part des mains tendues de la pose de lancer
+      if (before < SPECIAL_LAUNCH && this.specialTime >= SPECIAL_LAUNCH) {
+        // elle part des mains tendues du dessin de lancer
+        const step = this.specialStep()
         const pixel = (PLACEMENT.scale / CANVAS[1]) * (frame.height / frame.width)
-        const feet = FEET.specialThrow
-        this.fireball = { x: this.x + (SPECIAL.throwHands[0] - feet[0]) * pixel, height: feet[1] - SPECIAL.throwHands[1], age: 0 }
+        const feet = FEET[step.pose]
+        const grown = POSE_SCALE[step.pose]
+        const hands = step.hands ?? feet
+        this.fireball = { x: this.x + (hands[0] - feet[0]) * grown * pixel, height: (feet[1] - hands[1]) * grown, age: 0 }
       }
-      if (this.specialTime < SPECIAL.charge + SPECIAL.throw + SPECIAL.recover) return
+      if (this.specialTime < SPECIAL_TOTAL) return
       this.pose = 'guard'
     }
     // le délai de grâce ne court qu'en garde : toute autre action l'annule
@@ -515,11 +542,7 @@ export class HeroLayer {
         : this.pose === 'punch'
           ? this.punchPose()
         : this.pose === 'special'
-          ? this.specialTime < SPECIAL.charge
-            ? 'specialCharge'
-            : this.specialTime < SPECIAL.charge + SPECIAL.throw
-              ? 'specialThrow'
-              : 'specialRecover'
+          ? this.specialStep().pose
         : this.pose === 'dash'
           ? this.dashing.direction > 0
             ? 'dashForward'
@@ -621,7 +644,7 @@ export class HeroLayer {
 
     // 5. la boule de feu : elle grossit dans les mains pendant la charge, puis vole devant le personnage
     const fire = this.fire
-    const charging = this.pose === 'special' && this.specialTime < SPECIAL.charge
+    const charging = this.pose === 'special' && this.specialTime < SPECIAL_LAUNCH
     if (!fire || (!charging && !this.fireball)) return
     gl.useProgram(fire.program)
     gl.enableVertexAttribArray(fire.attribute)
@@ -638,8 +661,8 @@ export class HeroLayer {
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     }
     if (charging) {
-      const k = this.specialTime / SPECIAL.charge
-      const hands = SPECIAL.chargeHands
+      const k = this.specialTime / SPECIAL_LAUNCH
+      const hands = this.specialStep().hands ?? feet
       const x = left + ((hands[0] - feet[0]) * scale + GROUND[0]) * (w / CANVAS[0])
       const y = top + ((hands[1] - feet[1]) * scale + GROUND[1]) * (h / CANVAS[1])
       ball(x, y, SPECIAL.chargeRadius * k, SPECIAL.chargeRadius * k, 0.5 + 0.5 * k, 0)
