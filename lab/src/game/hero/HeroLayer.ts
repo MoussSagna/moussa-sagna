@@ -58,7 +58,7 @@ const POSE_SCALE: Record<PoseName, number> = {
   punchStart: 1, punchHit: 1,
   punchChain1: 1, punchChain2: 1, punchMidHit: 1, punchMidRecover: 1,
   punchHeavyStart: 1, punchHeavyHit: 1, punchHeavyRecover: 1,
-  specialCharge: 1, specialThrow: 1, specialRecover: 1,
+  specialCharge: 1, specialThrow: 1.09, specialRecover: 1.13,
 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
@@ -414,7 +414,8 @@ export class HeroLayer {
         // elle part des mains tendues de la pose de lancer
         const pixel = (PLACEMENT.scale / CANVAS[1]) * (frame.height / frame.width)
         const feet = FEET.specialThrow
-        this.fireball = { x: this.x + (SPECIAL.throwHands[0] - feet[0]) * pixel, height: feet[1] - SPECIAL.throwHands[1], age: 0 }
+        const grown = POSE_SCALE.specialThrow
+        this.fireball = { x: this.x + (SPECIAL.throwHands[0] - feet[0]) * grown * pixel, height: (feet[1] - SPECIAL.throwHands[1]) * grown, age: 0 }
       }
       if (this.specialTime < SPECIAL.charge + SPECIAL.throw + SPECIAL.recover) return
       this.pose = 'guard'
