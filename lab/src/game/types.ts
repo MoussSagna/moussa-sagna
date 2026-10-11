@@ -12,6 +12,8 @@ export interface StageOptions {
   calm: boolean
   /** Qui fait face au personnage : le mannequin d'entraînement ou l'adversaire. Le mannequin par défaut. */
   opponent?: 'dummy' | 'rival'
+  /** Vrai tant que l'adversaire doit parer, pour tester les coups parés. */
+  rivalBlocks?: boolean
 }
 
 export interface FrameInfo {

@@ -143,6 +143,7 @@ function App() {
           checked={options.opponent !== 'rival'}
           onChange={() => setOptions((current) => ({ ...current, opponent: current.opponent === 'rival' ? 'dummy' : 'rival' }))}
         />
+        <Toggle label="L'adversaire pare" checked={options.rivalBlocks === true} onChange={() => setOptions((current) => ({ ...current, rivalBlocks: !current.rivalBlocks }))} />
         <Toggle label="Réduire les mouvements" checked={options.calm} onChange={() => toggle('calm')} />
       </div>
       <p className="m-0 text-[15px] text-muted">

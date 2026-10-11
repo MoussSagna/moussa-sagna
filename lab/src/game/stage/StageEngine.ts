@@ -146,15 +146,16 @@ export class StageEngine {
     const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)
     this.hero.wall = target.x - target.gap * pixel
     const surface = target.x - target.surface * pixel
-    const react = (strike: Strike) => {
-      target.hit(strike.power)
-      this.stop = strike.stop * (calm ? 0.5 : 1)
-      this.shake = Math.max(this.shake, strike.power)
+    /** Le coup atteint la cible : elle l'encaisse ou le pare. Retourne vrai s'il est paré. */
+    const react = (strike: Strike): boolean => {
+      const guarded = target.hit(strike.power)
+      this.stop = strike.stop * (guarded ? 0.5 : 1) * (calm ? 0.5 : 1)
+      this.shake = Math.max(this.shake, strike.power * (guarded ? 0.4 : 1))
+      return guarded
     }
     const punch = this.hero.strike(pixel)
     if (punch && punch.x >= surface) {
-      this.hero.land(punch, surface)
-      react(punch)
+      this.hero.land(punch, surface, react(punch))
     }
     // son attaque : encaissée, ou parée si le personnage est en parade
     const blow = target.strike(pixel)
@@ -166,8 +167,7 @@ export class StageEngine {
     }
     const ball = this.hero.fireballStrike(pixel)
     if (ball && ball.x >= surface) {
-      this.hero.burst(surface)
-      react(ball)
+      this.hero.burst(surface, react(ball))
     }
   }
 
@@ -208,6 +208,7 @@ export class StageEngine {
     }
     const fight: FrameInfo = { ...info, time: time - this.frozen, delta: stopped ? 0 : delta }
     this.hero.update(fight, this.walk, this.crouch, this.block)
+    this.rival.blocking = this.options.rivalBlocks === true
     const target = this.opponent()
     target.update(fight)
     this.hero.tick(delta)

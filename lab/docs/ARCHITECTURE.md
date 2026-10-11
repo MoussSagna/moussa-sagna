@@ -145,7 +145,9 @@ Au repos, le dessin est coupé en deux rectangles : le socle, immobile, et le bu
 
 ### L'adversaire
 
-`RivalLayer` (`src/game/rival/RivalLayer.ts`) est le futur adversaire, un personnage original tourné vers la gauche. Il n'a pour l'instant que sa garde (`../art/rival-guard.png`, préparée par `tools/prepare_rival.py`) : il respire en s'étirant depuis le sol et, quand il encaisse un coup, tout son corps penche en arrière puis revient comme un ressort (`HIT`), faute de dessin de coup encaissé. Il n'attaque pas encore.
+`RivalLayer` (`src/game/rival/RivalLayer.ts`) est le futur adversaire, un personnage original tourné vers la gauche. Il a pour l'instant sa garde et sa parade (`../art/rival-guard.png`, `rival-block-step.png`, `rival-block.png`, préparées par `tools/prepare_rival.py`), un dessin par pose, chacun avec son point posé au sol et son échelle (`POSES`). Il respire en s'étirant depuis le sol et, quand il encaisse un coup, tout son corps penche en arrière puis revient comme un ressort (`HIT`), faute de dessin de coup encaissé. Il n'attaque pas encore.
+
+Tant que `options.rivalBlocks` est vrai (case « L'adversaire pare »), il passe en parade par un dessin de passage. Un coup ou une boule de feu qui l'atteint en parade est paré : `Opponent.hit` retourne vrai, l'étincelle est bleue, l'arrêt sur image deux fois plus court, la secousse plus faible et il penche à peine. Un coup paré permet quand même de poursuivre l'enchaînement, comme un coup porté.
 
 Le mannequin et l'adversaire suivent la même interface, `Opponent` (`src/game/opponent.ts`) : position, surface du corps, distance minimale, `hit`, `attack`, `strike`. `StageEngine` ne connaît que cette interface et affiche celui que désigne `options.opponent` (case « Mannequin d'entraînement » dans `App.tsx`).
 

@@ -10,8 +10,8 @@ export interface Opponent {
   /** Distance minimale entre son axe et le point d'appui du personnage, en pixels de la toile. */
   readonly gap: number
   load(): Promise<boolean>
-  /** Encaisse un coup. `power` : de 0 (effleuré) à 1 (coup fort). */
-  hit(power: number): void
+  /** Reçoit un coup. `power` : de 0 (effleuré) à 1 (coup fort). Retourne vrai s'il le pare. */
+  hit(power: number): boolean
   /** Lance son attaque, s'il en a une. */
   attack(): void
   /** Son attaque, si elle peut toucher à cet instant. `pixel` : largeur d'un pixel de la toile, en fraction de la largeur du stage. */

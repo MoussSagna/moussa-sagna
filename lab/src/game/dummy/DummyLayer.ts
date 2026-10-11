@@ -92,14 +92,15 @@ export class DummyLayer implements Opponent {
     return this.ready
   }
 
-  /** Encaisse un coup. `power` : de 0 (effleuré) à 1 (coup fort). */
-  hit(power: number): void {
+  /** Encaisse un coup. `power` : de 0 (effleuré) à 1 (coup fort). Il ne pare jamais. */
+  hit(power: number): boolean {
     this.hold = HIT.hold
     this.power = power
     // un coup reçu interrompt son attaque
     this.attackTime = -1
     this.angle = 0
     this.velocity = 0
+    return false
   }
 
   /** Lance le coup de tête du mannequin, s'il n'est pas déjà en train d'attaquer ou d'encaisser. */
