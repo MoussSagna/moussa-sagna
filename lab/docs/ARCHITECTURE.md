@@ -2,13 +2,14 @@
 
 ## Vue d'ensemble
 
-L'écran du stage empile trois canvas dans un même conteneur, pilotés par une seule boucle.
+L'écran du stage empile quatre canvas dans un même conteneur, pilotés par une seule boucle.
 
 | Ordre | Plan | Fichier | Technique |
 | --- | --- | --- | --- |
 | 1 (fond) | Décor | `src/game/stage/StageBackdrop.ts` | WebGL, un shader plein écran |
-| 2 | Personnage | `src/game/hero/HeroLayer.ts` | WebGL, un quad par calque de la pose, plus le reflet et l'ombre |
-| 3 (devant) | Météo | `src/game/stage/WeatherLayer.ts` | Canvas 2D |
+| 2 | Mannequin | `src/game/dummy/DummyLayer.ts` | WebGL, deux quads (socle, buste) ou un seul (coup reçu), plus le reflet et l'ombre |
+| 3 | Personnage | `src/game/hero/HeroLayer.ts` | WebGL, un quad par calque de la pose, plus le reflet et l'ombre |
+| 4 (devant) | Météo | `src/game/stage/WeatherLayer.ts` | Canvas 2D |
 
 Par-dessus, React affiche le carton de titre et l'étiquette du stage en HTML (`src/components/StageScreen.tsx`).
 
@@ -18,7 +19,8 @@ Par-dessus, React affiche le carton de titre et l'étiquette du stage en HTML (`
 
 1. redimensionne les canvas à la taille du conteneur (densité de pixels plafonnée à 2) ;
 2. calcule le temps écoulé et la caméra ;
-3. appelle `draw` sur chaque plan, du fond vers l'avant.
+3. fait avancer le personnage et le mannequin, puis décide si un coup touche (voir « Les coups qui touchent ») ;
+4. appelle `draw` sur chaque plan, du fond vers l'avant.
 
 La caméra (`Camera` dans `src/game/types.ts`) combine trois mouvements : le travelling d'ouverture (zoom arrière sur 3,6 s), une respiration lente, et la position de la souris. Avec « Réduire les mouvements », seule la souris reste.
 
@@ -123,15 +125,42 @@ Montage des dessins :
 
 L'enchaînement fait se suivre quatre illustrations en un quart de seconde. C'est une exception assumée à la règle « une animation = une illustration » : ce sont des poses franchement différentes d'un coup rapide, pas des dessins proches en boucle.
 
-Il n'y a pas encore d'adversaire, donc pas de zone de frappe : le champ `reach` note seulement la portée du poing pour plus tard. `App.tsx` déclenche l'attaque avec J ou le bouton « Attaquer ».
+Le champ `reach` donne la portée de chaque coup, `height` sa hauteur : c'est ce qui décide s'il touche le mannequin. `App.tsx` déclenche l'attaque avec J ou le bouton « Attaquer ».
 
 ### L'attaque spéciale
 
 `HeroLayer.special()` lance une boule de feu, depuis la garde ou la marche (`SPECIAL` règle les durées, les tailles et la vitesse). Le personnage enchaîne six dessins, listés avec leur durée dans `SPECIAL.steps` : un intermédiaire, la charge, mains jointes à la hanche, un intermédiaire, le lancer, bras tendus, un intermédiaire, puis le retour. Il ne peut rien faire d'autre avant la fin.
 
-La boule de feu n'est pas une image : elle est entièrement calculée par `FIRE_FRAGMENT` (`src/game/hero/shaders.ts`), avec un cœur presque blanc, un corps orangé puis rouge, des flammes qui ondulent et une queue en vol. Elle grossit dans les mains pendant la charge, en suivant la position des mains de chaque dessin (`hands`), part des mains au dessin marqué `launch`, traverse le stage et disparaît au bord. Une lueur aplatie la suit sur le sol. Elle vit indépendamment du personnage, et il ne peut y en avoir qu'une à la fois. « Réduire les mouvements » atténue l'ondulation des flammes.
+La boule de feu n'est pas une image : elle est entièrement calculée par `FIRE_FRAGMENT` (`src/game/hero/shaders.ts`), avec un cœur presque blanc, un corps orangé puis rouge, des flammes qui ondulent et une queue en vol. Elle grossit dans les mains pendant la charge, en suivant la position des mains de chaque dessin (`hands`), part des mains au dessin marqué `launch`, traverse le stage et explose sur le mannequin (ou disparaît au bord si elle le manque). Une lueur aplatie la suit sur le sol. Elle vit indépendamment du personnage, et il ne peut y en avoir qu'une à la fois. « Réduire les mouvements » atténue l'ondulation des flammes.
 
 Les illustrations ont les mains vides et aucun éclairage d'effet : une lueur peinte sur le personnage resterait figée pendant que la boule s'éloigne. `App.tsx` déclenche l'attaque avec L ou le bouton « Spécial ».
+
+### Le mannequin
+
+`DummyLayer` (`src/game/dummy/DummyLayer.ts`) est une cible fixe, posée sur le même plan du sol que le personnage. Ses deux illustrations (`../art/dummy-idle.png`, `../art/dummy-hit.png`) sont rangées côte à côte dans un seul atlas par `tools/prepare_dummy.py`.
+
+Au repos, le dessin est coupé en deux rectangles : le socle, immobile, et le buste avec son ressort, qui bascule autour du pied du ressort. Quand il reçoit un coup (`hit(power)`), il affiche le dessin du coup reçu pendant l'arrêt sur image et un instant après, puis le buste au repos repart penché et oscille comme un ressort amorti jusqu'à se redresser (`HIT` règle l'inclinaison, la fréquence et l'amortissement). « Réduire les mouvements » ramène l'oscillation à 35 %.
+
+### Les coups qui touchent
+
+C'est `StageEngine.resolveHits` qui arbitre, à chaque image :
+
+- **Le personnage ne traverse pas le mannequin** : `HeroLayer.wall` reçoit la position la plus avancée permise (`DummyLayer.gap`), respectée par la marche et les dashs.
+- **Un coup de poing touche** si, pendant ses images actives, sa portée (`HeroLayer.strike`) atteint la surface du mannequin (`DummyLayer.surface`). Un coup ne touche qu'une fois.
+- **La boule de feu touche** quand son avant atteint cette surface : elle explose et disparaît (`HeroLayer.burst`).
+
+Un coup qui touche déclenche quatre choses : le mannequin réagit, une étincelle part du point d'impact, le combat se fige un instant, et la caméra tremble. Chaque coup a sa puissance (`power`) et sa durée d'arrêt (`stop`), dans `PUNCHES` et `SPECIAL`.
+
+- **Arrêt sur image** : pendant `stop` secondes, le personnage et le mannequin reçoivent une image de durée nulle et une horloge figée ; le décor, la météo et les étincelles continuent. Un appui sur la touche d'attaque pendant l'arrêt est bien retenu pour l'enchaînement.
+- **Étincelle** : calculée par `SPARK_FRAGMENT` (`src/game/hero/shaders.ts`), une étoile à huit branches et une onde de choc. L'explosion de la boule de feu y ajoute une boule qui se dilate et s'éteint, avec un éclair au sol. `IMPACT` règle durées et tailles. Elles sont dessinées par `HeroLayer`, sur le plan du personnage, donc par-dessus le mannequin.
+- **Secousse** : `SHAKE` dans `StageEngine`, proportionnelle à la puissance du coup. Elle déplace tous les plans ensemble.
+
+« Réduire les mouvements » supprime la secousse, divise l'arrêt sur image par deux et atténue les étincelles.
+
+Toucher conditionne aussi la suite de l'enchaînement :
+
+- **Un coup dans le vide ne s'enchaîne pas** : le coup suivant ne part que si le coup en cours a touché. Sinon il va au bout de sa récupération, et l'appui suivant relance le coup léger.
+- **Annulation par l'attaque spéciale** : la touche d'attaque spéciale pressée pendant un coup est retenue ; si le coup touche, la boule de feu part dès la fin de ses images actives, à la place de la récupération. Dans le vide, l'appui est perdu.
 
 ### Les changements d'état
 
@@ -146,6 +175,7 @@ Les illustrations ont les mains vides et aucun éclairage d'effet : une lueur pe
 - L'accroupi est un dessin entier qui respire d'un bloc : ni les bras, ni la tête, ni les rubans ne bougent séparément.
 - Chaque pose a son atlas. Les images sont toutes téléchargées au démarrage (environ 26 Mo), mais seules les `MAX_ATLASES` dernières poses utilisées sont gardées en mémoire vidéo : un atlas y pèse 10 à 20 Mo, et les garder tous (plus de 250 Mo) faisait perdre le contexte WebGL. En contrepartie, la première image d'une pose pas encore utilisée peut arriver avec un léger retard.
 - Le saut est fait de dessins fixes : rien ne bouge dans le dessin pendant le vol, rubans compris.
+- Le mannequin n'a qu'un dessin de coup reçu, le même pour un coup léger au buste et un uppercut à la tête, et la zone de frappe est une simple distance : un coup porté en sautant ou accroupi toucherait de la même façon.
 - Les dashs sont une pose fixe qui glisse : rien ne bouge dans le dessin pendant le déplacement. Le premier des deux appuis lance brièvement la pose intermédiaire de la marche avant que le dash parte.
 
 ## Ajouter un plan

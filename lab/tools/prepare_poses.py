@@ -158,6 +158,11 @@ def load(name: str) -> np.ndarray:
     for points in FAINT_LOGOS.get(name, []):
         zone = poly(points)
         rgb[zone & (rgb.max(axis=2) > 150)] = WHITE
+    return key_green(rgb)
+
+
+def key_green(rgb: np.ndarray) -> np.ndarray:
+    """Retire le fond vert d'une illustration et retourne l'image avec sa transparence."""
     f = rgb.astype(np.float32)
     r, g, b = f[..., 0], f[..., 1], f[..., 2]
     # le vert du fond varie d'une image générée à l'autre : on le mesure dans un coin plutôt que de le supposer

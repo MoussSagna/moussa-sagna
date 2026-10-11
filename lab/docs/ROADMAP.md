@@ -12,6 +12,8 @@
 - [x] Parade debout et parade accroupie, maintenues à la main (à juger en mouvement).
 - [x] Saut vertical en quatre dessins, avec ombre et reflet qui suivent la hauteur (à juger en mouvement).
 - [x] Coups de poing léger et moyen debout, minutés comme dans un jeu de combat. Le léger a un jeu de jambes de boxe (à juger en mouvement).
+- [x] Mannequin d'entraînement : les coups et la boule de feu le touchent, avec arrêt sur image, étincelle, secousse et oscillation sur son ressort (à juger en mouvement).
+- [x] Enchaînement seulement si le coup touche, et annulation de la récupération d'un coup par l'attaque spéciale.
 - [x] Un seul atlas lié à la fois : plus de limite au nombre de poses.
 - [x] Logos de marque effacés sur les baskets de la garde et de la marche.
 
@@ -32,7 +34,7 @@
 - [x] Coup fort, un uppercut, troisième de l'enchaînement.
 - [x] Effet de vitesse sur les dashs : étirement, inclinaison et traînée.
 - [x] Attaque spéciale : boule de feu calculée par un shader (à juger en mouvement).
-- [ ] Boule de feu : impact sur un adversaire, éclairage du personnage pendant la charge, vraie commande (quart de cercle puis attaque).
+- [ ] Boule de feu : éclairage du personnage pendant la charge, vraie commande (quart de cercle puis attaque).
 - [ ] Accroupi : animer séparément la tête et les rubans.
 - [ ] Alléger le chargement : environ 17 Mo d'atlas sont téléchargés au démarrage.
 - [ ] Parade : la déclencher en reculant au moment d'un coup, quand il y aura un adversaire.
@@ -44,7 +46,7 @@
 2. **Transitions entre écrans** : séquences chorégraphiées avec **GSAP**.
 3. **Autres animations du personnage** : sauts avant et arrière, autres coups (fort, pied, accroupi, sauté), touché, et une pose d'élan et de réception pour les dashs. Une illustration par état, toujours dans la même vue, découpée par `tools/prepare_poses.py`.
 4. **Sprites et moteur de combat** : à partir de plusieurs personnages et de nombreuses frames, passer le rendu des sprites sur **PixiJS**. Le décor en shader peut rester tel quel.
-5. **Adversaire** : un personnage original.
+5. **Adversaire** : un personnage original, à la place du mannequin d'entraînement.
 6. **Mobile** : cadrage adapté, commandes tactiles, effets allégés.
 7. **Son** : musique et bruitages avec **Howler.js**, démarrés après une action du visiteur.
 8. **Mise en ligne** : build statique (`dist/`), déployable sur Vercel, Netlify ou GitHub Pages.

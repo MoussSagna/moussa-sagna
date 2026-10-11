@@ -75,3 +75,22 @@ void main(){
   // couleur plus forte que l'opacité : la boule éclaire ce qu'elle recouvre au lieu de le masquer
   gl_FragColor=vec4(col,min(1.,i*.75))*uPower;
 }`
+
+// Étincelle d'impact : entièrement calculée. Une étoile à huit branches inégales qui jaillit puis s'éteint,
+// et une onde de choc qui s'élargit. uK : avancement de 0 à 1 ; uSeed : fait tourner l'étoile d'un impact à l'autre.
+export const SPARK_FRAGMENT = `precision mediump float;
+varying vec2 v; uniform float uK,uSeed,uPower;
+void main(){
+  vec2 p=(v-.5)*2.;
+  float r=length(p),a=atan(p.y,p.x)+uSeed;
+  // quatre grandes branches et quatre petites, plus fines vers la pointe
+  float rays=max(pow(abs(cos(a*2.)),28.),.55*pow(abs(cos(a*2.+.785)),40.));
+  float grow=1.-(1.-uK)*(1.-uK);
+  float reach=mix(.16,.95,rays)*(.35+.65*grow);
+  float fade=(1.-uK)*(1.-uK);
+  float i=smoothstep(reach,0.,r)*fade;
+  float core=smoothstep(.3*(1.-uK)+.02,0.,r)*fade;
+  float ring=smoothstep(.07,0.,abs(r-(.25+.7*grow)))*(1.-uK)*.5;
+  vec3 col=vec3(.91,.15,.18)*(i*1.3+ring)+vec3(1.,.6,.25)*pow(i,1.8)+vec3(1.)*(pow(i,3.)+core);
+  gl_FragColor=vec4(col,min(1.,i*.8+core+ring*.5))*uPower;
+}`

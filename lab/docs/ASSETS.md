@@ -42,6 +42,14 @@ Pour une nouvelle illustration, il faut retracer ses polygones et ses articulati
 
 `moussa_rig/`, `tools/prepare_rig.py` et `tools/rig/` sont l'ancien rig de face, que le moteur n'utilise plus. `../art/hero-source.png` est l'illustration de face d'origine.
 
+## Mannequin : `tools/prepare_dummy.py`
+
+```bash
+python3 tools/prepare_dummy.py
+```
+
+Le script lit `../art/dummy-idle.png` (au repos) et `../art/dummy-hit.png` (coup reçu), retire le fond vert et écrit `public/assets/dummy/dummy.webp` : les deux dessins côte à côte, chacun sur sa toile de 1024 × 1536. Les deux illustrations doivent avoir le socle exactement au même endroit, et le mannequin tourné vers la gauche. Les rectangles du socle et du buste, le pivot du ressort et le point posé au sol sont dans `ATLAS`, en haut de `src/game/dummy/DummyLayer.ts` : à reprendre si l'illustration change.
+
 ## Décor : `tools/prepare_stage.py`
 
 ```bash
