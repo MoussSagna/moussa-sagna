@@ -1,0 +1,310 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Tokyo Underground — Plan 01 — bandeau rouge</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}pre{color:#ccc;font:11px monospace}</style>
+<canvas id="c" width="1536" height="1024"></canvas>
+<pre id="report"></pre>
+<script>
+// Rendu procédural du bandeau rouge, une frame par appel.
+//   ?f=7        -> rend la frame 7 (1..24) dans le canvas 1536x1024
+//   ?sheet=1    -> planche de contrôle 6x4 (preview uniquement)
+//   ?report=1   -> mesures de contrôle qualité en JSON dans <pre id="report">
+const W = 1536, H = 1024, SS = 2, TAU = Math.PI * 2, FRAMES = 24, LOOP_START = 13;
+const q = new URLSearchParams(location.search);
+
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const smooth = (a, b, x) => { x = clamp((x - a) / (b - a), 0, 1); return x * x * (3 - 2 * x); };
+const lerp = (a, b, t) => a + (b - a) * t;
+function mulberry(a) {
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const hash = (n, seed) => { const x = Math.sin(n * 127.1 + seed * 311.7) * 43758.5453; return x - Math.floor(x); };
+const vnoise = (x, seed) => { const i = Math.floor(x), f = x - i; return lerp(hash(i, seed), hash(i + 1, seed), f * f * (3 - 2 * f)); };
+
+// ---------------------------------------------------------------- timing
+// Frames 13..24 forment un cycle exact (la frame "25" serait identique à la 13).
+const LVIS = [[1, 0.05], [4, 0.17], [8, 0.54], [12, 1.06], [13, 1.3]];
+function timing(f) {
+  const u = (f - LOOP_START) / 12;
+  const psi = TAU * u + 0.24 * Math.sin(TAU * (u - 0.125)) + 0.24 * Math.sin(TAU * 0.125);
+  const ramp = f >= LOOP_START ? 1 : 0.12 + 0.88 * smooth(3, LOOP_START, f);
+  const amp = (0.84 + 0.16 * Math.cos(TAU * (f - 15) / 12)) * ramp;
+  let lvis = LVIS[LVIS.length - 1][1];
+  for (let i = 0; i < LVIS.length - 1; i++) {
+    const [f0, l0] = LVIS[i], [f1, l1] = LVIS[i + 1];
+    if (f <= f1) { lvis = lerp(l0, l1, clamp((f - f0) / (f1 - f0), 0, 1)); break; }
+  }
+  return {
+    psi, amp, lvis,
+    tw: 0.35 + 0.65 * ramp,
+    deploy: smooth(2, LOOP_START, f),
+    expo: 0.3 + 0.7 * smooth(1, 7, f),
+  };
+}
+
+// ---------------------------------------------------------------- matière (fixe pour toute la séquence)
+const AX = 300, AY = 410; // nœud, en repère non miroir (le rendu est retourné horizontalement)
+const KAPPA = 0.55;       // courbure du tissu dans sa largeur
+const LIGHT = { xy: [-0.35, -0.55], z: 0.76 };
+const PAL = [[58, 0, 8], [128, 4, 16], [186, 8, 26], [226, 24, 40], [255, 70, 64]];
+
+function makeRibbon(o) {
+  const N = Math.round(o.L / 1.5);
+  const r = mulberry(o.seed);
+  const R = Object.assign({ N, ax: AX, ay: AY, p3: r() * TAU }, o);
+  const nT = new Float32Array(N + 1), nB = new Float32Array(N + 1);
+  const notch = (arr, count, side) => {
+    for (let n = 0; n < count; n++) {
+      const u = Math.pow(r(), 0.6);
+      const c = Math.round(lerp(0.1, 0.98, u) * N);
+      const len = lerp(8, 30, r()), depth = lerp(0.15, 0.62, r()) * lerp(0.45, 1, u);
+      const a = r() < 0.5 ? len * 0.22 : len, b = a < len ? len : len * 0.22;
+      for (let k = -Math.ceil(a); k <= Math.ceil(b); k++) {
+        const i = c + k; if (i < 0 || i > N) continue;
+        arr[i] = Math.max(arr[i], depth * (k < 0 ? 1 + k / a : 1 - k / b));
+      }
+    }
+    for (let i = 0; i <= N; i++) arr[i] += (o.fray ?? 0.07) * vnoise(i / 2.5, o.seed + side) * smooth(0.03, 0.2, i / N);
+  };
+  notch(nT, o.notches ?? Math.round(o.L / 62), 1);
+  notch(nB, o.notches ?? Math.round(o.L / 62), 2);
+
+  const hw = new Float32Array(N + 1);
+  for (let i = 0; i <= N; i++) { const u = i / N; hw[i] = o.w * (0.5 + 0.5 * smooth(0, 0.07, u)) * (1 - 0.16 * u); }
+  R.hw = hw;
+
+  const panels = [];
+  const taper = (i, iEnd, seed) => {
+    const raw = clamp((iEnd - i) / (0.075 * N), 0, 1), tp = Math.pow(raw, 0.7);
+    return clamp(tp + 0.9 * (vnoise(i / 4, seed) - 0.5) * raw * (1 - raw), 0, 1);
+  };
+  const panel = (i0, i1, fn) => {
+    const lo = new Float32Array(N + 1), hi = new Float32Array(N + 1);
+    for (let i = i0; i <= i1; i++) {
+      let [a, b] = fn(i);
+      if (b - a < 0.015) { a = b = (a + b) / 2; }
+      lo[i] = a; hi[i] = b;
+    }
+    panels.push({ i0, i1, lo, hi });
+  };
+  if (o.split) {
+    const iS = Math.round(o.split * N), iA = N, iB = Math.round(o.endB * N);
+    const gap = i => {
+      const t = clamp((i - iS) / (N - iS), 0, 1);
+      return o.gap * Math.pow(t, 1.1) * (0.8 + 0.4 * vnoise(i / 5, o.seed + 5));
+    };
+    panel(0, iS, i => [-1 + nB[i], 1 - nT[i]]);
+    panel(iS, iA, i => { const tp = taper(i, iA, o.seed + 7), tip = 0.7; return [lerp(tip, o.vc + gap(i), tp), lerp(tip, 1 - nT[i], tp)]; });
+    panel(iS, iB, i => { const tp = taper(i, iB, o.seed + 8), tip = -0.65; return [lerp(tip, -1 + nB[i], tp), lerp(tip, o.vc - gap(i), tp)]; });
+  } else {
+    panel(0, N, i => [-1 + nB[i], 1 - nT[i]]);
+  }
+  R.panels = panels;
+
+  R.creases = [];
+  for (let n = 0; n < (o.creases ?? 7); n++) {
+    const u0 = lerp(0.04, 0.8, r());
+    R.creases.push({ u0, u1: Math.min(0.97, u0 + lerp(0.07, 0.22, r())), v: lerp(-0.62, 0.62, r()), drift: lerp(-0.25, 0.25, r()) });
+  }
+  return R;
+}
+
+const RIBBONS = [
+  // amorces du bandeau autour de la tête : elles se fondent dans le noir
+  makeRibbon({ stub: true, L: 200, w: 25, hang0: Math.PI + 0.24, fly0: Math.PI + 0.24, sag: -0.1, a1: 0.05, a2: 0, k1: 0.6, k2: 1, p1: 0.4, p2: 0, t0: 0.45, t1: 0.08, kt: 0.5, pt: 1, seed: 41, notches: 0, fray: 0.012, creases: 2, dim: 0.8, ay: AY + 5 }),
+  makeRibbon({ stub: true, L: 200, w: 25, hang0: Math.PI - 0.3, fly0: Math.PI - 0.3, sag: 0.12, a1: 0.05, a2: 0, k1: 0.6, k2: 1, p1: 2.1, p2: 0, t0: -0.3, t1: 0.08, kt: 0.5, pt: 2, seed: 43, notches: 0, fray: 0.012, creases: 2, dim: 1, ay: AY - 5 }),
+  // pans flottants, de l'arrière vers l'avant
+  makeRibbon({ L: 660, w: 29, hang0: 0.78, fly0: 0.52, sag: 0.16, a1: 0.6, a2: 0.22, k1: 1.05, k2: 2.0, p1: 4.2, p2: 1.3, t0: 0.5, t1: 1.35, kt: 1.3, pt: 3.7, split: 0.76, endB: 0.92, vc: -0.05, gap: 0.3, seed: 17, dim: 0.74, ay: AY + 9 }),
+  makeRibbon({ L: 900, w: 36, hang0: 0.6, fly0: 0.16, sag: 0.2, a1: 0.68, a2: 0.22, k1: 1.2, k2: 2.3, p1: 2.4, p2: 4.0, t0: 0.5, t1: 1.45, kt: 1.4, pt: 1.2, split: 0.75, endB: 0.9, vc: 0.12, gap: 0.32, seed: 29, dim: 0.9, ay: AY + 2 }),
+  makeRibbon({ L: 1080, w: 41, hang0: 0.42, fly0: -0.2, sag: 0.3, a1: 0.72, a2: 0.24, k1: 1.3, k2: 2.4, p1: 0.6, p2: 2.2, t0: 0.55, t1: 1.5, kt: 1.5, pt: 5.3, split: 0.74, endB: 0.91, vc: 0.08, gap: 0.34, seed: 7, dim: 1, ay: AY - 6 }),
+];
+
+// ---------------------------------------------------------------- pose
+function pose(R, T) {
+  const N = R.N, ds = R.L / N;
+  const P = { cx: new Float32Array(N + 1), cy: new Float32Array(N + 1), nx: new Float32Array(N + 1), ny: new Float32Array(N + 1), cw: new Float32Array(N + 1), tau: new Float32Array(N + 1), k: new Float32Array(N + 1) };
+  let x = R.ax, y = R.ay;
+  for (let i = 0; i <= N; i++) {
+    const u = i / N, env = 0.2 + 0.56 * Math.pow(u, 0.8);
+    const base = lerp(R.hang0 * (R.stub ? 1 : 1 - 0.85 * u), R.fly0 + R.sag * u, R.stub ? 1 : T.deploy);
+    const th = base + T.amp * (env * (R.a1 * Math.sin(TAU * R.k1 * u - T.psi + R.p1) + R.a2 * Math.sin(TAU * R.k2 * u - 2 * T.psi + R.p2)) + (R.stub ? 0 : 0.05) * Math.sin(T.psi + R.p3));
+    const tau = R.t0 + T.tw * (R.t1 * Math.sin(TAU * R.kt * u - T.psi + R.pt) * (0.3 + 0.7 * u) + (R.stub ? 0 : 0.22) * Math.sin(TAU * 2.1 * u - 2 * T.psi + R.pt * 1.7));
+    P.cx[i] = x; P.cy[i] = y; P.nx[i] = -Math.sin(th); P.ny[i] = Math.cos(th);
+    P.tau[i] = tau;
+    const c = Math.cos(tau);
+    P.cw[i] = (c < 0 ? -1 : 1) * Math.max(Math.abs(c), 0.17);
+    P.k[i] = T.expo * R.dim * (R.stub ? 1 - smooth(0.12, 0.95, u) : 1 - smooth(T.lvis - 0.13, T.lvis + 0.02, u));
+    x += Math.cos(th) * ds; y += Math.sin(th) * ds;
+  }
+  return P;
+}
+const pt = (R, P, i, v) => { const o = v * R.hw[i] * P.cw[i]; return [P.cx[i] + P.nx[i] * o, P.cy[i] + P.ny[i] * o]; };
+const rgb = (c, k) => `rgb(${Math.round(c[0] * k)},${Math.round(c[1] * k)},${Math.round(c[2] * k)})`;
+
+// ---------------------------------------------------------------- dessin
+function shade(R, P, i, v) {
+  const te = P.tau[i] + KAPPA * v;
+  const nl = P.nx[i] * LIGHT.xy[0] + P.ny[i] * LIGHT.xy[1];
+  let lam = Math.cos(te) * LIGHT.z - Math.sin(te) * nl;
+  const back = Math.cos(te) < 0;
+  lam = back ? Math.max(0, -lam) * 0.55 : Math.max(0, lam);
+  const u = i / R.N;
+  lam += 0.1 * Math.sin(TAU * (u * R.L / 105 + v * 0.75) + R.seed) + 0.07 * (vnoise(i / 9 + v * 3.1, R.seed + 3) - 0.5);
+  return lam < 0.3 ? 0 : lam < 0.55 ? 1 : lam < 0.82 ? 2 : lam < 1.0 ? 3 : 4;
+}
+
+function drawRibbon(ctx, R, P) {
+  const NV = 28;
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  for (const pan of R.panels) {
+    let prev = null;
+    for (let i = pan.i0; i <= pan.i1; i++) {
+      const row = [];
+      for (let j = 0; j <= NV; j++) row.push(pt(R, P, i, lerp(pan.lo[i], pan.hi[i], j / NV)));
+      if (prev && P.k[i] > 0.004 && (pan.hi[i] > pan.lo[i] || pan.hi[i - 1] > pan.lo[i - 1])) {
+        ctx.lineWidth = 0.9;
+        for (let j = 0; j < NV; j++) {
+          const vm = lerp(pan.lo[i], pan.hi[i], (j + 0.5) / NV);
+          const col = rgb(PAL[shade(R, P, i, vm)], P.k[i]);
+          ctx.fillStyle = col; ctx.strokeStyle = col;
+          ctx.beginPath();
+          ctx.moveTo(prev[j][0], prev[j][1]); ctx.lineTo(prev[j + 1][0], prev[j + 1][1]);
+          ctx.lineTo(row[j + 1][0], row[j + 1][1]); ctx.lineTo(row[j][0], row[j][1]);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+        }
+      }
+      prev = row;
+    }
+  }
+  // plis dans le sens de la longueur
+  for (const c of R.creases) {
+    const i0 = Math.round(c.u0 * R.N), i1 = Math.round(c.u1 * R.N);
+    for (let i = i0; i < i1; i++) {
+      const t = (i - i0) / (i1 - i0), v = c.v + c.drift * t;
+      const pan = R.panels.find(p => i >= p.i0 && i + 1 <= p.i1 && v > p.lo[i] + 0.12 && v < p.hi[i] - 0.12 && v > p.lo[i + 1] + 0.12 && v < p.hi[i + 1] - 0.12);
+      if (!pan || P.k[i] < 0.01) continue;
+      const a = pt(R, P, i, v), b = pt(R, P, i + 1, v + c.drift / (i1 - i0));
+      ctx.globalAlpha = 0.75 * Math.sin(Math.PI * t);
+      ctx.strokeStyle = rgb([40, 0, 6], P.k[i]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+  // contour encré puis liseré lumineux sur les bords
+  for (const pan of R.panels) for (const side of ['lo', 'hi']) {
+    const sgn = side === 'hi' ? 1 : -1;
+    for (let i = pan.i0; i < pan.i1; i++) {
+      if (P.k[i] < 0.01 || (pan.hi[i] <= pan.lo[i] && pan.hi[i + 1] <= pan.lo[i + 1])) continue;
+      const a = pt(R, P, i, pan[side][i]), b = pt(R, P, i + 1, pan[side][i + 1]);
+      ctx.strokeStyle = rgb([26, 0, 4], P.k[i]); ctx.lineWidth = 3.4;
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      const w0 = pan.hi[i] - pan.lo[i], w1 = pan.hi[i + 1] - pan.lo[i + 1];
+      const a2 = pt(R, P, i, pan[side][i] - sgn * Math.min(0.09, w0 / 2)), b2 = pt(R, P, i + 1, pan[side][i + 1] - sgn * Math.min(0.09, w1 / 2));
+      const s = sgn * Math.sign(P.cw[i]);
+      const facing = (P.nx[i] * s * LIGHT.xy[0] + P.ny[i] * s * LIGHT.xy[1]) / 0.652;
+      ctx.globalAlpha = 0.16 + 0.74 * Math.max(0, facing);
+      ctx.strokeStyle = rgb([255, 92, 80], P.k[i]); ctx.lineWidth = 1.7;
+      ctx.beginPath(); ctx.moveTo(a2[0], a2[1]); ctx.lineTo(b2[0], b2[1]); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+function drawKnot(ctx, T) {
+  const e = T.expo, x = AX - 3, y = AY;
+  const shape = () => {
+    ctx.beginPath();
+    ctx.moveTo(x - 13, y - 31);
+    ctx.bezierCurveTo(x - 3, y - 37, x + 11, y - 35, x + 17, y - 28);
+    ctx.bezierCurveTo(x + 22, y - 10, x + 21, y + 12, x + 15, y + 30);
+    ctx.bezierCurveTo(x + 6, y + 37, x - 8, y + 37, x - 15, y + 29);
+    ctx.bezierCurveTo(x - 20, y + 10, x - 20, y - 12, x - 13, y - 31);
+    ctx.closePath();
+  };
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(-0.16); ctx.translate(-x, -y);
+  ctx.save();
+  shape(); ctx.fillStyle = rgb(PAL[2], e); ctx.fill();
+  shape(); ctx.clip();
+  // bandes d'ombre en biais : le tissu enroulé sur lui-même
+  ctx.fillStyle = rgb(PAL[1], e);
+  ctx.beginPath(); ctx.moveTo(x - 24, y - 2); ctx.lineTo(x + 24, y - 20); ctx.lineTo(x + 24, y - 8); ctx.lineTo(x - 24, y + 11); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x - 24, y + 22); ctx.lineTo(x + 24, y + 4); ctx.lineTo(x + 24, y + 44); ctx.lineTo(x - 24, y + 44); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = rgb(PAL[0], e);
+  ctx.beginPath(); ctx.moveTo(x - 24, y + 33); ctx.lineTo(x + 24, y + 17); ctx.lineTo(x + 24, y + 44); ctx.lineTo(x - 24, y + 44); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = rgb(PAL[3], e);
+  ctx.beginPath(); ctx.moveTo(x - 24, y - 24); ctx.lineTo(x + 24, y - 40); ctx.lineTo(x + 24, y - 31); ctx.lineTo(x - 24, y - 15); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = rgb([40, 0, 6], e); ctx.lineWidth = 1.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x - 17, y - 4); ctx.lineTo(x + 8, y - 13); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x - 6, y + 17); ctx.lineTo(x + 18, y + 8); ctx.stroke();
+  ctx.restore();
+  shape(); ctx.strokeStyle = rgb([26, 0, 4], e); ctx.lineWidth = 3; ctx.stroke();
+  ctx.strokeStyle = rgb([255, 92, 80], e); ctx.lineWidth = 1.5; ctx.globalAlpha = 0.8;
+  ctx.beginPath(); ctx.moveTo(x - 12, y - 29); ctx.bezierCurveTo(x - 3, y - 35, x + 10, y - 33, x + 15, y - 27); ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function renderFrame(f) {
+  const T = timing(f);
+  const rc = document.createElement('canvas'); rc.width = W * SS; rc.height = H * SS;
+  const r = rc.getContext('2d');
+  r.setTransform(-SS, 0, 0, SS, W * SS, 0); // miroir : les pans partent vers la gauche, comme sur la planche de Moussa
+  const poses = RIBBONS.map(R => pose(R, T));
+  RIBBONS.forEach((R, n) => drawRibbon(r, R, poses[n]));
+  drawKnot(r, T);
+  const out = document.createElement('canvas'); out.width = W; out.height = H;
+  const c = out.getContext('2d');
+  c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  c.save(); c.filter = 'blur(9px)'; c.globalAlpha = 0.16; c.globalCompositeOperation = 'lighter'; c.drawImage(rc, 0, 0, W, H); c.restore();
+  c.drawImage(rc, 0, 0, W, H);
+  return { canvas: out, poses, T };
+}
+
+// ---------------------------------------------------------------- modes
+const main = document.getElementById('c'), mctx = main.getContext('2d');
+if (q.has('report')) {
+  const rows = []; let prevData = null, prevPoses = null;
+  for (let f = 1; f <= FRAMES + 1; f++) {
+    const fr = renderFrame(f > FRAMES ? LOOP_START : f);
+    const d = fr.canvas.getContext('2d').getImageData(0, 0, W, H).data;
+    let x0 = W, y0 = H, x1 = -1, y1 = -1, cover = 0, nonred = 0, bgmax = 0;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const o = (y * W + x) * 4, R = d[o];
+      if (d[o + 1] > R || d[o + 2] > R) nonred++;
+      if (R > 40) { cover++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      if (x < 4 || y < 4 || x >= W - 4 || y >= H - 4) bgmax = Math.max(bgmax, R, d[o + 1], d[o + 2]);
+    }
+    const row = { frame: f > FRAMES ? `boucle 24->${LOOP_START}` : f, bbox: [x0, y0, x1, y1], margin: Math.min(x0, y0, W - 1 - x1, H - 1 - y1), coverPct: +(100 * cover / (W * H)).toFixed(2), nonRedPixels: nonred, borderMax: bgmax };
+    if (prevData) {
+      let sum = 0; for (let o = 0; o < d.length; o += 4) sum += Math.abs(d[o] - prevData[o]);
+      row.meanAbsDiff = +(sum / (W * H)).toFixed(3);
+      let mx = 0;
+      fr.poses.forEach((P, n) => { const Q = prevPoses[n]; for (let i = 0; i < P.cx.length; i++) if (P.k[i] > 0.05 || Q.k[i] > 0.05) mx = Math.max(mx, Math.hypot(P.cx[i] - Q.cx[i], P.cy[i] - Q.cy[i])); });
+      row.maxMovePx = +mx.toFixed(1);
+    }
+    rows.push(row); prevData = d; prevPoses = fr.poses;
+  }
+  main.style.display = 'none';
+  document.getElementById('report').textContent = 'REPORT_BEGIN' + JSON.stringify(rows) + 'REPORT_END';
+} else if (q.has('sheet')) {
+  mctx.fillStyle = '#101014'; mctx.fillRect(0, 0, W, H);
+  const cw = W / 6, ch = H / 4, ih = cw * H / W;
+  for (let f = 1; f <= FRAMES; f++) {
+    const cx = ((f - 1) % 6) * cw, cy = Math.floor((f - 1) / 6) * ch + (ch - ih) / 2;
+    mctx.imageSmoothingQuality = 'high';
+    mctx.drawImage(renderFrame(f).canvas, cx + 2, cy + 2, cw - 4, ih - 4);
+    mctx.fillStyle = '#9a9aa5'; mctx.font = '15px monospace'; mctx.fillText(String(f).padStart(2, '0'), cx + 8, cy - 8);
+  }
+} else {
+  const f = clamp(parseFloat(q.get('f') || '16'), 1, FRAMES);
+  mctx.drawImage(renderFrame(f).canvas, 0, 0);
+}
+document.title = 'ready';
+</script>
