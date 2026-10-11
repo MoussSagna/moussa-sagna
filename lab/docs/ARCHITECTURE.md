@@ -34,7 +34,7 @@ Les lanternes, les néons et le trajet du métro sont positionnés par leurs coo
 
 ## Le personnage
 
-Le personnage est fait de quatorze illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
+Le personnage est fait de seize illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
 
 | Pose | Illustration | Rôle |
 | --- | --- | --- |
@@ -52,6 +52,8 @@ Le personnage est fait de quatorze illustrations dans la même vue (trois quarts
 | `jumpRise` | `../art/hero-jump-rise.png` | saut : montée, corps en extension |
 | `jumpPeak` | `../art/hero-jump-peak.png` | saut : sommet et descente, corps regroupé |
 | `jumpLand` | `../art/hero-jump-land.png` | saut : réception, au sol |
+| `punchStart` | `../art/hero-punch-start.png` | coup de poing léger : bras à mi-course, au démarrage et au retour |
+| `punchHit` | `../art/hero-punch-hit.png` | coup de poing léger : bras tendu |
 
 - **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas par pose et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
 - **Dessin** : `HeroLayer` dessine un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice du calque ; le fragment shader retrouve le pixel d'origine dans la toile (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.
@@ -94,6 +96,14 @@ La hauteur est calculée par le moteur : une montée (`JUMP.rise`) puis une reto
 
 `App.tsx` le déclenche avec la flèche haut, Z (W sur un clavier QWERTY) ou le bouton « Sauter ».
 
+### Le coup de poing léger
+
+`HeroLayer.punch()` lance un jab debout, depuis la garde ou la marche. Son minutage (`PUNCH`) reprend celui d'un jab de jeu de combat à 60 images par seconde : 4 images de démarrage, 3 actives, 7 de récupération, soit moins d'un quart de seconde. Le dessin `punchStart` sert au démarrage et à la récupération, `punchHit` pendant les images actives. Le coup ne peut pas être interrompu ni enchaîné avant la fin.
+
+Les deux dessins sont calés sur la boucle de ceinture de la garde, pas sur les pieds : le buste reste en place, et les pieds s'écartent le temps du coup, parce que les illustrations ont une garde plus large.
+
+Il n'y a pas encore d'adversaire, donc pas de zone de frappe : `PUNCH.reach` note seulement la portée du poing pour plus tard. `App.tsx` déclenche le coup avec J ou le bouton « Poing ».
+
 ### Les changements d'état
 
 `HeroLayer.update` ne saute jamais directement de la garde à la marche : il affiche la pose `step` pendant `STEP_SECONDS`, puis la pose d'arrivée. Ce sont des coupes franches entre trois dessins proches, comme dans une animation dessinée, sans fondu. `StageEngine.walk` reçoit la direction (1, -1 ou 0) ; `App.tsx` la pilote au clavier et avec deux boutons à maintenir.
@@ -105,7 +115,7 @@ La hauteur est calculée par le moteur : une montée (`JUMP.rise`) puis une reto
 - La marche n'utilise volontairement qu'un seul dessin. Un essai à trois dessins clés (branche `marche-poses`) a été abandonné : d'une illustration générée à l'autre, les plis, les rubans et les proportions changent, et chaque bascule se voyait comme une saccade.
 - En garde, les jambes et les bras ne sont pas articulés.
 - L'accroupi est un dessin entier qui respire d'un bloc : ni les bras, ni la tête, ni les rubans ne bougent séparément.
-- Chaque pose a son atlas, mais un seul est lié à la fois (celui de la pose affichée) : le nombre de poses ne dépend plus des unités de texture du navigateur. En contrepartie, tous les atlas sont chargés au démarrage, soit environ 12 Mo d'images à télécharger.
+- Chaque pose a son atlas, mais un seul est lié à la fois (celui de la pose affichée) : le nombre de poses ne dépend plus des unités de texture du navigateur. En contrepartie, tous les atlas sont chargés au démarrage, soit environ 14 Mo d'images à télécharger.
 - Le saut est fait de dessins fixes : rien ne bouge dans le dessin pendant le vol, rubans compris.
 - Les dashs sont une pose fixe qui glisse : rien ne bouge dans le dessin pendant le déplacement. Le premier des deux appuis lance brièvement la pose intermédiaire de la marche avant que le dash parte.
 

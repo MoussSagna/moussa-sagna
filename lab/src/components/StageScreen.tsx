@@ -21,11 +21,13 @@ interface Props {
   dash: { id: number; direction: number }
   /** Change de valeur à chaque saut demandé. */
   jump: number
+  /** Change de valeur à chaque coup de poing demandé. */
+  punch: number
   onUnavailable?: () => void
 }
 
 /** L'écran du stage : décor animé, personnage en garde, météo et carton de titre. */
-export function StageScreen({ options, introKey, walk, crouch, block, dash, jump, onUnavailable }: Props) {
+export function StageScreen({ options, introKey, walk, crouch, block, dash, jump, punch, onUnavailable }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLCanvasElement>(null)
   const hero = useRef<HTMLCanvasElement>(null)
@@ -77,6 +79,10 @@ export function StageScreen({ options, introKey, walk, crouch, block, dash, jump
   useEffect(() => {
     if (jump > 0) engine.current?.jump()
   }, [jump])
+
+  useEffect(() => {
+    if (punch > 0) engine.current?.punch()
+  }, [punch])
 
   useEffect(() => {
     if (introKey > 0) engine.current?.replayIntro()

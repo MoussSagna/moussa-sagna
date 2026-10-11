@@ -6,7 +6,7 @@ Le dépôt contient deux projets :
 
 | Dossier | Contenu | État |
 | --- | --- | --- |
-| [`lab/`](lab/README.md) | Moteur WebGL d'essai : stage Tokyo Underground, garde, marche, dashs, accroupi, parade et saut du personnage. | En place |
+| [`lab/`](lab/README.md) | Moteur WebGL d'essai : stage Tokyo Underground, garde, marche, dashs, accroupi, parade, saut et coup de poing du personnage. | En place |
 | [`folio/`](folio/README.md) | Le portfolio Phaser, le site qui sera mis en ligne : pages React et arène jouable (garde, marche, dashs). | En place |
 
 Et des ressources communes :

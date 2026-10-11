@@ -59,6 +59,11 @@ export class StageEngine {
     this.hero.dash(direction)
   }
 
+  /** Lance un coup de poing léger du personnage. */
+  punch(): void {
+    this.hero.punch()
+  }
+
   /** Lance un saut vertical du personnage. */
   jump(): void {
     this.hero.jump()

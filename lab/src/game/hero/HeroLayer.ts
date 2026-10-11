@@ -9,7 +9,7 @@ const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas'
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -31,6 +31,8 @@ const FEET: Record<PoseName, [number, number]> = {
   jumpRise: POSES.jumpRise.anchor,
   jumpPeak: POSES.jumpPeak.anchor,
   jumpLand: POSES.jumpLand.anchor,
+  punchStart: POSES.punchStart.anchor,
+  punchHit: POSES.punchHit.anchor,
   // en marche, c'est la hanche qui est à l'aplomb du point d'appui
   walk: [POSES.walk.joints.hip_near[0], POSES.walk.anchor[1]],
 }
@@ -42,6 +44,7 @@ const FEET: Record<PoseName, [number, number]> = {
 const POSE_SCALE: Record<PoseName, number> = {
   guard: 1, step: 1, walk: 1, dashForward: 1.07, dashBack: 1.15, crouchStep: 1, crouch: 1, blockStep: 1, block: 1, crouchBlock: 1,
   jumpStart: 1, jumpRise: 1, jumpPeak: 0.93, jumpLand: 1,
+  punchStart: 1, punchHit: 1,
 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
@@ -68,6 +71,13 @@ const JUMP = {
   squash: 0.09,
   stretch: 0.07,
 }
+
+/**
+ * Coup de poing léger debout. Durées en secondes, calquées sur un jab de jeu de combat à 60 images par
+ * seconde : 4 images de démarrage, 3 actives, 7 de récupération. `reach` : distance entre l'aplomb des
+ * hanches et le bout du poing tendu, en pixels de la toile, pour la future zone de frappe.
+ */
+const PUNCH = { startup: 4 / 60, active: 3 / 60, recovery: 7 / 60, reach: 580 }
 
 /** Poses tenues en un seul calque, qui respirent d'un bloc. */
 const HELD: PoseName[] = ['crouch', 'block', 'crouchBlock']
@@ -114,7 +124,9 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand'> | 'dash' | 'jump' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit'> | 'dash' | 'jump' | 'punch' = 'guard'
+  /** Temps écoulé depuis le début du coup de poing en cours. */
+  private punchTime = 0
   /** Temps écoulé depuis le début du saut en cours. */
   private jumpTime = 0
   /** L'atlas de chaque pose. Un seul est lié à la fois, celui de la pose affichée. */
@@ -178,6 +190,14 @@ export class HeroLayer {
     this.dashing = { direction: Math.sign(direction), from: this.x, time: 0 }
   }
 
+  /** Lance un coup de poing léger. Possible seulement depuis la garde ou la marche. */
+  punch(): void {
+    const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
+    if (!free) return
+    this.pose = 'punch'
+    this.punchTime = 0
+  }
+
   /** Lance un saut vertical. Possible seulement depuis la garde ou la marche. */
   jump(): void {
     const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
@@ -234,6 +254,11 @@ export class HeroLayer {
       this.x = this.dashX(this.dashing.time)
       const move = this.dashing.direction > 0 ? DASH.forward : DASH.back
       if (this.dashing.time < move.seconds) return
+      this.pose = 'guard'
+    }
+    if (this.pose === 'punch') {
+      this.punchTime += frame.delta
+      if (this.punchTime < PUNCH.startup + PUNCH.active + PUNCH.recovery) return
       this.pose = 'guard'
     }
     if (this.pose === 'jump') {
@@ -311,6 +336,11 @@ export class HeroLayer {
     const name: PoseName =
       this.pose === 'jump'
         ? (jump?.name ?? 'guard')
+        : this.pose === 'punch'
+          ? // le bras tendu pendant les images actives, le bras à mi-course avant et après
+            this.punchTime >= PUNCH.startup && this.punchTime < PUNCH.startup + PUNCH.active
+            ? 'punchHit'
+            : 'punchStart'
         : this.pose === 'dash'
           ? this.dashing.direction > 0
             ? 'dashForward'

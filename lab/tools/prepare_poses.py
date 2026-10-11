@@ -2,7 +2,7 @@
 
 Usage (depuis lab/) : python3 tools/prepare_poses.py [--debug dossier]
 Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png, hero-dash-back.png,
-hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png et les quatre hero-jump-*.png
+hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png et les deux hero-punch-*.png
 (fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
@@ -37,6 +37,8 @@ LOGOS = dict(
     jumpStart=[],
     jumpRise=[],
     jumpPeak=[],
+    punchStart=[],
+    punchHit=[],
     jumpLand=[[(155, 1275), (195, 1285), (200, 1325), (165, 1325)]],
     dashForward=[],
     dashBack=[],
@@ -45,7 +47,9 @@ LOGOS = dict(
 FAINT_LOGOS = dict(jumpStart=[[(150, 1228), (188, 1226), (204, 1262), (205, 1296), (150, 1296)]])
 # Poses en un seul calque : le point d'appui horizontal est donné à la main (l'aplomb des hanches).
 SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=None, blockStep=None, block=None, crouchBlock=None,
-              jumpStart=None, jumpRise=520, jumpPeak=520, jumpLand=None)
+              jumpStart=None, jumpRise=520, jumpPeak=520, jumpLand=None,
+              # coup de poing : calé sur la boucle de ceinture, pour que le buste ne glisse pas par rapport à la garde
+              punchStart=498, punchHit=418)
 
 # ---------- marche : articulations et polygones. « near » = côté proche (jambe avant, bras arrière) ----------
 WALK_JOINTS = dict(
@@ -106,7 +110,8 @@ def poly(points) -> np.ndarray:
 FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png', dashForward='hero-dash-forward.png', dashBack='hero-dash-back.png',
              crouchStep='hero-crouch-step.png', crouch='hero-crouch.png',
              blockStep='hero-block-step.png', block='hero-block.png', crouchBlock='hero-crouch-block.png',
-             jumpStart='hero-jump-start.png', jumpRise='hero-jump-rise.png', jumpPeak='hero-jump-peak.png', jumpLand='hero-jump-land.png')
+             jumpStart='hero-jump-start.png', jumpRise='hero-jump-rise.png', jumpPeak='hero-jump-peak.png', jumpLand='hero-jump-land.png',
+             punchStart='hero-punch-start.png', punchHit='hero-punch-hit.png')
 
 
 def load(name: str) -> np.ndarray:
