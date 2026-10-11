@@ -14,9 +14,10 @@
 - [x] Coups de poing léger et moyen debout, minutés comme dans un jeu de combat. Le léger a un jeu de jambes de boxe (à juger en mouvement).
 - [x] Mannequin d'entraînement : les coups et la boule de feu le touchent, avec arrêt sur image, étincelle, secousse et oscillation sur son ressort (à juger en mouvement).
 - [x] Coups reçus : le mannequin attaque sur commande, le personnage encaisse (deux dessins, recul) ou pare (étincelle bleue, recul court) (à juger en mouvement).
-- [x] Adversaire original, en garde face au personnage : il encaisse les coups en penchant, sans dessin dédié.
+- [x] Adversaire original, en garde face au personnage : il encaisse les coups.
 - [x] Adversaire : parade, tenue par une case à cocher pour tester les coups parés.
-- [ ] Adversaire : marche, coup, coup encaissé, puis un comportement.
+- [x] Adversaire : coup encaissé en deux dessins.
+- [ ] Adversaire : marche, coup, recul quand il encaisse, puis un comportement.
 - [x] Enchaînement seulement si le coup touche, et annulation de la récupération d'un coup par l'attaque spéciale.
 - [x] Un seul atlas lié à la fois : plus de limite au nombre de poses.
 - [x] Logos de marque effacés sur les baskets de la garde et de la marche.

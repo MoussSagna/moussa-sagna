@@ -20,6 +20,8 @@ const POSES = {
   guard: { file: 'rival/guard.webp', ground: [510, 1500], scale: 1 },
   blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
+  hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
+  hurtRecover: { file: 'rival/hurt-recover.webp', ground: [564, 1472], scale: 0.9 },
 } satisfies Record<string, { file: string; ground: [number, number]; scale: number }>
 type RivalPose = keyof typeof POSES
 const POSE_NAMES = Object.keys(POSES) as RivalPose[]
@@ -29,13 +31,13 @@ const BLOCK_STEP_SECONDS = 0.06
 /** Respiration de la garde : amplitude de l'étirement vertical et durée d'un cycle, en secondes. */
 const BREATH = { amplitude: 0.007, period: 3.6 }
 /**
- * Réaction aux coups, en attendant son dessin de coup encaissé : tout le corps penche en arrière, pieds
- * fixes, puis revient comme un ressort amorti. `lean` : pente de l'inclinaison pour un coup de pleine
- * puissance (décalage horizontal par pixel de hauteur).
+ * Coup encaissé : il affiche le dessin du coup reçu pendant `stun` secondes, puis celui du retour pendant
+ * `recover` secondes. En plus, tout le corps penche en arrière, pieds fixes, puis revient comme un ressort
+ * amorti. `lean` : pente de l'inclinaison pour un coup de pleine puissance (décalage horizontal par pixel de hauteur).
  */
-const HIT = { lean: 0.11, frequency: 2.6, damping: 11 }
-/** Coup paré : part de l'inclinaison conservée. */
-const GUARDED_LEAN = 0.3
+const HIT = { stun: 0.26, recover: 0.16, lean: 0.05, frequency: 2.6, damping: 11 }
+/** Coup paré : il garde sa pose et penche seulement, de cette pente pour un coup de pleine puissance. */
+const GUARDED_LEAN = 0.035
 const REFLECTION = { alpha: 0.2, squash: 0.5 }
 /** « Réduire les mouvements » : part de la respiration et du recul conservée. */
 const CALM_AMPLITUDE = 0.35
@@ -54,6 +56,8 @@ export class RivalLayer implements Opponent {
   private pose: RivalPose = 'guard'
   /** Temps restant sur le dessin de passage. */
   private stepLeft = 0
+  /** Temps écoulé depuis le coup encaissé en cours. */
+  private hurtTime = 0
   /** Inclinaison du corps après un coup (positive vers l'arrière) et sa vitesse. */
   private lean = 0
   private velocity = 0
@@ -82,8 +86,12 @@ export class RivalLayer implements Opponent {
 
   hit(power: number): boolean {
     const guarded = this.pose === 'block'
-    this.lean = HIT.lean * (0.45 + 0.55 * power) * (guarded ? GUARDED_LEAN : 1)
+    this.lean = (guarded ? GUARDED_LEAN : HIT.lean) * (0.45 + 0.55 * power)
     this.velocity = 0
+    if (!guarded) {
+      this.pose = 'hurt'
+      this.hurtTime = 0
+    }
     return guarded
   }
 
@@ -97,8 +105,12 @@ export class RivalLayer implements Opponent {
   land(): void {}
 
   update(frame: FrameInfo): void {
-    // garde <-> dessin de passage <-> parade
-    if (this.pose === 'blockStep') {
+    // coup encaissé : le dessin du coup reçu, celui du retour, puis la garde
+    if (this.pose === 'hurt' || this.pose === 'hurtRecover') {
+      this.hurtTime += frame.delta
+      this.pose = this.hurtTime < HIT.stun ? 'hurt' : 'hurtRecover'
+      if (this.hurtTime >= HIT.stun + HIT.recover) this.pose = 'guard'
+    } else if (this.pose === 'blockStep') {
       this.stepLeft -= frame.delta
       if (this.stepLeft <= 0) this.pose = this.blocking ? 'block' : 'guard'
     } else if ((this.pose === 'block') !== this.blocking) {
