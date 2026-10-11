@@ -100,7 +100,7 @@ La hauteur est calculée par le moteur : une montée (`JUMP.rise`) puis une reto
 
 ### Les coups de poing
 
-Il n'y a qu'une touche d'attaque. `HeroLayer.attack()` lance le coup léger depuis la garde ou la marche ; un nouvel appui pendant un coup met en attente le coup suivant de l'enchaînement (`CHAIN`), qui part dès la fin des images actives, à la place de la récupération. Pour l'instant : léger, puis moyen.
+Il n'y a qu'une touche d'attaque. `HeroLayer.attack()` lance le coup léger depuis la garde ou la marche ; un nouvel appui pendant un coup met en attente le coup suivant de l'enchaînement (`CHAIN`), qui part dès la fin des images actives, à la place de la récupération. Un appui dans les `CHAIN_GRACE` secondes qui suivent le retour en garde poursuit aussi l'enchaînement, pour ne pas avoir à appuyer pendant le quart de seconde du coup ; passé ce délai, ou après toute autre action, l'appui repart du coup léger. Pour l'instant : léger, puis moyen.
 
 `PUNCHES` décrit chaque coup : son minutage, repris d'un jeu de combat à 60 images par seconde, et un dessin par phase.
 

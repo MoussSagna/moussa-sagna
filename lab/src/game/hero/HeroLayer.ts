@@ -96,6 +96,11 @@ export type PunchStrength = keyof typeof PUNCHES
  * il part dès la fin des images actives, sans attendre la récupération.
  */
 const CHAIN: Partial<Record<PunchStrength, PunchStrength>> = { light: 'medium' }
+/**
+ * Délai de grâce, en secondes : après la fin d'un coup, un appui pendant ce délai lance encore le coup
+ * suivant au lieu de recommencer au premier. Sans lui, il faudrait appuyer pendant le quart de seconde du coup.
+ */
+const CHAIN_GRACE = 0.35
 
 /** Poses tenues en un seul calque, qui respirent d'un bloc. */
 const HELD: PoseName[] = ['crouch', 'block', 'crouchBlock']
@@ -153,6 +158,8 @@ export class HeroLayer {
   private punchStrength: PunchStrength = 'light'
   /** Vrai si la touche d'attaque a été pressée à nouveau pendant le coup en cours. */
   private punchQueued = false
+  /** Temps écoulé depuis la fin du dernier coup, tant qu'aucune autre action n'a eu lieu. */
+  private sincePunch = Infinity
   /** Temps écoulé depuis le début du saut en cours. */
   private jumpTime = 0
   /** L'atlas de chaque pose. Un seul est lié à la fois, celui de la pose affichée. */
@@ -251,8 +258,10 @@ export class HeroLayer {
     }
     const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
     if (!free) return
+    // juste après un coup, l'appui poursuit l'enchaînement ; sinon il repart du coup léger
+    const next = this.sincePunch < CHAIN_GRACE ? CHAIN[this.punchStrength] : undefined
     this.pose = 'punch'
-    this.punchStrength = 'light'
+    this.punchStrength = next ?? 'light'
     this.punchTime = 0
     this.punchQueued = false
   }
@@ -325,6 +334,9 @@ export class HeroLayer {
       if (this.dashing.time < move.seconds) return
       this.pose = 'guard'
     }
+    // le délai de grâce ne court qu'en garde : toute autre action l'annule
+    if (this.pose === 'guard') this.sincePunch += frame.delta
+    else if (this.pose !== 'punch') this.sincePunch = Infinity
     if (this.pose === 'punch') {
       this.punchTime += frame.delta
       const move = PUNCHES[this.punchStrength]
@@ -338,6 +350,7 @@ export class HeroLayer {
       }
       if (this.punchTime < move.startup + move.active + move.recovery) return
       this.pose = 'guard'
+      this.sincePunch = 0
     }
     if (this.pose === 'jump') {
       this.jumpTime += frame.delta
