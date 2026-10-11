@@ -2,7 +2,7 @@
 
 Usage (depuis lab/) : python3 tools/prepare_poses.py [--debug dossier]
 Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png, hero-dash-back.png,
-hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png et les deux hero-punch-*.png
+hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png et les cinq hero-punch-*.png
 (fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
@@ -39,6 +39,9 @@ LOGOS = dict(
     jumpPeak=[],
     punchStart=[],
     punchHit=[],
+    punchMidStart=[],
+    punchMidHit=[],
+    punchMidRecover=[],
     jumpLand=[[(155, 1275), (195, 1285), (200, 1325), (165, 1325)]],
     dashForward=[],
     dashBack=[],
@@ -47,9 +50,12 @@ LOGOS = dict(
 FAINT_LOGOS = dict(jumpStart=[[(150, 1228), (188, 1226), (204, 1262), (205, 1296), (150, 1296)]])
 # Poses en un seul calque : le point d'appui horizontal est donné à la main (l'aplomb des hanches).
 SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=None, blockStep=None, block=None, crouchBlock=None,
-              jumpStart=None, jumpRise=520, jumpPeak=520, jumpLand=None,
-              # coup de poing : calé sur la boucle de ceinture, pour que le buste ne glisse pas par rapport à la garde
-              punchStart=498, punchHit=418)
+              jumpStart=None, jumpRise=520, jumpPeak=520, jumpLand=None)
+# Coups donnés depuis la garde : le haut du corps vient de l'illustration du coup, les jambes restent celles de la
+# garde, pour que les pieds ne bougent pas. Valeur : décalage qui amène la boucle de ceinture du coup sur celle de
+# la garde (557, 693).
+ON_GUARD_LEGS = dict(punchStart=(3, 67), punchHit=(106, 65),
+                     punchMidStart=(17, 87), punchMidHit=(41, 58), punchMidRecover=(-13, 68))
 
 # ---------- marche : articulations et polygones. « near » = côté proche (jambe avant, bras arrière) ----------
 WALK_JOINTS = dict(
@@ -111,7 +117,8 @@ FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png',
              crouchStep='hero-crouch-step.png', crouch='hero-crouch.png',
              blockStep='hero-block-step.png', block='hero-block.png', crouchBlock='hero-crouch-block.png',
              jumpStart='hero-jump-start.png', jumpRise='hero-jump-rise.png', jumpPeak='hero-jump-peak.png', jumpLand='hero-jump-land.png',
-             punchStart='hero-punch-start.png', punchHit='hero-punch-hit.png')
+             punchStart='hero-punch-start.png', punchHit='hero-punch-hit.png',
+             punchMidStart='hero-punch-mid-start.png', punchMidHit='hero-punch-mid-hit.png', punchMidRecover='hero-punch-mid-recover.png')
 
 
 def load(name: str) -> np.ndarray:
@@ -128,8 +135,10 @@ def load(name: str) -> np.ndarray:
         rgb[zone & (rgb.max(axis=2) > 150)] = WHITE
     f = rgb.astype(np.float32)
     r, g, b = f[..., 0], f[..., 1], f[..., 2]
-    alpha = 1 - np.clip((g - np.maximum(r, b) - 40) / 150, 0, 1)
-    bg = np.array([4, 248, 3], np.float32)
+    # le vert du fond varie d'une image générée à l'autre : on le mesure dans un coin plutôt que de le supposer
+    bg = np.median(f[4:60, 4:60].reshape(-1, 3), axis=0).astype(np.float32)
+    full = bg[1] - max(bg[0], bg[2]) - 12
+    alpha = 1 - np.clip((g - np.maximum(r, b) - 40) / (full - 40), 0, 1)
     a = np.maximum(alpha, 0.02)[..., None]
     col = np.clip((f - (1 - a) * bg) / a, 0, 255)
     col[..., 1] = np.minimum(col[..., 1], np.maximum(col[..., 0], col[..., 2]))
@@ -235,8 +244,18 @@ def cut_guard(art: np.ndarray) -> dict:
     return {name: layers[name] for name in GUARD_ORDER}
 
 
-def pack(name: str, layers: dict) -> tuple:
-    """Range les calques d'une pose dans son atlas. Retourne les rectangles, les positions et la taille."""
+def cut_on_guard_legs(art: np.ndarray, guard: dict, shift: tuple) -> dict:
+    """Garde le haut du corps d'un coup, coupé juste sous la ceinture, à poser sur les jambes de la garde."""
+    dx, dy = shift
+    # la ligne de taille de la garde, ramenée dans le repère du coup et descendue pour recouvrir la ceinture
+    line = [(x - dx, y - dy + 14) for x, y in GUARD_WAIST]
+    above = poly([(-200, -200)] + [(-200, line[0][1])] + line + [(W + 200, line[-1][1]), (W + 200, -200)])
+    return dict(ribbon_low=guard['ribbon_low'], lower=guard['lower'], upper=art * ((art[..., 3] > 0) & above)[..., None])
+
+
+def pack(name: str, layers: dict, shifts: dict | None = None) -> tuple:
+    """Range les calques d'une pose dans son atlas. Retourne les rectangles, les positions et la taille.
+    `shifts` déplace le rectangle d'un calque dans la toile, sans toucher à son image."""
     boxes, crops = {}, {}
     for key, layer in layers.items():
         ys, xs = np.where(layer[..., 3] > 0)
@@ -244,7 +263,8 @@ def pack(name: str, layers: dict) -> tuple:
         crop = layer[y0:y1, x0:x1].copy()
         crop[crop[..., 3] == 0] = 0
         crops[key] = np.pad(crop, ((PAD, PAD), (PAD, PAD), (0, 0)))
-        boxes[key] = (int(x0 - PAD), int(y0 - PAD), int(x1 - x0 + 2 * PAD), int(y1 - y0 + 2 * PAD))
+        sx, sy = (shifts or {}).get(key, (0, 0))
+        boxes[key] = (int(x0 - PAD + sx), int(y0 - PAD + sy), int(x1 - x0 + 2 * PAD), int(y1 - y0 + 2 * PAD))
     # côtés en puissances de deux (pour les mipmaps), au plus juste : une pose en un seul calque tient dans 1024 de large
     atlas_width = 1024 if len(layers) == 1 and max(c.shape[1] for c in crops.values()) <= 1024 else 2048
     place, x, y, shelf = {}, 0, 0, 0
@@ -294,11 +314,16 @@ def main() -> None:
     )
     for name in SINGLE:
         poses[name] = (dict(body=arts[name]), dict(body=None), dict(body='center'), dict(center=(512, 768)))
+    for name, shift in ON_GUARD_LEGS.items():
+        layers = cut_on_guard_legs(arts[name], poses['guard'][0], shift)
+        poses[name] = (layers, dict.fromkeys(layers), dict.fromkeys(layers, 'center'), dict(center=(512, 768)))
     blocks = []
     for name, (layers, parent, pivot, joints) in poses.items():
-        boxes, place, size = pack(name, layers)
+        on_guard = name in ON_GUARD_LEGS
+        boxes, place, size = pack(name, layers, dict(upper=ON_GUARD_LEGS[name]) if on_guard else None)
         order = list(layers)
-        ax, ay = anchor(arts[name])
+        # sur les jambes de la garde, le point d'appui est celui de la garde
+        ax, ay = anchor(arts['guard' if on_guard else name])
         ax = SINGLE.get(name) or ax
         rows = []
         for key in order:

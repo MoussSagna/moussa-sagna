@@ -34,7 +34,7 @@ Les lanternes, les néons et le trajet du métro sont positionnés par leurs coo
 
 ## Le personnage
 
-Le personnage est fait de seize illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
+Le personnage est fait de dix-neuf illustrations dans la même vue (trois quarts à profil, tourné vers la droite), découpées en calques et animées en direct : il n'y a ni planche de frames ni animation pré-rendue.
 
 | Pose | Illustration | Rôle |
 | --- | --- | --- |
@@ -54,6 +54,7 @@ Le personnage est fait de seize illustrations dans la même vue (trois quarts à
 | `jumpLand` | `../art/hero-jump-land.png` | saut : réception, au sol |
 | `punchStart` | `../art/hero-punch-start.png` | coup de poing léger : bras à mi-course, au démarrage et au retour |
 | `punchHit` | `../art/hero-punch-hit.png` | coup de poing léger : bras tendu |
+| `punchMidStart`, `punchMidHit`, `punchMidRecover` | `../art/hero-punch-mid-*.png` | coup de poing moyen : armé, bras tendu, retour |
 
 - **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas par pose et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
 - **Dessin** : `HeroLayer` dessine un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice du calque ; le fragment shader retrouve le pixel d'origine dans la toile (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.
@@ -96,13 +97,20 @@ La hauteur est calculée par le moteur : une montée (`JUMP.rise`) puis une reto
 
 `App.tsx` le déclenche avec la flèche haut, Z (W sur un clavier QWERTY) ou le bouton « Sauter ».
 
-### Le coup de poing léger
+### Les coups de poing
 
-`HeroLayer.punch()` lance un jab debout, depuis la garde ou la marche. Son minutage (`PUNCH`) reprend celui d'un jab de jeu de combat à 60 images par seconde : 4 images de démarrage, 3 actives, 7 de récupération, soit moins d'un quart de seconde. Le dessin `punchStart` sert au démarrage et à la récupération, `punchHit` pendant les images actives. Le coup ne peut pas être interrompu ni enchaîné avant la fin.
+`HeroLayer.punch(strength)` lance un coup de poing debout, depuis la garde ou la marche. `PUNCHES` décrit chaque coup : son minutage, repris d'un jeu de combat à 60 images par seconde, et un dessin par phase (démarrage, actif, récupération).
 
-Les deux dessins sont calés sur la boucle de ceinture de la garde, pas sur les pieds : le buste reste en place, et les pieds s'écartent le temps du coup, parce que les illustrations ont une garde plus large.
+| Coup | Démarrage | Actif | Récupération | Dessins |
+| --- | --- | --- | --- | --- |
+| Léger (jab du bras avant) | 4 | 3 | 7 | `punchStart`, `punchHit`, puis `punchStart` à nouveau |
+| Moyen (direct du bras arrière) | 6 | 4 | 11 | `punchMidStart`, `punchMidHit`, `punchMidRecover` |
 
-Il n'y a pas encore d'adversaire, donc pas de zone de frappe : `PUNCH.reach` note seulement la portée du poing pour plus tard. `App.tsx` déclenche le coup avec J ou le bouton « Poing ».
+Un coup ne peut pas être interrompu ni enchaîné avant la fin.
+
+Seul le haut du corps vient des illustrations du coup : il est coupé juste sous la ceinture et posé sur les jambes de la garde, calé sur la boucle de ceinture (`ON_GUARD_LEGS` dans `tools/prepare_poses.py`). Les pieds ne bougent donc pas du tout pendant le coup, alors que les illustrations d'origine ont une garde plus large. Pendant le coup, les jambes et le haut du corps ne respirent pas.
+
+Il n'y a pas encore d'adversaire, donc pas de zone de frappe : le champ `reach` note seulement la portée du poing pour plus tard. `App.tsx` déclenche le coup léger avec J et le moyen avec K, ou avec leurs boutons.
 
 ### Les changements d'état
 
@@ -115,7 +123,7 @@ Il n'y a pas encore d'adversaire, donc pas de zone de frappe : `PUNCH.reach` not
 - La marche n'utilise volontairement qu'un seul dessin. Un essai à trois dessins clés (branche `marche-poses`) a été abandonné : d'une illustration générée à l'autre, les plis, les rubans et les proportions changent, et chaque bascule se voyait comme une saccade.
 - En garde, les jambes et les bras ne sont pas articulés.
 - L'accroupi est un dessin entier qui respire d'un bloc : ni les bras, ni la tête, ni les rubans ne bougent séparément.
-- Chaque pose a son atlas, mais un seul est lié à la fois (celui de la pose affichée) : le nombre de poses ne dépend plus des unités de texture du navigateur. En contrepartie, tous les atlas sont chargés au démarrage, soit environ 14 Mo d'images à télécharger.
+- Chaque pose a son atlas, mais un seul est lié à la fois (celui de la pose affichée) : le nombre de poses ne dépend plus des unités de texture du navigateur. En contrepartie, tous les atlas sont chargés au démarrage, soit environ 17 Mo d'images à télécharger.
 - Le saut est fait de dessins fixes : rien ne bouge dans le dessin pendant le vol, rubans compris.
 - Les dashs sont une pose fixe qui glisse : rien ne bouge dans le dessin pendant le déplacement. Le premier des deux appuis lance brièvement la pose intermédiaire de la marche avant que le dash parte.
 

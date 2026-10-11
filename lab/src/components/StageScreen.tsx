@@ -21,8 +21,8 @@ interface Props {
   dash: { id: number; direction: number }
   /** Change de valeur à chaque saut demandé. */
   jump: number
-  /** Change de valeur à chaque coup de poing demandé. */
-  punch: number
+  /** Coup de poing demandé : `id` change à chaque demande. */
+  punch: { id: number; strength: 'light' | 'medium' }
   onUnavailable?: () => void
 }
 
@@ -81,7 +81,7 @@ export function StageScreen({ options, introKey, walk, crouch, block, dash, jump
   }, [jump])
 
   useEffect(() => {
-    if (punch > 0) engine.current?.punch()
+    if (punch.id > 0) engine.current?.punch(punch.strength)
   }, [punch])
 
   useEffect(() => {

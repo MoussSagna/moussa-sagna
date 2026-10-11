@@ -12,8 +12,8 @@ const CROUCH_KEYS = new Set(['arrowdown', 's'])
 const BLOCK_KEYS = new Set([' '])
 /** Touches qui lancent un saut. Z et W couvrent les claviers AZERTY et QWERTY. */
 const JUMP_KEYS = new Set(['arrowup', 'z', 'w'])
-/** Touches du coup de poing léger. */
-const PUNCH_KEYS = new Set(['j'])
+/** Touches des coups de poing. */
+const PUNCH_KEYS: Record<string, 'light' | 'medium'> = { j: 'light', k: 'medium' }
 /** Deux appuis sur la même direction en moins de ce délai (millisecondes) déclenchent un dash. */
 const DOUBLE_TAP_MS = 260
 
@@ -24,7 +24,8 @@ function App() {
   const [crouch, setCrouch] = useState(false)
   const [block, setBlock] = useState(false)
   const [jump, setJump] = useState(0)
-  const [punch, setPunch] = useState(0)
+  const [punch, setPunch] = useState<{ id: number; strength: 'light' | 'medium' }>({ id: 0, strength: 'light' })
+  const hit = (strength: 'light' | 'medium') => setPunch((current) => ({ id: current.id + 1, strength }))
   const [dash, setDash] = useState({ id: 0, direction: 1 })
   const lastTap = useRef({ direction: 0, at: 0 })
   const [note, setNote] = useState('Bouge la souris sur le décor pour sentir la profondeur.')
@@ -67,7 +68,7 @@ function App() {
       const key = event.key.toLowerCase()
       const posture = CROUCH_KEYS.has(key) || BLOCK_KEYS.has(key)
       const jumping = JUMP_KEYS.has(key)
-      const punching = PUNCH_KEYS.has(key)
+      const punching = key in PUNCH_KEYS
       if ((!(key in KEYS) && !posture && !jumping && !punching) || event.ctrlKey || event.metaKey || event.altKey) return
       const target = event.target
       // on ne détourne les touches que hors des champs de saisie de texte
@@ -77,7 +78,9 @@ function App() {
       if (typing || control) return
       event.preventDefault()
       if (jumping || punching) {
-        if (!event.repeat) (jumping ? setJump : setPunch)((count) => count + 1)
+        if (event.repeat) return
+        if (jumping) setJump((count) => count + 1)
+        else setPunch((current) => ({ id: current.id + 1, strength: PUNCH_KEYS[key] }))
         return
       }
       // l'heure de l'événement, pas celle de son traitement : le double appui reste détecté quand l'affichage rame
@@ -115,7 +118,8 @@ function App() {
           <HoldButton label="S'accroupir" onHold={setCrouch} />
           <HoldButton label="Parer" onHold={setBlock} />
           <HoldButton label="Sauter" onHold={(held) => held && setJump((count) => count + 1)} />
-          <HoldButton label="Poing" onHold={(held) => held && setPunch((count) => count + 1)} />
+          <HoldButton label="Poing léger" onHold={(held) => held && hit('light')} />
+          <HoldButton label="Poing moyen" onHold={(held) => held && hit('medium')} />
         </div>
         <button
           type="button"
@@ -138,7 +142,8 @@ function App() {
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Espace</kbd> pour parer,{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↑</kbd> ou{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Z</kbd> pour sauter,{' '}
-        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">J</kbd> pour un coup de poing. {note}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">J</kbd> et{' '}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">K</kbd> pour les coups de poing léger et moyen. {note}
       </p>
     </main>
   )
