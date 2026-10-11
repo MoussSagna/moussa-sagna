@@ -1,0 +1,887 @@
+/* Tokyo Underground — composants partagés. */
+
+/* ---------- En-tête et navigation ---------- */
+
+.site-header {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 50;
+}
+
+.site-header__bar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: var(--header-height);
+  padding-inline: var(--gutter);
+  background: rgba(7, 11, 18, 0.82);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+}
+
+.site-header.is-menu-open .site-header__bar {
+  background: var(--night);
+}
+
+.logo {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 44px;
+  text-decoration: none;
+}
+
+.logo__name {
+  font-family: var(--font-display);
+  font-size: 1.625rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+
+.logo__name::after {
+  content: '';
+  display: inline-block;
+  width: 9px;
+  height: 0.72em;
+  margin-left: 6px;
+  background: var(--red);
+  transform: skewX(-18deg);
+}
+
+.logo__role {
+  display: none;
+  margin-top: 4px;
+  font-family: var(--font-hud);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--grey);
+}
+
+.site-nav {
+  display: none;
+}
+
+.site-nav__list {
+  display: flex;
+  gap: 4px;
+}
+
+.site-nav__link {
+  position: relative;
+  display: block;
+  padding: 12px 14px;
+  font-family: var(--font-hud);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--text-soft);
+  transition: color 0.2s;
+}
+
+.site-nav__link::after {
+  content: '';
+  position: absolute;
+  inset: auto 14px 6px;
+  height: 3px;
+  background: var(--red);
+  transform: scaleX(0) skewX(-30deg);
+  transform-origin: left;
+  transition: transform 0.25s var(--ease);
+}
+
+.site-nav__link:hover,
+.site-nav__link.active {
+  color: var(--white);
+}
+
+.site-nav__link:hover::after,
+.site-nav__link.active::after {
+  transform: scaleX(1) skewX(-30deg);
+}
+
+.site-nav__link:hover:not(.active)::after {
+  background: var(--violet);
+}
+
+.menu-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 4px 0 12px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--font-hud);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.menu-toggle__icon {
+  position: relative;
+  width: 26px;
+  height: 14px;
+}
+
+.menu-toggle__icon::before,
+.menu-toggle__icon::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--white);
+  transition: transform 0.25s var(--ease);
+}
+
+.menu-toggle__icon::before {
+  top: 0;
+}
+
+.menu-toggle__icon::after {
+  bottom: 0;
+  background: var(--red);
+}
+
+.menu-toggle[aria-expanded='true'] .menu-toggle__icon::before {
+  transform: translateY(5.5px) rotate(45deg);
+}
+
+.menu-toggle[aria-expanded='true'] .menu-toggle__icon::after {
+  transform: translateY(-5.5px) rotate(-45deg);
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+
+.mobile-menu {
+  position: fixed;
+  inset: var(--header-height) 0 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px var(--gutter) 32px;
+  overflow-y: auto;
+  background:
+    linear-gradient(115deg, rgba(142, 16, 39, 0.5), transparent 45%),
+    linear-gradient(295deg, rgba(139, 53, 245, 0.28), transparent 40%), var(--night);
+}
+
+.mobile-menu[hidden] {
+  display: none;
+}
+
+.mobile-menu__list > li {
+  border-bottom: 1px solid var(--line);
+  animation: menu-in 0.4s var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+.mobile-menu__link {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  min-height: 56px;
+  padding: 12px 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 9vw, 2.5rem);
+  line-height: 1.1;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.mobile-menu__link.active {
+  color: var(--red);
+}
+
+.mobile-menu__number {
+  font-family: var(--font-hud);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--grey);
+}
+
+.mobile-menu__foot {
+  font-family: var(--font-hud);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--grey);
+}
+
+@media (min-width: 960px) {
+  .logo__role {
+    display: block;
+  }
+
+  .site-nav {
+    display: block;
+  }
+
+  .menu-toggle,
+  .mobile-menu {
+    display: none;
+  }
+}
+
+/* ---------- Pied de page ---------- */
+
+.site-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 24px;
+  padding: 16px var(--gutter);
+  background: var(--night);
+  border-top: 1px solid var(--line);
+  font-family: var(--font-hud);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--grey);
+}
+
+.site-footer__links {
+  display: flex;
+  gap: 8px 20px;
+}
+
+.site-footer a {
+  display: inline-block;
+  padding: 13px 0;
+  color: var(--text-soft);
+  text-underline-offset: 4px;
+}
+
+.site-footer a:hover {
+  color: var(--white);
+}
+
+/* ---------- Boutons ---------- */
+
+/* Le bouton est incliné par `skew` (et non découpé) pour que le contour de focus reste visible. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 30px;
+  border: 2px solid transparent;
+  font-family: var(--font-hud);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  transform: skewX(-12deg);
+  transition:
+    transform 0.2s var(--ease),
+    background-color 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.btn__label {
+  display: block;
+  transform: skewX(12deg);
+}
+
+.btn--small {
+  min-height: 44px;
+  padding: 0 22px;
+  font-size: 0.8125rem;
+}
+
+.btn--primary {
+  background: var(--red-deep);
+  border-color: var(--red-deep);
+  color: #fff;
+  box-shadow: 6px 6px 0 rgba(7, 11, 18, 0.7);
+}
+
+.btn--secondary {
+  background: rgba(7, 11, 18, 0.78);
+  border-color: var(--white);
+  color: var(--white);
+}
+
+.btn--primary:hover,
+a:hover > .btn--primary,
+a:focus-visible > .btn--primary {
+  background: var(--red);
+  border-color: var(--red);
+  transform: skewX(-12deg) translateY(-3px);
+  box-shadow:
+    6px 9px 0 rgba(7, 11, 18, 0.7),
+    0 0 28px rgba(245, 31, 59, 0.55);
+}
+
+.btn--secondary:hover {
+  background: var(--white);
+  color: var(--night);
+  transform: skewX(-12deg) translateY(-3px);
+}
+
+.btn:active {
+  transform: skewX(-12deg) translateY(1px);
+}
+
+.btn--disabled,
+.btn:disabled {
+  background: repeating-linear-gradient(135deg, rgba(242, 244, 247, 0.07) 0 6px, transparent 6px 12px);
+  border-color: rgba(242, 244, 247, 0.28);
+  color: var(--grey);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 22px;
+  padding-inline: 8px;
+}
+
+.actions--center {
+  justify-content: center;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-family: var(--font-hud);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--text-soft);
+  transition: color 0.2s;
+}
+
+.back-link::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-left: 3px solid var(--red);
+  border-bottom: 3px solid var(--red);
+  transform: rotate(45deg);
+  transition: transform 0.2s var(--ease);
+}
+
+.back-link:hover {
+  color: var(--white);
+}
+
+.back-link:hover::before {
+  transform: translateX(-4px) rotate(45deg);
+}
+
+/* ---------- Panneaux HUD ---------- */
+
+.hud {
+  --accent: var(--red);
+  --accent-text: #ff6b80;
+  position: relative;
+  padding: clamp(18px, 3vw, 28px);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  text-align: left;
+}
+
+.hud--violet {
+  --accent: var(--violet);
+  --accent-text: var(--violet-soft);
+}
+
+.hud--cyan {
+  --accent: var(--cyan);
+  --accent-text: var(--cyan);
+}
+
+/* Coins marqués, façon cadre technique. */
+.hud::before,
+.hud::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--accent);
+  pointer-events: none;
+}
+
+.hud::before {
+  top: -1px;
+  left: -1px;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.hud::after {
+  right: -1px;
+  bottom: -1px;
+  border-left: 0;
+  border-top: 0;
+}
+
+.hud__label {
+  margin-bottom: 14px;
+  font-family: var(--font-hud);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.hud > * + * {
+  margin-top: 12px;
+}
+
+.pending {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 10px 14px;
+  border: 1px dashed rgba(242, 244, 247, 0.32);
+  color: var(--text-soft);
+  font-size: 0.9375rem;
+  text-align: left;
+}
+
+.pending__tag {
+  font-family: var(--font-hud);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  padding: 6px 12px;
+  background: rgba(242, 244, 247, 0.05);
+  border: 1px solid var(--line);
+  font-family: var(--font-hud);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.tag--strong {
+  border-color: rgba(245, 31, 59, 0.7);
+  color: var(--white);
+}
+
+.status {
+  display: inline-block;
+  padding: 4px 10px;
+  background: var(--white);
+  color: var(--night);
+  font-family: var(--font-hud);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.status--soon {
+  background: none;
+  border: 1px solid var(--violet-soft);
+  color: var(--violet-soft);
+}
+
+.bullets {
+  display: grid;
+  gap: 10px;
+}
+
+.bullets > li {
+  position: relative;
+  padding-left: 26px;
+}
+
+.bullets > li::before {
+  content: '';
+  position: absolute;
+  top: 0.62em;
+  left: 0;
+  width: 14px;
+  height: 3px;
+  background: var(--red);
+  transform: skewX(-30deg);
+}
+
+/* ---------- Portraits des combattants ---------- */
+
+.fighter {
+  --fighter-color: var(--red);
+  --fighter-text: #ff6b80;
+  --lean: -6deg;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.fighter--challenger {
+  --fighter-color: var(--violet);
+  --fighter-text: var(--violet-soft);
+  --lean: 6deg;
+}
+
+.fighter__frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: 2px solid var(--fighter-color);
+  transform: skewX(var(--lean));
+  box-shadow: 0 0 36px color-mix(in srgb, var(--fighter-color) 35%, transparent);
+}
+
+.fighter__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 64% 28%;
+  /* Compense l'inclinaison du cadre pour ne pas déformer le portrait. */
+  transform: skewX(calc(var(--lean) * -1)) scale(1.14);
+}
+
+/* Combattant affiché en miroir pour faire face à son adversaire. */
+.fighter--mirrored .fighter__image {
+  transform: skewX(calc(var(--lean) * -1)) scale(1.14) scaleX(-1);
+}
+
+.fighter--mirrored .fighter__stance {
+  transform: scaleX(-1);
+}
+
+/* Cadrage du visage dans le cadre, propre à chaque illustration. */
+.fighter--challenger .fighter__image {
+  object-position: 72% 30%;
+}
+
+/* Le portrait a un fond transparent : le cadre lui donne un fond nuit teinté. */
+.fighter__frame:has(.fighter__image) {
+  background: linear-gradient(170deg, color-mix(in srgb, var(--fighter-color) 34%, var(--night)), var(--night) 78%);
+}
+
+/* Lumière colorée venant du bas du cadre, accordée à l'ambiance du stage. */
+.fighter__frame:has(.fighter__image)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, color-mix(in srgb, var(--fighter-color) 42%, transparent), transparent 45%);
+  pointer-events: none;
+}
+
+/* Personnage en pied détouré : posé sur le décor, sans cadre. */
+.fighter--cutout {
+  position: relative;
+  /* Calé à gauche : si le personnage est plus large que sa colonne, il déborde vers le centre de la scène. */
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.fighter__stance {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: auto;
+  max-width: none;
+  height: 100%;
+  /* Liseré et halo à la couleur du combattant : rouge pour Moussa, violet pour l'adversaire. */
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--fighter-color) 70%, var(--white)))
+    drop-shadow(0 0 22px color-mix(in srgb, var(--fighter-color) 55%, transparent));
+}
+
+/* Ombre de contact au sol. */
+.fighter--cutout::after {
+  content: '';
+  position: absolute;
+  bottom: -3%;
+  left: 0;
+  /* Largeur du personnage : hauteur du bloc x ratio de l'image. */
+  width: calc(var(--stance-height) * var(--stance-ratio, 0.535));
+  height: 8%;
+  background: radial-gradient(ellipse at center, rgba(7, 11, 18, 0.85), transparent 68%);
+}
+
+.fighter__placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  container-type: size;
+  background:
+    repeating-linear-gradient(135deg, rgba(242, 244, 247, 0.05) 0 2px, transparent 2px 14px),
+    linear-gradient(
+      170deg,
+      color-mix(in srgb, var(--fighter-color) 62%, transparent),
+      color-mix(in srgb, var(--fighter-color) 12%, rgba(7, 11, 18, 0.9)) 72%
+    );
+}
+
+.fighter__initial {
+  font-family: var(--font-display);
+  font-size: min(78cqh, 120cqw);
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 2px color-mix(in srgb, var(--fighter-color) 55%, var(--white));
+  opacity: 0.6;
+}
+
+.fighter__missing {
+  position: absolute;
+  inset: auto 0 10px;
+  padding-inline: 6px;
+  font-family: var(--font-hud);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--text-soft);
+}
+
+.fighter__tag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.fighter--challenger .fighter__tag {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.fighter__slot {
+  padding: 2px 8px;
+  background: var(--fighter-color);
+  color: #fff;
+  font-family: var(--font-hud);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.fighter__name {
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 3.4vw, 2.25rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.fighter__tagline {
+  flex-basis: 100%;
+  font-family: var(--font-hud);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fighter-text);
+}
+
+/* ---------- Visuels de projet ---------- */
+
+.cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover--empty {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  container-type: size;
+  background:
+    repeating-linear-gradient(135deg, rgba(242, 244, 247, 0.045) 0 2px, transparent 2px 16px),
+    linear-gradient(150deg, var(--red-dark), var(--navy) 55%, #2a1458);
+}
+
+.cover__number {
+  font-family: var(--font-display);
+  font-size: min(70cqh, 60cqw);
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 2px rgba(242, 244, 247, 0.3);
+}
+
+.cover__missing {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  padding: 4px 10px;
+  background: rgba(7, 11, 18, 0.72);
+  border: 1px dashed rgba(242, 244, 247, 0.4);
+  font-family: var(--font-hud);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+/* ---------- Pétales ---------- */
+
+@keyframes petal-fall {
+  from {
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+  }
+  to {
+    transform: translate3d(-28vw, 112vh, 0) rotate(540deg);
+  }
+}
+
+.petals {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.petals__petal {
+  position: absolute;
+  top: 0;
+  left: calc(12% + var(--n) * 11%);
+  width: 12px;
+  height: 8px;
+  background: #ff9ec4;
+  border-radius: 80% 10% 80% 10%;
+  opacity: 0.75;
+  animation: petal-fall calc(9s + var(--n) * 1.3s) linear infinite;
+  animation-delay: calc(var(--n) * -2.1s);
+}
+
+.petals__petal:nth-child(1) { --n: 0; }
+.petals__petal:nth-child(2) { --n: 1; }
+.petals__petal:nth-child(3) { --n: 2; }
+.petals__petal:nth-child(4) { --n: 3; }
+.petals__petal:nth-child(5) { --n: 4; }
+.petals__petal:nth-child(6) { --n: 5; }
+.petals__petal:nth-child(7) { --n: 6; }
+.petals__petal:nth-child(8) { --n: 7; }
+.petals__petal:nth-child(9) { --n: 8; }
+
+/* ---------- Arène Phaser ---------- */
+
+.arena-frame {
+  padding: clamp(8px, 1.5vw, 14px);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--red);
+}
+
+.arena-frame__screen {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #000;
+}
+
+/* Phaser (mode FIT) cale le canvas sur la taille de ce conteneur 16:9. */
+.arena-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.arena-canvas canvas {
+  display: block;
+}
+
+.arena-frame__loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-hud);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--grey);
+}
+
+.arena-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  padding: 14px 6px 4px;
+}
+
+/* Boutons à maintenir : pas de défilement ni de sélection de texte pendant l'appui. */
+.arena-controls__button {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.arena-controls__hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-soft);
+}
+
+.arena-controls__hint kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  background: var(--night);
+  font-family: var(--font-hud);
+  font-size: 0.8125rem;
+  color: var(--white);
+}
+
+.arena-frame__caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding-top: 12px;
+  font-family: var(--font-hud);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}

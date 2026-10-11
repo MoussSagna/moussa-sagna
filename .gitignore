@@ -25,3 +25,7 @@ dist-ssr
 
 # Python
 __pycache__/
+
+# Références et livrables lourds, gardés en local hors du dépôt
+Tokyo_Underground_Documentation/
+references/
