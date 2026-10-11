@@ -4,8 +4,10 @@
   /* Palette de la direction artistique */
   --night: #070b12;
   --navy: #101d2d;
-  --red: #f51f3b;
-  --red-deep: #d4142d; /* rouge des aplats portant du texte blanc (contraste AA) */
+  --red: #e8262d;
+  /* Rouge des aplats portant du texte blanc : même teinte que --red, assombri pour atteindre le contraste AA
+     (5,34:1 avec #fff, contre 4,42:1 pour --red). */
+  --red-deep: #d4161d;
   --red-dark: #8e1027;
   --violet: #8b35f5;
   --violet-soft: #b98bff; /* violet lisible en texte sur fond sombre */

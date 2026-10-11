@@ -196,5 +196,6 @@ comme telle. Voir `06-CONTENUS-A-FOURNIR.md`.
   contour de focus clavier reste visible.
 - L'animation d'entrée de page ne joue que sur l'opacité de `<main>` : un `transform` à cet endroit casserait
   les décors en position fixe.
-- Le rouge des boutons pleins est `#D4142D` (et non `#F51F3B`) pour garder un contraste suffisant avec le texte
-  blanc.
+- Le rouge des boutons pleins est `#d4161d` (`--red-deep`), et non le rouge principal `#e8262d` : avec du texte
+  blanc, le premier donne un contraste de 5,34:1, le second seulement 4,42:1, sous le seuil AA de 4,5:1. Au
+  survol, le bouton passe au rouge principal et retombe donc à 4,42:1.
