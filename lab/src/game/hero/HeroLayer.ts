@@ -78,11 +78,11 @@ const BLOCK_STEP_SECONDS = 0.05
  * Un seul dessin couvre presque tout le vol : c'est sa déformation continue qui donne le mouvement.
  */
 const JUMP = {
-  start: 0.1,
+  start: 0.07,
   /** Montée puis retombée : la retombée est plus courte, le personnage tombe plus vite qu'il ne monte. */
-  rise: 0.4,
-  fall: 0.27,
-  land: 0.14,
+  rise: 0.3,
+  fall: 0.22,
+  land: 0.1,
   height: 600,
   tuck: 0.26,
   /** Déformation du dessin : tassement à l'impulsion et à la réception, étirement à pleine vitesse. */
