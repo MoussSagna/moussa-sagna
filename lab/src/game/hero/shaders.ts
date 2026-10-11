@@ -80,6 +80,7 @@ void main(){
 // et une onde de choc qui s'élargit. uK : avancement de 0 à 1 ; uSeed : fait tourner l'étoile d'un impact à l'autre.
 export const SPARK_FRAGMENT = `precision mediump float;
 varying vec2 v; uniform float uK,uSeed,uPower;
+uniform vec3 uTint,uGlow;                       // couleur du bord et couleur intermédiaire, avant le blanc du cœur
 void main(){
   vec2 p=(v-.5)*2.;
   float r=length(p),a=atan(p.y,p.x)+uSeed;
@@ -91,6 +92,6 @@ void main(){
   float i=smoothstep(reach,0.,r)*fade;
   float core=smoothstep(.3*(1.-uK)+.02,0.,r)*fade;
   float ring=smoothstep(.07,0.,abs(r-(.25+.7*grow)))*(1.-uK)*.5;
-  vec3 col=vec3(.91,.15,.18)*(i*1.3+ring)+vec3(1.,.6,.25)*pow(i,1.8)+vec3(1.)*(pow(i,3.)+core);
+  vec3 col=uTint*(i*1.3+ring)+uGlow*pow(i,1.8)+vec3(1.)*(pow(i,3.)+core);
   gl_FragColor=vec4(col,min(1.,i*.8+core+ring*.5))*uPower;
 }`

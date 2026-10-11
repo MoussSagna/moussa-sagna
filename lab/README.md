@@ -15,6 +15,7 @@ Le lab sert à mettre au point le stage et les animations du personnage avant de
 | Parer (debout ou accroupi) | maintenir Espace | maintenir « Parer » |
 | Attaque spéciale (boule de feu) | L | « Spécial » |
 | Sauter | ↑ ou Z (W sur un clavier QWERTY) | « Sauter » |
+| Faire attaquer le mannequin (pour tester les coups reçus et parés) | K | « Le mannequin attaque » |
 | Attaquer | J : un appui pour le coup léger, un second pour enchaîner le coup moyen, un troisième pour le coup fort. L'enchaînement ne continue que si le coup touche ; L pendant un coup qui touche l'annule en boule de feu | « Attaquer » |
 
 ## Démarrer

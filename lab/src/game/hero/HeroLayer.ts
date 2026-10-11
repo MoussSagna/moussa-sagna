@@ -8,10 +8,10 @@ import { FIRE_FRAGMENT, SPARK_FRAGMENT, FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGME
 const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas', 'uAtlasSize', 'uBend', 'uAxis', 'uAlpha', 'uSmear'] as const
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 const FIRE_UNIFORMS = ['uRect', 'uT', 'uPower', 'uTail', 'uWobble'] as const
-const SPARK_UNIFORMS = ['uRect', 'uK', 'uSeed', 'uPower'] as const
+const SPARK_UNIFORMS = ['uRect', 'uK', 'uSeed', 'uPower', 'uTint', 'uGlow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 export const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -44,6 +44,8 @@ const FEET: Record<PoseName, [number, number]> = {
   specialIn3: POSES.specialIn3.anchor,
   specialThrow: POSES.specialThrow.anchor,
   specialRecover: POSES.specialRecover.anchor,
+  hurt: POSES.hurt.anchor,
+  hurtRecover: POSES.hurtRecover.anchor,
   punchChain1: POSES.punchChain1.anchor,
   punchChain2: POSES.punchChain2.anchor,
   punchMidHit: POSES.punchMidHit.anchor,
@@ -64,6 +66,7 @@ const POSE_SCALE: Record<PoseName, number> = {
   punchHeavyStart: 1, punchHeavyHit: 1, punchHeavyRecover: 1,
   specialCharge: 1, specialThrow: 1.12, specialRecover: 1,
   specialIn1: 1, specialIn2: 1, specialIn3: 1,
+  hurt: 1, hurtRecover: 1,
 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
@@ -153,6 +156,21 @@ const SPECIAL = {
  */
 const IMPACT = { spark: { seconds: 0.24, radius: 420 }, blast: { seconds: 0.42, radius: 560 } }
 
+/**
+ * Coup encaissé. Le personnage affiche le dessin du coup reçu pendant `stun` secondes, puis celui du retour
+ * pendant `recover` secondes, sans pouvoir agir, et recule de `push` (fraction de la largeur du stage) en
+ * `pushSeconds`. `front` : distance entre son point d'appui et l'avant de son corps, en pixels de la toile,
+ * là où le coup le touche.
+ */
+const HURT = { stun: 0.24, recover: 0.13, push: 0.07, pushSeconds: 0.24, front: 200 }
+/**
+ * Coup paré : le personnage reste en parade pendant `stun` secondes et recule de `push`. `height` : hauteur
+ * de l'étincelle sur ses avant-bras, debout et accroupi, en pixels de la toile.
+ */
+const GUARD_HIT = { stun: 0.2, push: 0.035, pushSeconds: 0.18, height: 1050, crouchHeight: 720 }
+/** Couleurs des étincelles (bord, intermédiaire) : rouge et orangé pour un coup porté, bleu pour un coup paré. */
+const SPARK_COLORS = { hit: [[0.91, 0.15, 0.18], [1, 0.6, 0.25]], guard: [[0.2, 0.5, 1], [0.6, 0.85, 1]] }
+
 /** Un coup en cours qui peut toucher : où il porte et ce qu'il fait. */
 export interface Strike {
   /** Bout du coup, en fraction de la largeur du stage. */
@@ -225,7 +243,7 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3'> | 'dash' | 'jump' | 'punch' | 'special' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover'> | 'dash' | 'jump' | 'punch' | 'special' = 'guard'
   /** Temps écoulé depuis le début de l'attaque spéciale en cours. */
   private specialTime = 0
   /** Boule de feu en vol : position (fraction de la largeur du stage), hauteur au-dessus du sol (pixels de la toile), âge. */
@@ -239,7 +257,13 @@ export class HeroLayer {
   /** Vrai si l'attaque spéciale a été demandée pendant le coup en cours : elle annulera sa récupération s'il touche. */
   private specialQueued = false
   /** Impacts en cours : position, hauteur au-dessus du sol, âge, et s'il s'agit d'une explosion. */
-  private impacts: { x: number; height: number; age: number; power: number; blast: boolean; seed: number }[] = []
+  private impacts: { x: number; height: number; age: number; power: number; blast: boolean; guard?: boolean; seed: number }[] = []
+  /** Temps écoulé depuis le coup encaissé en cours. */
+  private hurtTime = 0
+  /** Temps restant pendant lequel la parade est maintenue de force, après un coup paré. */
+  private blockStun = 0
+  /** Recul en cours après un coup reçu ou paré : position de départ, distance, temps écoulé, durée. */
+  private slide: { from: number; distance: number; time: number; seconds: number } | null = null
   /** Temps écoulé depuis le début du coup de poing en cours. */
   private punchTime = 0
   private punchStrength: PunchStrength = 'light'
@@ -396,6 +420,34 @@ export class HeroLayer {
     this.fireball = null
   }
 
+  /** Avant du corps du personnage, là où un coup adverse le touche, en fraction de la largeur du stage. */
+  front(pixel: number): number {
+    return this.x + HURT.front * pixel
+  }
+
+  /**
+   * Le personnage reçoit un coup. En parade (debout ou accroupi), il le pare : il reste en parade et recule
+   * un peu. Sinon il l'encaisse : tout ce qu'il faisait est interrompu, il recule et reste sonné un instant.
+   * Retourne vrai si le coup est paré.
+   */
+  takeHit(strike: Strike, pixel: number): boolean {
+    const guarded = this.pose === 'block' || this.pose === 'crouchBlock'
+    const height = !guarded ? strike.height : this.pose === 'block' ? GUARD_HIT.height : GUARD_HIT.crouchHeight
+    this.impacts.push({ x: this.front(pixel), height, age: 0, power: strike.power, blast: false, guard: guarded, seed: this.x * 50 + this.impacts.length })
+    const push = guarded ? GUARD_HIT : HURT
+    this.slide = { from: this.x, distance: push.push * (0.5 + 0.5 * strike.power), time: 0, seconds: push.pushSeconds }
+    if (guarded) {
+      this.blockStun = GUARD_HIT.stun
+      return true
+    }
+    this.pose = 'hurt'
+    this.hurtTime = 0
+    this.punchQueued = false
+    this.specialQueued = false
+    this.sincePunch = Infinity
+    return false
+  }
+
   /** Fait vieillir les impacts. À appeler à chaque image avec le temps réel : ils continuent pendant l'arrêt sur image. */
   tick(delta: number): void {
     for (const impact of this.impacts) impact.age += delta
@@ -505,6 +557,25 @@ export class HeroLayer {
    * ne se déplace pas.
    */
   update(frame: FrameInfo, direction: number, crouch: boolean, block: boolean): void {
+    // recul après un coup reçu ou paré : il part vite et freine
+    if (this.slide) {
+      const slide = this.slide
+      slide.time += frame.delta
+      const k = Math.min(1, slide.time / slide.seconds)
+      this.x = Math.max(PLACEMENT.minX, slide.from - slide.distance * (1 - (1 - k) ** 3))
+      if (k >= 1) this.slide = null
+    }
+    if (this.pose === 'hurt') {
+      this.hurtTime += frame.delta
+      if (this.hurtTime < HURT.stun + HURT.recover) return
+      this.pose = 'guard'
+    }
+    // après un coup paré, la parade tient encore un instant, même si la touche est relâchée
+    if (this.blockStun > 0) {
+      this.blockStun -= frame.delta
+      crouch = this.pose === 'crouchBlock'
+      block = true
+    }
     if (this.pose === 'dash') {
       this.dashing.time += frame.delta
       this.x = this.dashX(this.dashing.time)
@@ -640,6 +711,10 @@ export class HeroLayer {
         ? (jump?.name ?? 'guard')
         : this.pose === 'punch'
           ? this.punchPose()
+        : this.pose === 'hurt'
+          ? this.hurtTime < HURT.stun
+            ? 'hurt'
+            : 'hurtRecover'
         : this.pose === 'special'
           ? this.specialStep().pose
         : this.pose === 'dash'
@@ -802,6 +877,9 @@ export class HeroLayer {
       const y = sy - impact.height * (h / CANVAS[1])
       // une étincelle de coup léger est plus petite que celle d'un coup fort
       const radius = shape.radius * (0.55 + 0.45 * impact.power) * (impact.blast ? 0.8 : 1)
+      const [tint, glow] = impact.guard ? SPARK_COLORS.guard : SPARK_COLORS.hit
+      gl.uniform3f(spark.u.uTint, tint[0], tint[1], tint[2])
+      gl.uniform3f(spark.u.uGlow, glow[0], glow[1], glow[2])
       gl.uniform1f(spark.u.uK, k)
       gl.uniform1f(spark.u.uSeed, impact.seed)
       gl.uniform1f(spark.u.uPower, calm ? 0.6 : 1)

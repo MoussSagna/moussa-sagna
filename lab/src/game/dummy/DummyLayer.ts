@@ -1,5 +1,6 @@
 import { asset, createProgram, loadTexture, uniforms } from '../gl'
 import { PLACEMENT } from '../hero/HeroLayer'
+import type { Strike } from '../hero/HeroLayer'
 import { CANVAS } from '../hero/poseData'
 import { FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from '../hero/shaders'
 import type { Camera, FrameInfo } from '../types'
@@ -33,6 +34,13 @@ const ATLAS = {
  * `frequency` en battements par seconde, `damping` freine l'oscillation.
  */
 const HIT = { hold: 0.1, tilt: 0.4, frequency: 3.4, damping: 6.5 }
+/**
+ * Attaque du mannequin : un coup de tête. Il se penche en arrière jusqu'à `back` radians pendant `windup`
+ * secondes, se détend vers l'avant jusqu'à `forward` en `strike` secondes, y reste `reached` secondes (c'est
+ * là qu'il peut toucher), puis son ressort le ramène.
+ * `reach` : distance entre son axe et le bout de sa tête penchée, `height` : hauteur du coup, en pixels de la toile.
+ */
+const ATTACK = { windup: 0.32, back: 0.3, strike: 0.09, reached: 0.05, forward: -0.6, reach: 680, height: 1150, power: 0.8, stop: 0.12 }
 const REFLECTION = { alpha: 0.2, squash: 0.5 }
 /** « Réduire les mouvements » : part de l'oscillation conservée. */
 const CALM_AMPLITUDE = 0.35
@@ -56,6 +64,12 @@ export class DummyLayer {
   /** Inclinaison du buste (radians, positive vers l'arrière) et sa vitesse. */
   private angle = 0
   private velocity = 0
+  /** Temps écoulé depuis le début de l'attaque en cours, ou -1 s'il n'attaque pas. */
+  private attackTime = -1
+  /** Vrai dès que l'attaque en cours a touché ou a été parée. */
+  private landed = false
+  /** Vrai tant que le buste oscille après un coup reçu : c'est ce mouvement que « Réduire les mouvements » atténue. */
+  private wobbling = false
 
   constructor(canvas: HTMLCanvasElement) {
     this.gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: true })
@@ -81,15 +95,60 @@ export class DummyLayer {
   hit(power: number): void {
     this.hold = HIT.hold
     this.power = power
+    // un coup reçu interrompt son attaque
+    this.attackTime = -1
     this.angle = 0
     this.velocity = 0
+  }
+
+  /** Lance le coup de tête du mannequin, s'il n'est pas déjà en train d'attaquer ou d'encaisser. */
+  attack(): void {
+    if (this.hold > 0 || this.attackTime >= 0) return
+    this.attackTime = 0
+    this.landed = false
+    this.wobbling = false
+    this.velocity = 0
+  }
+
+  /**
+   * Son coup de tête, s'il peut toucher à cet instant : au bout de sa détente, tant qu'il n'a pas déjà
+   * touché. `pixel` : largeur d'un pixel de la toile, en fraction de la largeur du stage.
+   */
+  strike(pixel: number): Strike | null {
+    if (this.attackTime < ATTACK.windup + ATTACK.strike || this.landed) return null
+    return { x: this.x - ATTACK.reach * pixel, height: ATTACK.height, power: ATTACK.power, stop: ATTACK.stop }
+  }
+
+  /** Son coup de tête a touché ou a été paré : il ne touchera plus. */
+  land(): void {
+    this.landed = true
   }
 
   update(frame: FrameInfo): void {
     if (this.hold > 0) {
       this.hold -= frame.delta
       // le buste au repos repart de l'inclinaison du dessin du coup reçu
-      if (this.hold <= 0) this.angle = HIT.tilt * (0.45 + 0.55 * this.power)
+      if (this.hold <= 0) {
+        this.angle = HIT.tilt * (0.45 + 0.55 * this.power)
+        this.wobbling = true
+      }
+      return
+    }
+    if (this.attackTime >= 0) {
+      this.attackTime += frame.delta
+      const t = this.attackTime
+      if (t < ATTACK.windup) {
+        // il s'arme en freinant
+        this.angle = ATTACK.back * (1 - (1 - t / ATTACK.windup) ** 2)
+      } else if (t < ATTACK.windup + ATTACK.strike) {
+        // il part en accélérant
+        this.angle = ATTACK.back + (ATTACK.forward - ATTACK.back) * ((t - ATTACK.windup) / ATTACK.strike) ** 2
+      } else {
+        // au bout de sa course : il peut toucher, puis le ressort le ramène
+        this.angle = ATTACK.forward
+        this.velocity = 0
+        if (t >= ATTACK.windup + ATTACK.strike + ATTACK.reached) this.attackTime = -1
+      }
       return
     }
     // ressort amorti, en petits pas pour rester stable quand une image dure longtemps
@@ -140,7 +199,7 @@ export class DummyLayer {
     gl.uniform4f(u.uAxis, 1, 0, 0, 0)
     gl.uniform1f(u.uSmear, 0)
 
-    const angle = this.angle * (calm ? CALM_AMPLITUDE : 1)
+    const angle = this.angle * (calm && this.wobbling ? CALM_AMPLITUDE : 1)
     const cos = Math.cos(angle)
     const sin = Math.sin(angle)
     const [px, py] = ATLAS.pivot

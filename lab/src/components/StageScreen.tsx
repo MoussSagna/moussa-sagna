@@ -25,11 +25,13 @@ interface Props {
   attack: number
   /** Change de valeur à chaque attaque spéciale demandée. */
   special: number
+  /** Change de valeur à chaque attaque demandée au mannequin. */
+  dummyAttack: number
   onUnavailable?: () => void
 }
 
 /** L'écran du stage : décor animé, personnage en garde, météo et carton de titre. */
-export function StageScreen({ options, introKey, walk, crouch, block, dash, jump, attack, special, onUnavailable }: Props) {
+export function StageScreen({ options, introKey, walk, crouch, block, dash, jump, attack, special, dummyAttack, onUnavailable }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLCanvasElement>(null)
   const dummy = useRef<HTMLCanvasElement>(null)
@@ -91,6 +93,10 @@ export function StageScreen({ options, introKey, walk, crouch, block, dash, jump
   useEffect(() => {
     if (special > 0) engine.current?.special()
   }, [special])
+
+  useEffect(() => {
+    if (dummyAttack > 0) engine.current?.dummyAttack()
+  }, [dummyAttack])
 
   useEffect(() => {
     if (introKey > 0) engine.current?.replayIntro()
