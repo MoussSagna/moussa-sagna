@@ -37,8 +37,8 @@ LOGOS = dict(
     jumpStart=[],
     jumpRise=[],
     jumpPeak=[],
-    punchStart=[],
-    punchHit=[],
+    punchStart=[[(34, 1262), (58, 1262), (58, 1308), (34, 1308)]],
+    punchHit=[[(32, 1242), (58, 1242), (58, 1292), (32, 1292)]],
     punchMidStart=[],
     punchMidHit=[],
     punchMidRecover=[],
@@ -47,15 +47,18 @@ LOGOS = dict(
     dashBack=[],
 )
 # Logos en relief, tracés en traits pâles sur le blanc : dans chaque polygone, tout pixel clair devient blanc.
-FAINT_LOGOS = dict(jumpStart=[[(150, 1228), (188, 1226), (204, 1262), (205, 1296), (150, 1296)]])
+FAINT_LOGOS = dict(jumpStart=[[(150, 1228), (188, 1226), (204, 1262), (205, 1296), (150, 1296)]],
+                   punchStart=[[(740, 1300), (800, 1300), (800, 1345), (740, 1345)]],
+                   punchHit=[[(740, 1288), (800, 1288), (800, 1340), (740, 1340)]])
 # Poses en un seul calque : le point d'appui horizontal est donné à la main (l'aplomb des hanches).
 SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=None, blockStep=None, block=None, crouchBlock=None,
-              jumpStart=None, jumpRise=520, jumpPeak=520, jumpLand=None)
+              jumpStart=None, jumpRise=520, jumpPeak=520, jumpLand=None,
+              # jab : calé pour que le pied arrière tombe sur celui de la garde ; le pied avant fait son petit pas
+              punchStart=483, punchHit=475)
 # Coups donnés depuis la garde : le haut du corps vient de l'illustration du coup, les jambes restent celles de la
 # garde, pour que les pieds ne bougent pas. Valeur : décalage qui amène la boucle de ceinture du coup sur celle de
 # la garde (557, 693).
-ON_GUARD_LEGS = dict(punchStart=(3, 67), punchHit=(106, 65),
-                     punchMidStart=(17, 87), punchMidHit=(41, 58), punchMidRecover=(-13, 68))
+ON_GUARD_LEGS = dict(punchMidStart=(17, 87), punchMidHit=(41, 58), punchMidRecover=(-13, 68))
 
 # ---------- marche : articulations et polygones. « near » = côté proche (jambe avant, bras arrière) ----------
 WALK_JOINTS = dict(

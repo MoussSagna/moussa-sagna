@@ -11,7 +11,7 @@
 - [x] Accroupi maintenu, avec une pose à mi-descente.
 - [x] Parade debout et parade accroupie, maintenues à la main (à juger en mouvement).
 - [x] Saut vertical en quatre dessins, avec ombre et reflet qui suivent la hauteur (à juger en mouvement).
-- [x] Coups de poing léger et moyen debout, minutés comme dans un jeu de combat, pieds fixes (à juger en mouvement).
+- [x] Coups de poing léger et moyen debout, minutés comme dans un jeu de combat. Le léger a un jeu de jambes de boxe (à juger en mouvement).
 - [x] Un seul atlas lié à la fois : plus de limite au nombre de poses.
 - [x] Logos de marque effacés sur les baskets de la garde et de la marche.
 
@@ -26,6 +26,7 @@
 - [ ] Effacer le logo des baskets sur la pose intermédiaire (`../art/hero-step.png`).
 - [ ] Adoucir le pli du genou de la marche et articuler l'avant-bras.
 - [ ] Articuler les bras et les jambes de la garde.
+- [ ] Poing moyen : le refaire avec un jeu de jambes, comme le léger (rotation des hanches, talon arrière qui pivote).
 - [ ] Accroupi : animer séparément la tête et les rubans.
 - [ ] Alléger le chargement : environ 17 Mo d'atlas sont téléchargés au démarrage.
 - [ ] Parade : la déclencher en reculant au moment d'un coup, quand il y aura un adversaire.

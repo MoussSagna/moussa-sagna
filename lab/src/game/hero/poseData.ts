@@ -218,30 +218,26 @@ export const POSES = {
   },
   punchStart: {
     file: 'hero/punchStart.webp',
-    atlasSize: [2048, 2048] as Point,
+    atlasSize: [1024, 2048] as Point,
     /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
-    anchor: [518, 1487] as Point,
+    anchor: [483, 1418] as Point,
     joints: {
       center: [512, 768] as Point,
     },
     layers: [
-      { name: 'ribbon_low', parent: -1, pivot: [512, 768], box: [120, 588, 164, 321], atlas: [0, 841] },
-      { name: 'lower', parent: -1, pivot: [512, 768], box: [36, 656, 965, 841], atlas: [0, 0] },
-      { name: 'upper', parent: -1, pivot: [512, 768], box: [15, 108, 990, 650], atlas: [965, 0] },
+      { name: 'body', parent: -1, pivot: [512, 768], box: [-8, 58, 1006, 1369], atlas: [0, 0] },
     ] as PoseLayer[],
   },
   punchHit: {
     file: 'hero/punchHit.webp',
     atlasSize: [2048, 2048] as Point,
     /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
-    anchor: [518, 1487] as Point,
+    anchor: [475, 1414] as Point,
     joints: {
       center: [512, 768] as Point,
     },
     layers: [
-      { name: 'ribbon_low', parent: -1, pivot: [512, 768], box: [120, 588, 164, 321], atlas: [0, 841] },
-      { name: 'lower', parent: -1, pivot: [512, 768], box: [36, 656, 965, 841], atlas: [0, 0] },
-      { name: 'upper', parent: -1, pivot: [512, 768], box: [98, 122, 1026, 636], atlas: [965, 0] },
+      { name: 'body', parent: -1, pivot: [512, 768], box: [-8, 99, 1032, 1324], atlas: [0, 0] },
     ] as PoseLayer[],
   },
   punchMidStart: {

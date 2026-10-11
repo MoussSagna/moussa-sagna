@@ -35,7 +35,8 @@ Découpe actuelle :
 - **garde** : rubans (deux calques), bas du corps, buste, tête ;
 - **pose intermédiaire, dashs, mi-descente, accroupi, parades et saut** : un seul calque chacun (liste `SINGLE`, avec l'aplomb des hanches donné à la main) ;
 - **marche** : rubans (deux calques), tête, buste, hanche, bassin, deux bras, et cuisse, tibia et pied pour chaque jambe.
-- **coups de poing** : le haut du corps de l'illustration, posé sur les jambes et le ruban de hanche de la garde (`ON_GUARD_LEGS`). Pour un nouveau coup debout, il suffit de mesurer la position de sa boucle de ceinture.
+- **coup de poing léger** : un seul calque par dessin, calé sur le pied arrière de la garde (valeur dans `SINGLE`).
+- **coup de poing moyen** : le haut du corps de l'illustration, posé sur les jambes et le ruban de hanche de la garde (`ON_GUARD_LEGS`, d'après la position de la boucle de ceinture).
 
 Pour une nouvelle illustration, il faut retracer ses polygones et ses articulations en haut du script, puis contrôler la planche de `--debug`.
 

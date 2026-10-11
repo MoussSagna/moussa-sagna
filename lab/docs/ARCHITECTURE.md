@@ -108,7 +108,7 @@ La hauteur est calculée par le moteur : une montée (`JUMP.rise`) puis une reto
 
 Un coup ne peut pas être interrompu ni enchaîné avant la fin.
 
-Seul le haut du corps vient des illustrations du coup : il est coupé juste sous la ceinture et posé sur les jambes de la garde, calé sur la boucle de ceinture (`ON_GUARD_LEGS` dans `tools/prepare_poses.py`). Les pieds ne bougent donc pas du tout pendant le coup, alors que les illustrations d'origine ont une garde plus large. Pendant le coup, les jambes et le haut du corps ne respirent pas.
+Les deux coups ne sont pas montés de la même façon. Le **léger** utilise ses illustrations entières, avec un jeu de jambes de boxe : elles sont calées pour que le pied arrière tombe sur celui de la garde, et le pied avant fait un petit pas glissé pendant que le corps s'abaisse et s'engage. Le **moyen** ne prend que le haut du corps de ses illustrations, coupé sous la ceinture et posé sur les jambes de la garde (`ON_GUARD_LEGS` dans `tools/prepare_poses.py`) : ses pieds ne bougent pas du tout. Il reste à refaire sur le modèle du léger.
 
 Il n'y a pas encore d'adversaire, donc pas de zone de frappe : le champ `reach` note seulement la portée du poing pour plus tard. `App.tsx` déclenche le coup léger avec J et le moyen avec K, ou avec leurs boutons.
 
