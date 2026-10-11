@@ -75,7 +75,7 @@ Le corps avance à `WALK_SPEED`, la vitesse exacte du pied posé, pour que les a
 
 ### Les dashs
 
-`HeroLayer.dash(direction)` affiche la pose de dash et déplace le personnage d'une distance fixe, vite au départ puis en freinant (`DASH` règle la distance et la durée de chaque sens). Pendant le déplacement, deux images fantômes de plus en plus transparentes sont dessinées à ses positions précédentes ; « Réduire les mouvements » les supprime. La pose de dash n'a qu'un calque, ce qui permet de la dessiner en transparence sans que des recouvrements apparaissent. À la fin, le personnage revient en garde. Un dash ne peut pas être relancé avant la fin du précédent.
+`HeroLayer.dash(direction)` affiche la pose de dash et déplace le personnage d'une distance fixe, vite au départ puis en freinant (`DASH` règle la distance et la durée de chaque sens). Pendant le déplacement, deux images fantômes de plus en plus transparentes sont dessinées à ses positions précédentes ; « Réduire les mouvements » les supprime. Pendant le dash, le dessin est aussi déformé par la vitesse, de moins en moins à mesure qu'il freine : étiré et penché dans le sens de la course (`dashMatrix`), avec une traînée de bandes horizontales derrière lui, calculée dans le fragment shader (`uSmear`). « Réduire les mouvements » supprime toute cette déformation. La pose de dash n'a qu'un calque, ce qui permet de la dessiner en transparence sans que des recouvrements apparaissent. À la fin, le personnage revient en garde. Un dash ne peut pas être relancé avant la fin du précédent.
 
 `App.tsx` déclenche un dash quand la même direction est pressée deux fois en moins de `DOUBLE_TAP_MS`, au clavier ou sur les boutons.
 

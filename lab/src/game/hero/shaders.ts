@@ -20,14 +20,32 @@ uniform vec2 uAtlas,uAtlasSize;
 uniform vec4 uBend;                             // amplitude, longueur, angle de phase
 uniform vec4 uAxis;                             // xy = axe racine -> pointe, zw = racine
 uniform float uAlpha;                           // opacité du calque (images fantômes du dash)
+uniform float uSmear;                           // traînée de vitesse : longueur en pixels de la toile, signée
+vec4 pick(vec2 c){
+  vec2 q=c-uBox.xy;
+  float inside=step(0.,q.x)*step(0.,q.y)*step(q.x,uBox.z)*step(q.y,uBox.w);
+  return texture2D(uTex,(uAtlas+q)/uAtlasSize)*inside;
+}
 void main(){
   vec2 c=vC;
   // rubans : déplacement perpendiculaire à l'axe, nul à la racine, maximal à la pointe
   float s=clamp(dot(c-uAxis.zw,uAxis.xy)/uBend.y,0.,1.3);
   c+=uBend.x*s*s*sin(uBend.z-2.2*s)*vec2(uAxis.y,-uAxis.x);
-  vec2 q=c-uBox.xy;
-  float inside=step(0.,q.x)*step(0.,q.y)*step(q.x,uBox.z)*step(q.y,uBox.w);
-  gl_FragColor=texture2D(uTex,(uAtlas+q)/uAtlasSize)*inside*uAlpha;
+  vec4 col=pick(c);
+  if(abs(uSmear)>.5){
+    // traînée : le dessin est étiré derrière lui en bandes horizontales irrégulières, qui s'estompent
+    float band=.55+.45*sin(c.y*.21)*sin(c.y*.057+1.7);
+    vec4 trail=vec4(0.);
+    for(int i=1;i<=10;i++){
+      float t=float(i)/10.;
+      trail+=pick(c+vec2(uSmear*t*band,0.))*(1.-t)*(1.-t);
+    }
+    trail*=.42;
+    // la traînée tire vers le rouge du personnage et ne recouvre pas le dessin net
+    trail.rgb=mix(trail.rgb,vec3(.91,.15,.18)*trail.a,.35);
+    col+=trail*(1.-col.a);
+  }
+  gl_FragColor=col*uAlpha;
 }`
 
 // Reflet (le personnage rendu hors écran, retourné) et ombre au sol.

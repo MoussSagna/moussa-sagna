@@ -5,7 +5,7 @@ import { BENDS, GAIT, WALK_SPEED, guardMatrices, heldMatrix, scaleAbout, walkMat
 import type { Affine } from './poseRig'
 import { FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from './shaders'
 
-const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas', 'uAtlasSize', 'uBend', 'uAxis', 'uAlpha'] as const
+const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas', 'uAtlasSize', 'uBend', 'uAxis', 'uAlpha', 'uSmear'] as const
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 
 type PoseName = keyof typeof POSES
@@ -125,12 +125,21 @@ const CALM_AMPLITUDE = 0.35
  * freine. `ghosts` : retard (secondes) et opacité des images fantômes laissées derrière.
  */
 const DASH = {
-  forward: { distance: 0.17, seconds: 0.3 },
-  back: { distance: 0.13, seconds: 0.26 },
+  forward: { distance: 0.2, seconds: 0.26 },
+  back: { distance: 0.15, seconds: 0.22 },
   ghosts: [
-    [0.09, 0.14],
-    [0.045, 0.3],
+    [0.075, 0.12],
+    [0.04, 0.26],
   ] as [number, number][],
+  /**
+   * Déformation de vitesse, à pleine vitesse (elle décroît avec le freinage) : étirement dans le sens de la
+   * course, tassement vertical, inclinaison (pixels de décalage en haut du corps) et longueur de la traînée
+   * (pixels de la toile).
+   */
+  stretch: 0.2,
+  squash: 0.07,
+  lean: 70,
+  smear: 300,
 }
 
 /** Marge autour du quad d'un ruban ondulé dans le shader, pour que rien ne soit coupé. */
@@ -318,6 +327,23 @@ export class HeroLayer {
     }
   }
 
+  /** Vitesse du dash en cours : 1 au départ, 0 à l'arrêt. */
+  private dashSpeed(): number {
+    const move = this.dashing.direction > 0 ? DASH.forward : DASH.back
+    const k = Math.max(0, Math.min(1, this.dashing.time / move.seconds))
+    return (1 - k) ** 2
+  }
+
+  /** Déformation du dessin pendant le dash : étiré et penché dans le sens de la course, pieds fixes. */
+  private dashMatrix(feet: [number, number]): Affine {
+    const v = this.dashSpeed()
+    const sx = 1 + DASH.stretch * v
+    const sy = 1 - DASH.squash * v
+    // inclinaison : le haut du corps part vers l'avant, proportionnellement à la hauteur
+    const shear = (-this.dashing.direction * DASH.lean * v) / feet[1]
+    return [sx, 0, shear, sy, feet[0] - sx * feet[0] - shear * feet[1], feet[1] - sy * feet[1]]
+  }
+
   /** Position du personnage `time` secondes après le début du dash en cours. */
   private dashX(time: number): number {
     const move = this.dashing.direction > 0 ? DASH.forward : DASH.back
@@ -452,8 +478,12 @@ export class HeroLayer {
             ? [heldMatrix(POSES[name].anchor, frame.time, amplitude)]
             : jump
               ? [scaleAbout(feet, 1 + (jump.sx - 1) * amplitude, 1 + (jump.sy - 1) * amplitude)]
-              : null
+              : this.pose === 'dash' && !calm
+                ? [this.dashMatrix(feet)]
+                : null
     const bends = BENDS[name]
+    // traînée derrière le personnage : du côté opposé à sa course
+    const smear = this.pose === 'dash' && !calm ? this.dashing.direction * DASH.smear * this.dashSpeed() : 0
 
     const drawLayers = (vx: number, vy: number, vz: number, vw: number, alpha = 1, raise = 0) => {
       gl.useProgram(layer.program)
@@ -469,7 +499,7 @@ export class HeroLayer {
       pose.layers.forEach((item, index) => {
         const m = matrices ? matrices[index] : null
         const bend = bends[item.name]
-        const margin = bend ? RIBBON_MARGIN : 0
+        const margin = bend ? RIBBON_MARGIN : Math.ceil(Math.abs(smear))
         const [bx, by, bw, bh] = item.box
         gl.uniform4f(u.uQuad, bx - margin, by - margin, bw + 2 * margin, bh + 2 * margin)
         // la pose est agrandie autour de ses pieds, puis ses pieds sont posés sur le point du sol
@@ -480,6 +510,7 @@ export class HeroLayer {
         gl.uniform4f(u.uBox, bx, by, bw, bh)
         gl.uniform2f(u.uAtlas, item.atlas[0], item.atlas[1])
         gl.uniform4f(u.uBend, bend ? bend.amplitude * amplitude : 0, bend ? bend.length : 1, frame.time * (name === 'walk' ? 7 : 2.4) + index, 0)
+        gl.uniform1f(u.uSmear, smear)
         gl.uniform4f(u.uAxis, bend ? bend.axis[0] : 1, bend ? bend.axis[1] : 0, item.pivot[0], item.pivot[1])
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
       })
