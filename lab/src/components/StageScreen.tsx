@@ -25,33 +25,40 @@ interface Props {
   attack: number
   /** Change de valeur à chaque attaque spéciale demandée. */
   special: number
+  /** Change de valeur à chaque seconde attaque spéciale (rafale de coups de pied) demandée. */
+  kicks: number
   /** Change de valeur à chaque attaque demandée au mannequin. */
   dummyAttack: number
   onUnavailable?: () => void
 }
 
 /** L'écran du stage : décor animé, personnage en garde, météo et carton de titre. */
-export function StageScreen({ options, introKey, walk, crouch, block, dash, jump, attack, special, dummyAttack, onUnavailable }: Props) {
+export function StageScreen({ options, introKey, walk, crouch, block, dash, jump, attack, special, kicks, dummyAttack, onUnavailable }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLCanvasElement>(null)
   const dummy = useRef<HTMLCanvasElement>(null)
   const rival = useRef<HTMLCanvasElement>(null)
   const hero = useRef<HTMLCanvasElement>(null)
   const weather = useRef<HTMLCanvasElement>(null)
+  const cinematic = useRef<HTMLCanvasElement>(null)
+  /** Vrai pendant les plans illustrés de la cinématique d'entrée, qu'on peut alors passer. */
+  const [cinematicPlaying, setCinematicPlaying] = useState(false)
   const engine = useRef<StageEngine | null>(null)
   // l'intro est en cours tant que le carton de la dernière demande n'est pas terminé
   const [finishedKey, setFinishedKey] = useState(-1)
   const intro = finishedKey !== introKey
 
   useEffect(() => {
-    if (!root.current || !backdrop.current || !dummy.current || !rival.current || !hero.current || !weather.current) return
+    if (!root.current || !backdrop.current || !dummy.current || !rival.current || !hero.current || !weather.current || !cinematic.current) return
     const instance = new StageEngine(root.current, {
       backdrop: backdrop.current,
       dummy: dummy.current,
       rival: rival.current,
       hero: hero.current,
       weather: weather.current,
+      cinematic: cinematic.current,
     })
+    instance.onCinematic = setCinematicPlaying
     engine.current = instance
     let cancelled = false
     instance.run().then((ok) => {
@@ -97,8 +104,22 @@ export function StageScreen({ options, introKey, walk, crouch, block, dash, jump
   }, [special])
 
   useEffect(() => {
+    if (kicks > 0) engine.current?.kicks()
+  }, [kicks])
+
+  useEffect(() => {
     if (dummyAttack > 0) engine.current?.dummyAttack()
   }, [dummyAttack])
+
+  // Échap passe la cinématique
+  useEffect(() => {
+    if (!cinematicPlaying) return
+    const skip = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') engine.current?.skipCinematic()
+    }
+    window.addEventListener('keydown', skip)
+    return () => window.removeEventListener('keydown', skip)
+  }, [cinematicPlaying])
 
   useEffect(() => {
     if (introKey > 0) engine.current?.replayIntro()
@@ -143,6 +164,17 @@ export function StageScreen({ options, introKey, walk, crouch, block, dash, jump
         <span className="font-display leading-none uppercase italic [text-shadow:.06em_.06em_0_#000]">{STAGE_NAME}</span>
         <span className="h-[0.12em] w-full -skew-x-[30deg] bg-blood" />
       </div>
+
+      <canvas ref={cinematic} className="pointer-events-none absolute inset-0 block size-full" aria-hidden="true" />
+      {cinematicPlaying && (
+        <button
+          type="button"
+          onClick={() => engine.current?.skipCinematic()}
+          className="absolute right-[2.4%] bottom-[10%] min-h-11 -skew-x-[10deg] cursor-pointer border-2 border-line/60 bg-black/50 px-4 font-display text-[17px] tracking-wide text-line uppercase italic hover:border-line"
+        >
+          Passer <span className="font-body text-[13px] normal-case not-italic opacity-70">(Échap)</span>
+        </button>
+      )}
     </div>
   )
 }

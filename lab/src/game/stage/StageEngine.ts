@@ -1,3 +1,4 @@
+import { CinematicLayer } from '../cinematic/CinematicLayer'
 import { DummyLayer } from '../dummy/DummyLayer'
 import { HeroLayer, PLACEMENT } from '../hero/HeroLayer'
 import type { Strike } from '../hero/HeroLayer'
@@ -14,6 +15,8 @@ export interface StageCanvases {
   rival: HTMLCanvasElement
   hero: HTMLCanvasElement
   weather: HTMLCanvasElement
+  /** Cinématique d'entrée et annonces, par-dessus tout le reste. */
+  cinematic: HTMLCanvasElement
 }
 
 /** Durée du travelling d'ouverture, en millisecondes. */
@@ -22,8 +25,9 @@ const INTRO_MS = 3600
 const SHAKE = { amplitude: 0.006, decay: 16 }
 
 /**
- * Orchestre l'écran du stage : une seule boucle, une seule caméra, cinq plans
- * (décor WebGL, mannequin et adversaire WebGL, dont un seul est affiché, personnage WebGL, météo Canvas 2D). C'est aussi lui qui décide
+ * Orchestre l'écran du stage : une seule boucle, une seule caméra, six plans
+ * (décor WebGL, mannequin et adversaire WebGL, dont un seul est affiché, personnage WebGL, météo Canvas 2D,
+ * cinématique d'entrée Canvas 2D). C'est aussi lui qui décide
  * quand un coup touche, et ce qui se passe alors.
  */
 export class StageEngine {
@@ -34,6 +38,11 @@ export class StageEngine {
   crouch = false
   /** Vrai tant que le personnage doit parer. */
   block = false
+  /** Appelée quand la cinématique commence (vrai) ou que ses plans illustrés se terminent (faux). */
+  onCinematic?: (playing: boolean) => void
+  private cinematic: CinematicLayer
+  /** Vrai tant que les plans illustrés de la cinématique recouvrent le stage, à l'image précédente. */
+  private covered = false
   private backdrop: StageBackdrop
   private dummy: DummyLayer
   private rival: RivalLayer
@@ -63,7 +72,8 @@ export class StageEngine {
     this.opponentCanvases = { dummy: canvases.dummy, rival: canvases.rival }
     this.hero = new HeroLayer(canvases.hero)
     this.weather = new WeatherLayer(canvases.weather)
-    this.canvases = [canvases.backdrop, canvases.dummy, canvases.rival, canvases.hero, canvases.weather]
+    this.cinematic = new CinematicLayer(canvases.cinematic)
+    this.canvases = [canvases.backdrop, canvases.dummy, canvases.rival, canvases.hero, canvases.weather, canvases.cinematic]
   }
 
   /** Charge les images puis lance la boucle. Résout `false` si le décor animé est indisponible. */
@@ -71,23 +81,24 @@ export class StageEngine {
     this.root.addEventListener('pointermove', this.onPointerMove)
     this.root.addEventListener('pointerleave', this.onPointerLeave)
     this.raf = requestAnimationFrame(this.frame)
-    const [backdrop] = await Promise.all([this.backdrop.load(), this.hero.load(), this.dummy.load(), this.rival.load()])
+    const [backdrop] = await Promise.all([this.backdrop.load(), this.hero.load(), this.dummy.load(), this.rival.load(), this.cinematic.load()])
+    this.cinematic.start()
     return backdrop
   }
 
   /** Lance un dash du personnage : 1 vers l'avant, -1 vers l'arrière. */
   dash(direction: number): void {
-    this.hero.dash(direction)
+    if (!this.cinematic.locked) this.hero.dash(direction)
   }
 
   /** Touche d'attaque : lance un coup de poing ou enchaîne sur le suivant. */
   attack(): void {
-    this.hero.attack()
+    if (!this.cinematic.locked) this.hero.attack()
   }
 
   /** Lance l'attaque spéciale du personnage. */
   special(): void {
-    this.hero.special()
+    if (!this.cinematic.locked) this.hero.special()
   }
 
   /** Fait attaquer celui qui fait face au personnage, pour tester les coups reçus et parés. */
@@ -100,13 +111,25 @@ export class StageEngine {
     return this.options.opponent === 'rival' ? this.rival : this.dummy
   }
 
-  /** Lance un saut vertical du personnage. */
-  jump(): void {
-    this.hero.jump()
+  /** Lance la seconde attaque spéciale du personnage, la rafale de coups de pied. */
+  kicks(): void {
+    if (!this.cinematic.locked) this.hero.kicks()
   }
 
+  /** Lance un saut vertical du personnage. */
+  jump(): void {
+    if (!this.cinematic.locked) this.hero.jump()
+  }
+
+  /** Rejoue la cinématique d'entrée, puis le travelling d'ouverture du stage. */
   replayIntro(): void {
     this.introAt = performance.now()
+    this.cinematic.start()
+  }
+
+  /** Passe les plans illustrés de la cinématique : on arrive directement aux annonces avant le combat. */
+  skipCinematic(): void {
+    this.cinematic.skip()
   }
 
   destroy(): void {
@@ -198,6 +221,20 @@ export class StageEngine {
       camera.oy += Math.cos(time * 83) * this.shake * SHAKE.amplitude * 0.6
     }
     const info: FrameInfo = { time, delta, width: this.size.width, height: this.size.height }
+
+    // cinématique d'entrée : tant que ses plans recouvrent l'écran, le stage n'est pas dessiné ; quand ils se
+    // terminent, le travelling d'ouverture du stage commence
+    this.cinematic.update(delta)
+    const covering = this.cinematic.covering
+    if (covering !== this.covered) {
+      this.covered = covering
+      if (!covering) this.introAt = now
+      this.onCinematic?.(covering)
+    }
+    this.cinematic.draw(info, calm)
+    if (covering) return
+    // le personnage ne répond pas avant le « Fight »
+    const locked = this.cinematic.locked
     this.backdrop.draw(info, camera, calm)
 
     // arrêt sur image : le combat se fige un instant, le décor, la météo et les étincelles continuent
@@ -207,7 +244,7 @@ export class StageEngine {
       this.frozen += delta
     }
     const fight: FrameInfo = { ...info, time: time - this.frozen, delta: stopped ? 0 : delta }
-    this.hero.update(fight, this.walk, this.crouch, this.block)
+    this.hero.update(fight, locked ? 0 : this.walk, locked ? false : this.crouch, locked ? false : this.block)
     this.rival.blocking = this.options.rivalBlocks === true
     const target = this.opponent()
     target.update(fight)
