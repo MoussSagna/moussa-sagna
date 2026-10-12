@@ -37,7 +37,7 @@ const SHOTS: Shot[] = [
   },
   {
     file: 'cinematic/closeup.webp',
-    end: 7.05,
+    end: 9.05,
     from: [0.53, 0.44, 1.16],
     to: [0.49, 0.42, 1.03],
     lanterns: [],
@@ -52,9 +52,9 @@ const SHOTS: Shot[] = [
 const TIMELINE = {
   petal: [2.35, 3.15] as [number, number],
   flash: 0.22,
-  destiny: [7.2, 8.85] as [number, number],
-  round: [8.95, 10.1] as [number, number],
-  fight: [10.2, 11.3] as [number, number],
+  destiny: [9.2, 10.85] as [number, number],
+  round: [10.95, 12.1] as [number, number],
+  fight: [12.2, 13.3] as [number, number],
 }
 const SHOTS_END = SHOTS[SHOTS.length - 1].end
 /** Instant à partir duquel le personnage peut jouer, et fin de la cinématique. */
