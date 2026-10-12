@@ -56,7 +56,7 @@ Le script lit `../art/dummy-idle.png` (au repos) et `../art/dummy-hit.png` (coup
 python3 tools/prepare_cinematic.py [--debug dossier]
 ```
 
-Le script lit `../art/cinematic-temple.png`, `cinematic-hero.png` et `cinematic-closeup.png` (illustrations plein cadre, environ 1670 × 941), efface le logo des baskets du plan en pied (rectangles `LOGOS`, serrés autour de chaque logo) et écrit les trois plans en WebP dans `public/assets/cinematic/`. Il affiche aussi les taches lumineuses de chaque plan : les positions des lanternes reprises à la main dans `SHOTS` (`src/game/cinematic/CinematicLayer.ts`). Avec `--debug`, il écrit un agrandissement des baskets pour contrôler l'effacement.
+Le script lit `../art/cinematic-temple.png`, `cinematic-hero.png`, `cinematic-closeup.png` et les trois `cinematic-rival-*.png` (illustrations plein cadre, environ 1670 × 941), efface le logo des baskets du plan en pied (rectangles `LOGOS`, serrés autour de chaque logo) et écrit les six plans en WebP dans `public/assets/cinematic/`. Il affiche aussi les taches lumineuses de chaque plan : les positions des lanternes reprises à la main dans `SHOTS` (`src/game/cinematic/CinematicLayer.ts`). Avec `--debug`, il écrit un agrandissement des baskets pour contrôler l'effacement.
 
 ## Adversaire : `tools/prepare_rival.py`
 
