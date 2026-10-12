@@ -60,6 +60,7 @@ Le personnage est fait de vingt-neuf illustrations dans la même vue (trois quar
 | `punchHit` | `../art/hero-punch-hit.png` | coup de poing léger : bras tendu |
 | `specialCharge`, `specialThrow`, `specialRecover` | `../art/hero-special-*.png` | attaque spéciale : charge à la hanche, lancer à deux mains, retour |
 | `kicksHigh`, `kicksMid`, `kicksLow` | `../art/hero-kicks-*.png` | rafale de coups de pied : la même pose, jambe tendue en haut, au milieu et en bas |
+| `exitLean`, `exitCrouch`, `exitGround`, `exitSpring` | `../art/hero-exit-*.png` | sortie de fin de round : il se penche, s'accroupit, pose la main au sol, prêt à bondir |
 | `hurt`, `hurtRecover` | `../art/hero-hurt.png`, `../art/hero-hurt-recover.png` | coup encaissé : tête projetée en arrière, puis retour |
 | `specialIn1`, `specialIn2`, `specialIn3` | `../art/hero-special-in-*.png` | attaque spéciale : dessins intermédiaires avant la charge, avant le lancer et avant le retour |
 | `punchChain1`, `punchChain2` | `../art/hero-punch-chain-*.png` | transitions entre le jab et le direct : le bras avant se replie, puis le bras arrière part |
@@ -155,6 +156,12 @@ Tout le mouvement est fait par le code : cadrage et zoom de chaque plan (`SHOTS`
 Tant que les plans recouvrent l'écran, `StageEngine` ne dessine pas le stage. Ensuite, un éclair blanc ramène au stage, dont le travelling d'ouverture commence, et les annonces s'enchaînent par-dessus : « Face your destiny », « Round 1 », « Fight! ». Le personnage ne répond à aucune commande avant le « Fight! ». Le bouton « Passer » (ou Échap) saute les plans illustrés et mène directement aux annonces ; `StageEngine.onCinematic` prévient React pour l'afficher ou le masquer.
 
 « Réduire les mouvements » fixe la caméra sur le cadrage d'arrivée de chaque plan, remplace le pétale qui traverse par un fondu rose et la coupe en diagonale par un fondu au noir, adoucit les éclairs et supprime la secousse du « Fight! ».
+
+### La fin de round
+
+`StageEngine.endRound()` (touche P ou bouton « Fin du round ») lance `HeroLayer.exit()`. Le personnage enchaîne ses quatre dessins de sortie (`EXIT.steps`), puis bondit hors de l'écran par le haut avec le dessin du saut étiré et deux images fantômes. Au départ du bond, sept bouffées de fumée dessinées (`../art/fx-smoke.png`, découpées par `tools/prepare_fx.py`) surgissent au sol en grossissant, s'écartent, montent un peu et s'effacent (`SMOKE`), et des cailloux sont projetés en l'air (`PEBBLES`). Les bouffées sont dessinées avec le programme du reflet, chacune sur sa propre unité de texture à partir de `SMOKE_UNIT`.
+
+Quand la fumée est retombée (`exitDone`), le moteur ramène le personnage en garde à sa place de départ et `CinematicLayer.startRound` annonce « Round 2 » puis « Fight! » ; le personnage ne répond qu'au « Fight! ». Pendant la sortie, il ne peut pas être touché. « Réduire les mouvements » retire les images fantômes et les cailloux.
 
 ### La rafale de coups de pied
 

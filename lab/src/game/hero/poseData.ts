@@ -444,6 +444,54 @@ export const POSES = {
       { name: 'body', parent: -1, pivot: [512, 768], box: [-8, 188, 1027, 1261], atlas: [0, 0] },
     ] as PoseLayer[],
   },
+  exitLean: {
+    file: 'hero/exitLean.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [517, 1475] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [38, 184, 949, 1301], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  exitCrouch: {
+    file: 'hero/exitCrouch.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [541, 1477] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [29, 31, 976, 1455], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  exitGround: {
+    file: 'hero/exitGround.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [496, 1444] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [17, 14, 987, 1440], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  exitSpring: {
+    file: 'hero/exitSpring.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [500, 1462] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [16, 21, 987, 1451], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
   punchMidRecover: {
     file: 'hero/punchMidRecover.webp',
     atlasSize: [2048, 1024] as Point,

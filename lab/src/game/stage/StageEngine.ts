@@ -43,6 +43,9 @@ export class StageEngine {
   private cinematic: CinematicLayer
   /** Vrai tant que les plans illustrés de la cinématique recouvrent le stage, à l'image précédente. */
   private covered = false
+  /** Round en cours, et vrai pendant la sortie de fin de round. */
+  private round = 1
+  private roundEnding = false
   private backdrop: StageBackdrop
   private dummy: DummyLayer
   private rival: RivalLayer
@@ -125,6 +128,19 @@ export class StageEngine {
   replayIntro(): void {
     this.introAt = performance.now()
     this.cinematic.start()
+    this.round = 1
+    if (this.roundEnding) this.hero.reenter()
+    this.roundEnding = false
+  }
+
+  /**
+   * Fin du round : le personnage se baisse et disparaît d'un bond dans la fumée ; quand elle est retombée, il
+   * revient à sa place et le round suivant est annoncé.
+   */
+  endRound(): void {
+    if (this.cinematic.locked || this.roundEnding) return
+    this.roundEnding = true
+    this.hero.exit()
   }
 
   /** Passe les plans illustrés de la cinématique : on arrive directement aux annonces avant le combat. */
@@ -182,7 +198,7 @@ export class StageEngine {
     }
     // son attaque : encaissée, ou parée si le personnage est en parade
     const blow = target.strike(pixel)
-    if (blow && this.hero.front(pixel) >= blow.x) {
+    if (blow && !this.hero.exiting && this.hero.front(pixel) >= blow.x) {
       target.land()
       const guarded = this.hero.takeHit(blow, pixel)
       this.stop = blow.stop * (guarded ? 0.5 : 1) * (calm ? 0.5 : 1)
@@ -249,6 +265,12 @@ export class StageEngine {
     const target = this.opponent()
     target.update(fight)
     this.hero.tick(delta)
+    if (this.roundEnding && this.hero.exitDone) {
+      this.roundEnding = false
+      this.round += 1
+      this.hero.reenter()
+      this.cinematic.startRound(this.round)
+    }
     if (!stopped) this.resolveHits(info, calm)
     // un seul des deux est affiché
     this.opponentCanvases.dummy.style.visibility = target === this.dummy ? 'visible' : 'hidden'
