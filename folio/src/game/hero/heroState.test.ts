@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BLOCK_STEP_SECONDS,
+  CHAIN_GRACE,
   CROUCH_STEP_SECONDS,
   DASH,
   DOUBLE_TAP_MS,
@@ -191,6 +192,7 @@ describe('saut', () => {
 describe('coups de poing', () => {
   const light = PUNCHES.light;
   const medium = PUNCHES.medium;
+  const heavy = PUNCHES.heavy;
 
   it('joue le coup léger seul : démarrage, bras tendu, retour, puis garde', () => {
     const hero = new HeroState();
@@ -228,7 +230,7 @@ describe('coups de poing', () => {
     expect(hero.pose).toBe('guard');
   });
 
-  it('s’arrête au coup moyen : un troisième appui n’ajoute rien', () => {
+  it('enchaîne le coup fort sur un troisième appui, puis s’arrête', () => {
     const hero = new HeroState();
     hero.attack();
     hero.update(FRAME, 0, ASPECT);
@@ -236,8 +238,25 @@ describe('coups de poing', () => {
     run(hero, light.startup + light.active + FRAME, 0);
     expect(hero.punchStrength).toBe('medium');
     hero.attack();
-    run(hero, medium.startup + medium.active + medium.recovery + FRAME, 0);
+    run(hero, medium.startup + medium.active + FRAME, 0);
+    expect(hero.punchStrength).toBe('heavy');
+    expect(hero.illustration).toBe('punchHeavyStart');
+    hero.attack();
+    run(hero, heavy.startup + heavy.active + heavy.recovery + FRAME, 0);
     expect(hero.pose).toBe('guard');
+  });
+
+  it('poursuit l’enchaînement sur un appui juste après le retour en garde, pas plus tard', () => {
+    const hero = new HeroState();
+    hero.attack();
+    run(hero, light.startup + light.active + light.recovery + FRAME, 0);
+    expect(hero.pose).toBe('guard');
+    hero.attack();
+    expect(hero.punchStrength).toBe('medium');
+    run(hero, medium.startup + medium.active + medium.recovery + FRAME, 0);
+    run(hero, CHAIN_GRACE + 0.1, 0);
+    hero.attack();
+    expect(hero.punchStrength).toBe('light');
   });
 
   it('ne part pas accroupi', () => {

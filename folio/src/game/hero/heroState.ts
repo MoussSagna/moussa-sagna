@@ -41,11 +41,11 @@ export const DASH = {
  * Un seul dessin couvre presque tout le vol : c'est sa déformation continue qui donne le mouvement.
  */
 export const JUMP = {
-  start: 0.1,
+  start: 0.07,
   /** Montée puis retombée : la retombée est plus courte, le personnage tombe plus vite qu'il ne monte. */
-  rise: 0.4,
-  fall: 0.27,
-  land: 0.14,
+  rise: 0.3,
+  fall: 0.22,
+  land: 0.1,
   height: 600,
   tuck: 0.26,
   /** Déformation du dessin : tassement à l'impulsion et à la réception, étirement à pleine vitesse. */
@@ -69,7 +69,8 @@ interface Punch {
  * Coups de poing debout. Durées en secondes, calquées sur des coups de jeu de combat à 60 images par
  * seconde (démarrage, actif, récupération). Le léger réutilise son dessin de démarrage pour la
  * récupération. Le moyen ne s'obtient qu'en enchaînant après le léger : son démarrage est fait des deux
- * dessins de transition entre le jab et le direct.
+ * dessins de transition entre le jab et le direct. Le fort, un uppercut du bras avant, ne s'obtient qu'en
+ * enchaînant après le moyen.
  */
 export const PUNCHES = {
   light: {
@@ -90,6 +91,15 @@ export const PUNCHES = {
     hit: 'punchMidHit',
     recover: 'punchMidRecover',
   },
+  heavy: {
+    startup: 11 / 60,
+    active: 6 / 60,
+    recovery: 20 / 60,
+    reach: 480,
+    start: ['punchHeavyStart'],
+    hit: 'punchHeavyHit',
+    recover: 'punchHeavyRecover',
+  },
 } satisfies Record<string, Punch>;
 export type PunchStrength = keyof typeof PUNCHES;
 
@@ -97,7 +107,12 @@ export type PunchStrength = keyof typeof PUNCHES;
  * Enchaînement : une seule touche d'attaque. Un nouvel appui pendant un coup met le suivant en attente ;
  * il part dès la fin des images actives, sans attendre la récupération.
  */
-const CHAIN: Partial<Record<PunchStrength, PunchStrength>> = { light: 'medium' };
+const CHAIN: Partial<Record<PunchStrength, PunchStrength>> = { light: 'medium', medium: 'heavy' };
+/**
+ * Délai de grâce, en secondes : après la fin d'un coup, un appui pendant ce délai lance encore le coup
+ * suivant au lieu de recommencer au premier. Sans lui, il faudrait appuyer pendant le quart de seconde du coup.
+ */
+export const CHAIN_GRACE = 0.35;
 
 /** Deux appuis sur la même direction en moins de ce délai (millisecondes) déclenchent un dash. */
 export const DOUBLE_TAP_MS = 260;
@@ -143,6 +158,8 @@ export class HeroState {
   private punchTime = 0;
   /** Vrai si la touche d'attaque a été pressée à nouveau pendant le coup en cours. */
   private punchQueued = false;
+  /** Temps écoulé depuis la fin du dernier coup, tant qu'aucune autre action n'a eu lieu. */
+  private sincePunch = Number.POSITIVE_INFINITY;
   /** Temps écoulé depuis le début du saut en cours. */
   private jumpTime = 0;
   /** Temps restant dans la pose de passage. */
@@ -236,8 +253,10 @@ export class HeroState {
     if (!this.free) {
       return;
     }
+    // juste après un coup, l'appui poursuit l'enchaînement ; sinon il repart du coup léger
+    const next = this.sincePunch < CHAIN_GRACE ? CHAIN[this.punchStrength] : undefined;
     this.pose = 'punch';
-    this.punchStrength = 'light';
+    this.punchStrength = next ?? 'light';
     this.punchTime = 0;
     this.punchQueued = false;
   }
@@ -271,6 +290,12 @@ export class HeroState {
       }
       this.pose = 'guard';
     }
+    // le délai de grâce ne court qu'en garde : toute autre action l'annule
+    if (this.pose === 'guard') {
+      this.sincePunch += delta;
+    } else if (this.pose !== 'punch') {
+      this.sincePunch = Number.POSITIVE_INFINITY;
+    }
     if (this.pose === 'punch') {
       this.punchTime += delta;
       const move: Punch = PUNCHES[this.punchStrength];
@@ -286,6 +311,7 @@ export class HeroState {
         return;
       }
       this.pose = 'guard';
+      this.sincePunch = 0;
     }
     if (this.pose === 'jump') {
       this.jumpTime += delta;

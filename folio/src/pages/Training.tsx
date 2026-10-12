@@ -46,7 +46,7 @@ export function Training() {
         <PageHead
           eyebrow="Arène · Mode entraînement"
           title="Premiers pas dans l’arène"
-          lead="Moussa se tient en garde dans l’arène, rendue en temps réel ci-dessous. Il marche, dashe, s’accroupit, pare, saute et enchaîne deux coups de poing. Il n’a pas encore d’adversaire : les coups ne touchent rien."
+          lead="Moussa se tient en garde dans l’arène, rendue en temps réel ci-dessous. Il marche, dashe, s’accroupit, pare, saute et enchaîne trois coups de poing. Il n’a pas encore d’adversaire : les coups ne touchent rien."
         />
 
         <figure className="arena-frame rise" style={{ animationDelay: '240ms' }}>
