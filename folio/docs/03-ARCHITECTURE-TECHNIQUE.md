@@ -174,7 +174,10 @@ la font pas défiler. Deux exceptions : une saisie de texte, et Espace sur un bo
   vol, l'ombre rétrécit et le reflet s'éloigne des pieds en s'estompant.
 - **Coups de poing** : une seule touche. `PUNCHES` donne le minutage de chaque coup, repris d'un jeu de combat
   à 60 images par seconde, et un dessin par phase. Un nouvel appui pendant le coup léger met le coup moyen en
-  attente : il part à la fin des images actives, à la place de la récupération.
+  attente, puis pendant le coup moyen le coup fort (un uppercut) : chacun part à la fin des images actives, à la
+  place de la récupération. Un appui dans les `CHAIN_GRACE` secondes qui suivent le retour en garde poursuit
+  aussi l'enchaînement. Sans adversaire dans l'arène, l'enchaînement ne dépend pas de toucher, contrairement
+  au lab.
 
 Dash, saut et coup ne partent que de la garde ou de la marche.
 

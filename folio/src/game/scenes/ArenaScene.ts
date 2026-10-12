@@ -62,7 +62,7 @@ const ACTION_POSES = {
   crouch: ['crouchStep', 'crouch'],
   block: ['blockStep', 'block', 'crouchBlock'],
   jump: ['jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand'],
-  punch: ['punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover'],
+  punch: ['punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover'],
 } satisfies Record<string, PoseName[]>;
 type Action = keyof typeof ACTION_POSES;
 
