@@ -58,6 +58,7 @@ Le personnage est fait de vingt-neuf illustrations dans la même vue (trois quar
 | `punchStart` | `../art/hero-punch-start.png` | coup de poing léger : bras à mi-course, au démarrage et au retour |
 | `punchHit` | `../art/hero-punch-hit.png` | coup de poing léger : bras tendu |
 | `specialCharge`, `specialThrow`, `specialRecover` | `../art/hero-special-*.png` | attaque spéciale : charge à la hanche, lancer à deux mains, retour |
+| `kicksHigh`, `kicksMid`, `kicksLow` | `../art/hero-kicks-*.png` | rafale de coups de pied : la même pose, jambe tendue en haut, au milieu et en bas |
 | `hurt`, `hurtRecover` | `../art/hero-hurt.png`, `../art/hero-hurt-recover.png` | coup encaissé : tête projetée en arrière, puis retour |
 | `specialIn1`, `specialIn2`, `specialIn3` | `../art/hero-special-in-*.png` | attaque spéciale : dessins intermédiaires avant la charge, avant le lancer et avant le retour |
 | `punchChain1`, `punchChain2` | `../art/hero-punch-chain-*.png` | transitions entre le jab et le direct : le bras avant se replie, puis le bras arrière part |
@@ -136,6 +137,14 @@ Le champ `reach` donne la portée de chaque coup, `height` sa hauteur : c'est ce
 La boule de feu n'est pas une image : elle est entièrement calculée par `FIRE_FRAGMENT` (`src/game/hero/shaders.ts`), avec un cœur presque blanc, un corps orangé puis rouge, des flammes qui ondulent et une queue en vol. Elle grossit dans les mains pendant la charge, en suivant la position des mains de chaque dessin (`hands`), part des mains au dessin marqué `launch`, traverse le stage et explose sur le mannequin (ou disparaît au bord si elle le manque). Une lueur aplatie la suit sur le sol. Elle vit indépendamment du personnage, et il ne peut y en avoir qu'une à la fois. « Réduire les mouvements » atténue l'ondulation des flammes.
 
 Les illustrations ont les mains vides et aucun éclairage d'effet : une lueur peinte sur le personnage resterait figée pendant que la boule s'éloigne. `App.tsx` déclenche l'attaque avec L ou le bouton « Spécial ».
+
+### La rafale de coups de pied
+
+Seconde attaque spéciale (`HeroLayer.kicks()`, touche I ou bouton « Spécial 2 »), depuis la garde ou la marche. Après un court élan, jambe au milieu, les trois dessins de la jambe tendue défilent très vite (haut, milieu, bas, milieu…, `KICKS.frame` secondes chacun), puis le retour reprend la jambe basse. Les trois illustrations ne diffèrent que par la jambe : c'est ce qui permet de les faire alterner sans saccade, et ici l'alternance rapide est l'effet recherché.
+
+L'effet de vitesse est fait par le moteur : derrière la jambe affichée, les deux dessins précédents de la rafale restent visibles en transparence (`KICKS.ghosts`). Comme le corps est identique dans les trois dessins, seule la jambe se dédouble. « Réduire les mouvements » retire ces images fantômes.
+
+Pendant la rafale, un coup part toutes les `KICKS.interval` secondes tant que la cible est à portée, chacun avec son étincelle, à la hauteur du pied du dessin affiché, et un arrêt sur image très court.
 
 ### Le mannequin
 

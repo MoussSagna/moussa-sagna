@@ -408,6 +408,42 @@ export const POSES = {
       { name: 'body', parent: -1, pivot: [512, 768], box: [2, 58, 1010, 1359], atlas: [0, 0] },
     ] as PoseLayer[],
   },
+  kicksHigh: {
+    file: 'hero/kicksHigh.webp',
+    atlasSize: [2048, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [566, 1440] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [-8, 192, 1030, 1258], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  kicksMid: {
+    file: 'hero/kicksMid.webp',
+    atlasSize: [2048, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [566, 1440] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [-8, 188, 1032, 1261], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  kicksLow: {
+    file: 'hero/kicksLow.webp',
+    atlasSize: [2048, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [566, 1440] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [-8, 188, 1027, 1261], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
   punchMidRecover: {
     file: 'hero/punchMidRecover.webp',
     atlasSize: [2048, 1024] as Point,

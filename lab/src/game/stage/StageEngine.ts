@@ -100,6 +100,11 @@ export class StageEngine {
     return this.options.opponent === 'rival' ? this.rival : this.dummy
   }
 
+  /** Lance la seconde attaque spéciale du personnage, la rafale de coups de pied. */
+  kicks(): void {
+    this.hero.kicks()
+  }
+
   /** Lance un saut vertical du personnage. */
   jump(): void {
     this.hero.jump()

@@ -2,7 +2,7 @@
 
 Usage (depuis lab/) : python3 tools/prepare_poses.py [--debug dossier]
 Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png, hero-dash-back.png,
-hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png les neuf hero-punch-*.png, les six hero-special-*.png et les deux hero-hurt*.png
+hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png les neuf hero-punch-*.png, les six hero-special-*.png, les deux hero-hurt*.png et les trois hero-kicks-*.png
 (fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
@@ -75,7 +75,9 @@ SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=
               specialCharge=526, specialThrow=534, specialRecover=518,
               specialIn1=524, specialIn2=524, specialIn3=524,
               # coup encaissé : calé sur le pied avant
-              hurt=524, hurtRecover=524)
+              hurt=524, hurtRecover=524,
+              # rafale de coups de pied : calée sur le pied arrière de la garde, qui sert d'appui (dessins 1,17 fois plus petits)
+              kicksHigh=566, kicksMid=566, kicksLow=566)
 # Coups donnés depuis la garde : le haut du corps vient de l'illustration du coup, les jambes restent celles de la
 # garde, pour que les pieds ne bougent pas. Valeur : décalage qui amène la boucle de ceinture du coup sur celle de
 # la garde (557, 693).
@@ -146,6 +148,7 @@ FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png',
              specialIn1='hero-special-in-1.png', specialIn2='hero-special-in-2.png', specialIn3='hero-special-in-3.png',
              specialCharge='hero-special-charge.png', specialThrow='hero-special-throw.png', specialRecover='hero-special-recover.png',
              hurt='hero-hurt.png', hurtRecover='hero-hurt-recover.png',
+             kicksHigh='hero-kicks-high.png', kicksMid='hero-kicks-mid.png', kicksLow='hero-kicks-low.png',
              punchChain1='hero-punch-chain-1.png', punchChain2='hero-punch-chain-2.png', punchMidHit='hero-punch-mid-hit.png', punchMidRecover='hero-punch-mid-recover.png')
 
 

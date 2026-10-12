@@ -11,7 +11,7 @@ const FIRE_UNIFORMS = ['uRect', 'uT', 'uPower', 'uTail', 'uWobble'] as const
 const SPARK_UNIFORMS = ['uRect', 'uK', 'uSeed', 'uPower', 'uTint', 'uGlow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'kicksHigh', 'kicksMid', 'kicksLow']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 export const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -45,6 +45,9 @@ const FEET: Record<PoseName, [number, number]> = {
   specialThrow: POSES.specialThrow.anchor,
   specialRecover: POSES.specialRecover.anchor,
   hurt: POSES.hurt.anchor,
+  kicksHigh: POSES.kicksHigh.anchor,
+  kicksMid: POSES.kicksMid.anchor,
+  kicksLow: POSES.kicksLow.anchor,
   hurtRecover: POSES.hurtRecover.anchor,
   punchChain1: POSES.punchChain1.anchor,
   punchChain2: POSES.punchChain2.anchor,
@@ -67,6 +70,7 @@ const POSE_SCALE: Record<PoseName, number> = {
   specialCharge: 1, specialThrow: 1.12, specialRecover: 1,
   specialIn1: 1, specialIn2: 1, specialIn3: 1,
   hurt: 1, hurtRecover: 1,
+  kicksHigh: 1.17, kicksMid: 1.17, kicksLow: 1.17,
 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
@@ -149,6 +153,32 @@ const SPECIAL = {
   power: 1,
   stop: 0.1,
 }
+
+/**
+ * Seconde attaque spéciale : une rafale de coups de pied. Durées en secondes. Après un instant d'élan
+ * (`startup`, jambe au milieu), les trois dessins de la jambe tendue défilent très vite dans l'ordre de
+ * `cycle`, `frame` secondes chacun, pendant `active` secondes ; le retour (`recovery`) reprend la jambe basse.
+ * Pendant la rafale, un coup part toutes les `interval` secondes, tant qu'il y a une cible à portée.
+ * `reach` : portée devant le point d'appui, `heights` : hauteur du pied de chaque dessin, en pixels de la toile.
+ * `ghosts` : dessins précédents laissés derrière la jambe (rang dans la rafale, opacité), pour l'effet de vitesse.
+ */
+const KICKS = {
+  startup: 0.09,
+  active: 0.84,
+  recovery: 0.16,
+  cycle: ['kicksHigh', 'kicksMid', 'kicksLow', 'kicksMid'] as PoseName[],
+  frame: 0.035,
+  interval: 0.11,
+  reach: 520,
+  heights: { kicksHigh: 1290, kicksMid: 1040, kicksLow: 560 } as Partial<Record<PoseName, number>>,
+  power: 0.3,
+  stop: 0.035,
+  ghosts: [
+    [1, 0.5],
+    [2, 0.28],
+  ] as [number, number][],
+}
+const KICKS_TOTAL = KICKS.startup + KICKS.active + KICKS.recovery
 
 /**
  * Impacts : étincelle d'un coup de poing, explosion de la boule de feu. Durée en secondes, rayon en pixels
@@ -243,7 +273,7 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover'> | 'dash' | 'jump' | 'punch' | 'special' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'kicksHigh' | 'kicksMid' | 'kicksLow'> | 'dash' | 'jump' | 'punch' | 'special' | 'kicks' = 'guard'
   /** Temps écoulé depuis le début de l'attaque spéciale en cours. */
   private specialTime = 0
   /** Boule de feu en vol : position (fraction de la largeur du stage), hauteur au-dessus du sol (pixels de la toile), âge. */
@@ -260,6 +290,9 @@ export class HeroLayer {
   private impacts: { x: number; height: number; age: number; power: number; blast: boolean; guard?: boolean; seed: number }[] = []
   /** Temps écoulé depuis le coup encaissé en cours. */
   private hurtTime = 0
+  /** Temps écoulé depuis le début de la rafale de coups de pied, et instant de son dernier coup qui a touché. */
+  private kickTime = 0
+  private lastKick = -Infinity
   /** Temps restant pendant lequel la parade est maintenue de force, après un coup paré. */
   private blockStun = 0
   /** Recul en cours après un coup reçu ou paré : position de départ, distance, temps écoulé, durée. */
@@ -395,6 +428,11 @@ export class HeroLayer {
    * touché. `pixel` : largeur d'un pixel de la toile, en fraction de la largeur du stage.
    */
   strike(pixel: number): Strike | null {
+    if (this.pose === 'kicks') {
+      const t = this.kickTime - KICKS.startup
+      if (t < 0 || t >= KICKS.active || this.kickTime - this.lastKick < KICKS.interval) return null
+      return { x: this.x + KICKS.reach * pixel, height: KICKS.heights[this.kickPose()] ?? 1000, power: KICKS.power, stop: KICKS.stop }
+    }
     if (this.pose !== 'punch' || this.punchLanded) return null
     const move = PUNCHES[this.punchStrength]
     if (this.punchTime < move.startup || this.punchTime >= move.startup + move.active) return null
@@ -406,7 +444,9 @@ export class HeroLayer {
    * `guarded` : le coup a été paré. L'enchaînement reste possible, comme sur un coup porté.
    */
   land(strike: Strike, x: number, guarded = false): void {
-    this.punchLanded = true
+    // la rafale touche plusieurs fois : elle attend seulement l'intervalle suivant
+    if (this.pose === 'kicks') this.lastKick = this.kickTime
+    else this.punchLanded = true
     this.impacts.push({ x, height: strike.height, age: 0, power: strike.power, blast: false, guard: guarded, seed: this.impacts.length + strike.height })
   }
 
@@ -480,6 +520,30 @@ export class HeroLayer {
     if (!free || this.fireball) return
     this.pose = 'special'
     this.specialTime = 0
+  }
+
+  /** Lance la seconde attaque spéciale, la rafale de coups de pied. Possible depuis la garde ou la marche. */
+  kicks(): void {
+    const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
+    if (!free) return
+    this.pose = 'kicks'
+    this.kickTime = 0
+    this.lastKick = -Infinity
+    this.sincePunch = Infinity
+  }
+
+  /** Rang du dessin en cours dans la rafale de coups de pied, ou -1 hors de la rafale. */
+  private kickIndex(): number {
+    const t = this.kickTime - KICKS.startup
+    if (t < 0 || t >= KICKS.active) return -1
+    return Math.floor(t / KICKS.frame)
+  }
+
+  /** Le dessin en cours de la rafale de coups de pied : jambe au milieu, rafale, puis jambe basse. */
+  private kickPose(): PoseName {
+    const index = this.kickIndex()
+    if (index >= 0) return KICKS.cycle[index % KICKS.cycle.length]
+    return this.kickTime < KICKS.startup ? 'kicksMid' : 'kicksLow'
   }
 
   /** Le dessin en cours de l'attaque spéciale. */
@@ -591,6 +655,11 @@ export class HeroLayer {
       this.fireball.age += frame.delta
       this.fireball.x += SPECIAL.speed * frame.delta
       if (this.fireball.x > 1.2) this.fireball = null
+    }
+    if (this.pose === 'kicks') {
+      this.kickTime += frame.delta
+      if (this.kickTime < KICKS_TOTAL) return
+      this.pose = 'guard'
     }
     if (this.pose === 'special') {
       const before = this.specialTime
@@ -714,6 +783,8 @@ export class HeroLayer {
         ? (jump?.name ?? 'guard')
         : this.pose === 'punch'
           ? this.punchPose()
+        : this.pose === 'kicks'
+          ? this.kickPose()
         : this.pose === 'hurt'
           ? this.hurtTime < HURT.stun
             ? 'hurt'
@@ -725,7 +796,6 @@ export class HeroLayer {
             ? 'dashForward'
             : 'dashBack'
           : this.pose
-    const pose = POSES[name]
     const amplitude = calm ? CALM_AMPLITUDE : 1
     const feet = FEET[name]
     const scale = POSE_SCALE[name]
@@ -745,7 +815,10 @@ export class HeroLayer {
     // traînée derrière le personnage : du côté opposé à sa course
     const smear = this.pose === 'dash' && !calm ? this.dashing.direction * DASH.smear * this.dashSpeed() : 0
 
-    const drawLayers = (vx: number, vy: number, vz: number, vw: number, alpha = 1, raise = 0) => {
+    /** Dessine la pose affichée, ou `other` (une pose de même point d'appui et de même échelle, en un calque). */
+    const drawLayers = (vx: number, vy: number, vz: number, vw: number, alpha = 1, raise = 0, other?: PoseName) => {
+      const shown = other ?? name
+      const pose = POSES[shown]
       gl.useProgram(layer.program)
       gl.enableVertexAttribArray(layer.attribute)
       gl.vertexAttribPointer(layer.attribute, 2, gl.FLOAT, false, 0, 0)
@@ -753,7 +826,7 @@ export class HeroLayer {
       gl.uniform4f(u.uView, vx, vy, vz, vw)
       gl.uniform1f(u.uAlpha, alpha)
       gl.activeTexture(gl.TEXTURE0 + ATLAS_UNIT)
-      gl.bindTexture(gl.TEXTURE_2D, this.atlas(name))
+      gl.bindTexture(gl.TEXTURE_2D, this.atlas(shown))
       gl.uniform1i(u.uTex, ATLAS_UNIT)
       gl.uniform2f(u.uAtlasSize, pose.atlasSize[0], pose.atlasSize[1])
       pose.layers.forEach((item, index) => {
@@ -813,6 +886,17 @@ export class HeroLayer {
         if (this.dashing.time <= delay) continue
         const shift = (this.dashX(this.dashing.time - delay) - this.x) * camera.zoom
         drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * (left + shift) - 1, 1 - 2 * top, alpha)
+      }
+    }
+
+    // pendant la rafale de coups de pied, les dessins précédents restent un instant derrière la jambe ;
+    // le corps est le même dans les trois dessins, seule la jambe se dédouble
+    const kick = this.pose === 'kicks' ? this.kickIndex() : -1
+    if (kick >= 0 && !calm) {
+      for (const [back, alpha] of [...KICKS.ghosts].reverse()) {
+        if (kick < back) continue
+        const ghost = KICKS.cycle[(kick - back) % KICKS.cycle.length]
+        if (ghost !== name) drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * left - 1, 1 - 2 * top, alpha, 0, ghost)
       }
     }
 

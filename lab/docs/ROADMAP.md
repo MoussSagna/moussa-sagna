@@ -18,6 +18,7 @@
 - [x] Adversaire : parade, tenue par une case à cocher pour tester les coups parés.
 - [x] Adversaire : coup encaissé en deux dessins.
 - [ ] Adversaire : marche, coup, recul quand il encaisse, puis un comportement.
+- [x] Seconde attaque spéciale : rafale de coups de pied en trois dessins qui défilent, images fantômes, coups multiples (à juger en mouvement).
 - [x] Enchaînement seulement si le coup touche, et annulation de la récupération d'un coup par l'attaque spéciale.
 - [x] Un seul atlas lié à la fois : plus de limite au nombre de poses.
 - [x] Logos de marque effacés sur les baskets de la garde et de la marche.
