@@ -2,7 +2,7 @@
 
 ## Vue d'ensemble
 
-L'écran du stage empile cinq canvas dans un même conteneur, pilotés par une seule boucle.
+L'écran du stage empile six canvas dans un même conteneur, pilotés par une seule boucle.
 
 | Ordre | Plan | Fichier | Technique |
 | --- | --- | --- | --- |
@@ -10,7 +10,8 @@ L'écran du stage empile cinq canvas dans un même conteneur, pilotés par une s
 | 2 | Mannequin | `src/game/dummy/DummyLayer.ts` | WebGL, deux quads (socle, buste) ou un seul (coup reçu), plus le reflet et l'ombre |
 | 2 | Adversaire | `src/game/rival/RivalLayer.ts` | WebGL, un quad, plus le reflet et l'ombre. Affiché à la place du mannequin selon `options.opponent` |
 | 3 | Personnage | `src/game/hero/HeroLayer.ts` | WebGL, un quad par calque de la pose, plus le reflet et l'ombre |
-| 4 (devant) | Météo | `src/game/stage/WeatherLayer.ts` | Canvas 2D |
+| 4 | Météo | `src/game/stage/WeatherLayer.ts` | Canvas 2D |
+| 5 (devant) | Cinématique | `src/game/cinematic/CinematicLayer.ts` | Canvas 2D : la cinématique d'entrée puis les annonces avant le combat ; placé après le carton de titre HTML pour le recouvrir |
 
 Par-dessus, React affiche le carton de titre et l'étiquette du stage en HTML (`src/components/StageScreen.tsx`).
 
@@ -137,6 +138,20 @@ Le champ `reach` donne la portée de chaque coup, `height` sa hauteur : c'est ce
 La boule de feu n'est pas une image : elle est entièrement calculée par `FIRE_FRAGMENT` (`src/game/hero/shaders.ts`), avec un cœur presque blanc, un corps orangé puis rouge, des flammes qui ondulent et une queue en vol. Elle grossit dans les mains pendant la charge, en suivant la position des mains de chaque dessin (`hands`), part des mains au dessin marqué `launch`, traverse le stage et explose sur le mannequin (ou disparaît au bord si elle le manque). Une lueur aplatie la suit sur le sol. Elle vit indépendamment du personnage, et il ne peut y en avoir qu'une à la fois. « Réduire les mouvements » atténue l'ondulation des flammes.
 
 Les illustrations ont les mains vides et aucun éclairage d'effet : une lueur peinte sur le personnage resterait figée pendant que la boule s'éloigne. `App.tsx` déclenche l'attaque avec L ou le bouton « Spécial ».
+
+### La cinématique d'entrée
+
+`CinematicLayer` (`src/game/cinematic/CinematicLayer.ts`) joue au chargement et à chaque « Rejouer l'intro », avant le combat. Trois plans illustrés plein cadre (`../art/cinematic-*.png`, préparés par `tools/prepare_cinematic.py`) :
+
+1. **Le temple vide** : la caméra descend de la lune vers l'esplanade.
+2. **Un pétale passe devant l'objectif** : il traverse l'écran en tournant et le recouvre entièrement à mi-course, au moment de la coupe vers Moussa en pied, sur lequel la caméra s'approche.
+3. **Le gros plan**, après un éclair blanc, avec son nom qui glisse sur une bande rouge.
+
+Tout le mouvement est fait par le code : cadrage et zoom de chaque plan (`SHOTS`), lueur de la lune qui pulse, lanternes qui vacillent (positions repérées par le script), pluie, pétales, bandes noires de cinéma. Les durées sont dans `SHOTS` et `TIMELINE`.
+
+Tant que les plans recouvrent l'écran, `StageEngine` ne dessine pas le stage. Ensuite, un éclair blanc ramène au stage, dont le travelling d'ouverture commence, et les annonces s'enchaînent par-dessus : « Face your destiny », « Round 1 », « Fight! ». Le personnage ne répond à aucune commande avant le « Fight! ». Le bouton « Passer » (ou Échap) saute les plans illustrés et mène directement aux annonces ; `StageEngine.onCinematic` prévient React pour l'afficher ou le masquer.
+
+« Réduire les mouvements » fixe la caméra sur le cadrage d'arrivée de chaque plan, remplace le pétale qui traverse par un fondu rose, adoucit les éclairs et supprime la secousse du « Fight! ».
 
 ### La rafale de coups de pied
 
