@@ -289,6 +289,11 @@ export class StageEngine {
       this.cinematic.cutIn()
       this.stop = CUT_IN_SECONDS
     }
+    // à l'impact : un éclair sur tout l'écran et une secousse plus forte que d'habitude
+    if (this.hero.takeGroundImpact()) {
+      this.cinematic.impactFlash()
+      this.shake = 2.2
+    }
     // et tant qu'elle dure, le décor, l'adversaire et la météo sont assombris : seul le personnage reste éclairé
     const dim = this.hero.superActive ? 'brightness(0.35) saturate(0.7)' : ''
     for (const canvas of this.dimmed) {

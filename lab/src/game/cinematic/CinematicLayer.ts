@@ -142,6 +142,8 @@ export class CinematicLayer {
   private koTime = -1
   /** Temps écoulé depuis le début du plan de coupe, ou -1 quand il n'est pas affiché. */
   private cutInTime = -1
+  /** Temps écoulé depuis l'impact de la frappe au sol, ou -1 : un éclair blanc puis rouge sur tout l'écran. */
+  private impactTime = -1
   private cutInImage: HTMLImageElement | null = null
   /** Traits de vitesse du plan de coupe : hauteur dans la bande, longueur, vitesse. */
   private streaks = Array.from({ length: 26 }, () => ({ y: Math.random(), length: 0.08 + Math.random() * 0.25, speed: 1.5 + Math.random() * 2.5, x: Math.random() }))
@@ -201,6 +203,11 @@ export class CinematicLayer {
     return this.time >= 0 && this.time < CINEMATIC_FIGHT_AT
   }
 
+  /** Éclair d'impact de la frappe au sol. */
+  impactFlash(): void {
+    this.impactTime = 0
+  }
+
   /** Lance le plan de coupe de la frappe au sol. */
   cutIn(): void {
     if (this.cutInImage) this.cutInTime = 0
@@ -212,6 +219,10 @@ export class CinematicLayer {
   }
 
   update(delta: number): void {
+    if (this.impactTime >= 0) {
+      this.impactTime += delta
+      if (this.impactTime >= 0.35) this.impactTime = -1
+    }
     if (this.cutInTime >= 0) {
       this.cutInTime += delta
       if (this.cutInTime >= CUT_IN_SECONDS) this.cutInTime = -1
@@ -231,6 +242,12 @@ export class CinematicLayer {
     const { width: w, height: h } = frame
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, w, h)
+    if (this.impactTime >= 0) {
+      // blanc d'abord, puis un voile rouge qui s'éteint
+      const k = this.impactTime
+      if (k < 0.06) this.flash(ctx, w, h, calm ? 0.3 : 0.85)
+      else this.flash(ctx, w, h, (1 - (k - 0.06) / 0.29) * (calm ? 0.15 : 0.4), '232, 38, 45')
+    }
     if (this.cutInTime >= 0) this.drawCutIn(ctx, this.cutInTime, frame, calm)
     if (this.koTime >= 0) this.announce(ctx, this.koTime, KO_ANNOUNCE, 'K.O.', 0.3, RED, w, h, calm)
     const t = this.time

@@ -193,18 +193,19 @@ const GROUND = {
     { pose: 'exitLean', seconds: 0.07 },
     { pose: 'exitCrouch', seconds: 0.07 },
     { pose: 'exitGround', seconds: 0.08 },
-    { pose: 'groundCharge', seconds: 0.34, charge: true },
+    { pose: 'groundCharge', seconds: 1.34, charge: true },
     { pose: 'groundRise', seconds: 0.07 },
     { pose: 'groundPalm', seconds: 0.42, palm: true },
     { pose: 'groundRise', seconds: 0.14 },
   ] as { pose: PoseName; seconds: number; charge?: boolean; palm?: boolean }[],
   active: 0.12,
-  advance: 0.065,
-  advanceSeconds: 0.2,
+  advance: 0.13,
+  advanceSeconds: 0.24,
   reach: 680,
   height: 700,
-  power: 1,
-  stop: 0.16,
+  /** Puissance au-delà de 1 : secousse et recul de la cible plus forts que pour un coup normal. */
+  power: 1.5,
+  stop: 0.28,
   /** Main posée au sol pendant la charge, paume tendue pendant la frappe : dans leur illustration. */
   hand: [585, 1235] as [number, number],
   palm: [985, 700] as [number, number],
@@ -427,6 +428,8 @@ export class HeroLayer {
   private groundLanded = false
   /** Vrai dès que le plan de coupe de la frappe au sol en cours a été lancé. */
   private cutInTaken = false
+  /** Vrai à l'image où la frappe au sol touche : le moteur fait alors flasher l'écran. */
+  private groundImpact = false
   /** Position au début de la frappe au sol : le corps avance à partir d'elle pendant la frappe. */
   private groundFrom = PLACEMENT.x
   /** Planche des effets de la frappe au sol, et le programme qui en dessine un morceau. */
@@ -601,8 +604,12 @@ export class HeroLayer {
    * `guarded` : le coup a été paré. L'enchaînement reste possible, comme sur un coup porté.
    */
   land(strike: Strike, x: number, guarded = false): void {
-    if (this.pose === 'ground') this.groundLanded = true
-    else this.punchLanded = true
+    if (this.pose === 'ground') {
+      // la frappe au sol explose sur la cible, en plus de l'étincelle
+      this.groundLanded = true
+      this.impacts.push({ x, height: strike.height, age: 0, power: 1, blast: true, guard: guarded, seed: strike.height })
+      this.groundImpact = true
+    } else this.punchLanded = true
     this.impacts.push({ x, height: strike.height, age: 0, power: strike.power, blast: false, guard: guarded, seed: this.impacts.length + strike.height })
   }
 
@@ -798,6 +805,13 @@ export class HeroLayer {
     if (this.pose !== 'ground' || this.cutInTaken || this.groundTime < GROUND_CHARGE) return false
     this.cutInTaken = true
     return true
+  }
+
+  /** Vrai une seule fois, à l'image où la frappe au sol touche. */
+  takeGroundImpact(): boolean {
+    const hit = this.groundImpact
+    this.groundImpact = false
+    return hit
   }
 
   /** Le dessin en cours de la frappe au sol. */
@@ -1097,18 +1111,24 @@ export class HeroLayer {
     if (charge >= 0 && !front) {
       // pendant la charge : un anneau d'énergie rouge autour de lui, qui grossit puis s'efface après la frappe
       const ring = at('groundCharge', [560, 960])
-      draw(FX.ring as FxRect, ring, 900 + 380 * grow(charge, 0.3), grow(charge, 0.12) * fade(palm, 0, 0.25), flicker)
+      // l'anneau grossit puis bat comme un cœur tant que la charge dure
+      const beat = calm ? 0 : 60 * Math.sin(charge * 9)
+      draw(FX.ring as FxRect, ring, 900 + 380 * grow(charge, 0.3) + beat, grow(charge, 0.12) * fade(palm, 0, 0.25), flicker)
       // les cailloux arrachés du sol sous la main
       const [hx, hy] = hand
       draw(FX.rocks as FxRect, [hx, hy - 0.5 * (FX.rocks[3] / FX.rocks[2]) * 900 * grow(charge, 0.2) * uy], 900 * (0.5 + 0.5 * grow(charge, 0.2)), fade(charge, 0.25, 0.7))
+      // un second jaillissement de cailloux juste avant la frappe
+      const late = charge - (GROUND_PALM - GROUND_CHARGE - 0.4)
+      if (late > 0) draw(FX.rocks as FxRect, [hx, hy - 0.5 * (FX.rocks[3] / FX.rocks[2]) * 1000 * grow(late, 0.2) * uy], 1000 * (0.5 + 0.5 * grow(late, 0.2)), fade(late, 0.2, 0.5), true)
     }
     if (palm >= 0 && front) {
       const tip = at('groundPalm', GROUND.palm)
       // l'onde en croissant devant la paume, l'éclair au bout des doigts
       // devant la main, pour ne pas recouvrir le personnage
-      draw(FX.crescent as FxRect, [tip[0] + 120 * ux, tip[1]], 460 + 200 * grow(palm, 0.15), fade(palm, 0.1, 0.32), flicker)
-      draw(FX.star as FxRect, tip, 380 * (0.6 + 0.6 * grow(palm, 0.08)), fade(palm, 0.06, 0.2))
-      draw(FX.slash as FxRect, [tip[0] + 260 * ux, tip[1] + 30 * uy], 560, fade(palm, 0.04, 0.2) * grow(palm, 0.04))
+      draw(FX.crescent as FxRect, [tip[0] + 160 * ux, tip[1]], 700 + 380 * grow(palm, 0.15), fade(palm, 0.14, 0.42), flicker)
+      draw(FX.star as FxRect, tip, 640 * (0.6 + 0.6 * grow(palm, 0.08)), fade(palm, 0.1, 0.28))
+      draw(FX.slash as FxRect, [tip[0] + 320 * ux, tip[1] + 30 * uy], 820, fade(palm, 0.06, 0.26) * grow(palm, 0.04))
+      draw(FX.slash as FxRect, [tip[0] + 260 * ux, tip[1] - 80 * uy], 700, fade(palm, 0.08, 0.3) * grow(palm, 0.06), true)
       // la poussière soulevée derrière lui par l'élan, au ras du sol
       const [fx, fy] = at('groundPalm', [300, 1225])
       draw(FX.dust as FxRect, [fx - 140 * ux, fy - 50 * uy], 1100 * (0.6 + 0.4 * grow(palm, 0.25)), fade(palm, 0.25, 0.55), true)
