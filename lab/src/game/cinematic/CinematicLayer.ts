@@ -1,10 +1,16 @@
 import { asset, loadImage } from '../gl'
 import type { FrameInfo } from '../types'
 
-/** Un plan : son image, sa fin, et le mouvement de caméra (point visé en fraction de l'image, zoom). */
+/**
+ * Un plan : son image, sa fin, le mouvement de caméra (point visé en fraction de l'image, zoom) et la façon
+ * dont il arrive : coupe franche, pétale qui passe devant l'objectif, éclair blanc ou coupe en diagonale.
+ */
 interface Shot {
   file: string
   end: number
+  enter: 'cut' | 'petal' | 'flash' | 'slash'
+  /** Carton de nom, qui glisse depuis son côté de l'écran. */
+  card?: { title: string; subtitle: string; side: 'left' | 'right' }
   from: [number, number, number]
   to: [number, number, number]
   /** Lanternes dont la lueur vacille : centre et taille, en pixels de l'image (`tools/prepare_cinematic.py`). */
@@ -16,12 +22,14 @@ interface Shot {
 /**
  * Les plans de la cinématique d'entrée, en secondes depuis son début. Le temple vide (la caméra descend de la
  * lune vers l'esplanade), un pétale passe devant l'objectif et révèle Moussa en pied (la caméra s'approche), puis
- * un gros plan sur lui avec son nom.
+ * un gros plan sur lui avec son nom. Une coupe en diagonale passe à l'adversaire : de dos face à la ville, de
+ * plus près, puis il se retourne avec un sourire.
  */
 const SHOTS: Shot[] = [
   {
     file: 'cinematic/temple.webp',
     end: 2.75,
+    enter: 'cut',
     from: [0.58, 0.14, 1.75],
     to: [0.5, 0.56, 1.06],
     lanterns: [[141, 513, 120], [338, 594, 78], [389, 495, 78], [444, 490, 63], [511, 485, 96], [635, 525, 87], [688, 514, 113], [835, 537, 86], [980, 515, 116], [1032, 524, 78], [1117, 470, 120], [1244, 491, 86], [1336, 596, 52], [1545, 513, 140], [1660, 492, 74]],
@@ -30,6 +38,7 @@ const SHOTS: Shot[] = [
   {
     file: 'cinematic/hero.webp',
     end: 5.45,
+    enter: 'petal',
     from: [0.5, 0.62, 1.02],
     to: [0.5, 0.4, 1.22],
     lanterns: [[120, 512, 140], [341, 596, 105], [476, 487, 120], [513, 567, 46], [1033, 517, 73], [1120, 473, 120], [1156, 566, 46], [1246, 489, 87], [1336, 596, 60], [1541, 513, 140]],
@@ -38,23 +47,54 @@ const SHOTS: Shot[] = [
   {
     file: 'cinematic/closeup.webp',
     end: 9.05,
+    enter: 'flash',
+    card: { title: 'MOUSSA SAGNA', subtitle: 'DÉVELOPPEUR FRONTEND', side: 'left' },
     from: [0.53, 0.44, 1.16],
     to: [0.49, 0.42, 1.03],
     lanterns: [],
   },
+  {
+    file: 'cinematic/rival-wide.webp',
+    end: 11.1,
+    enter: 'slash',
+    from: [0.5, 0.6, 1.02],
+    to: [0.5, 0.45, 1.16],
+    lanterns: [[17, 451, 90], [174, 540, 100], [295, 442, 65], [321, 564, 45], [406, 594, 90], [1253, 593, 90], [1370, 572, 63], [1492, 541, 100], [1649, 452, 90]],
+    moon: [820, 110, 140],
+  },
+  {
+    file: 'cinematic/rival-back.webp',
+    end: 12.5,
+    enter: 'cut',
+    from: [0.5, 0.45, 1.03],
+    to: [0.5, 0.38, 1.12],
+    lanterns: [[26, 633, 90], [159, 544, 110], [192, 641, 30], [248, 632, 79], [1298, 546, 90], [1380, 639, 49], [1550, 552, 100]],
+    moon: [1000, 100, 210],
+  },
+  {
+    file: 'cinematic/rival-turn.webp',
+    end: 15.1,
+    enter: 'flash',
+    card: { title: '???', subtitle: 'LE BOSS FINAL', side: 'right' },
+    from: [0.42, 0.34, 1.18],
+    to: [0.46, 0.36, 1.04],
+    lanterns: [[26, 631, 90], [140, 533, 120], [1380, 638, 48], [1457, 651, 34], [1552, 551, 100]],
+    moon: [1000, 90, 210],
+  },
 ]
 
 /**
- * Le reste du déroulé. `petal` : le pétale qui passe devant l'objectif, de son entrée à sa sortie ; il recouvre
- * tout l'écran à mi-course, au moment de la coupe. Puis les annonces, par-dessus le stage : début et fin de
- * chacune. Le combat commence avec « Fight ».
+ * Le reste du déroulé. Durées des transitions : le pétale et la coupe en diagonale recouvrent l'écran à
+ * mi-course, au moment de la coupe ; l'éclair part de la coupe. Puis les annonces, par-dessus le stage : début
+ * et fin de chacune. Le combat commence avec « Fight ».
  */
 const TIMELINE = {
-  petal: [2.35, 3.15] as [number, number],
+  petal: 0.8,
+  slash: 0.42,
   flash: 0.22,
-  destiny: [9.2, 10.85] as [number, number],
-  round: [10.95, 12.1] as [number, number],
-  fight: [12.2, 13.3] as [number, number],
+  destiny: [15.25, 16.9] as [number, number],
+  round: [17.0, 18.15] as [number, number],
+  fight: [18.25, 19.35] as [number, number],
 }
 const SHOTS_END = SHOTS[SHOTS.length - 1].end
 /** Instant à partir duquel le personnage peut jouer, et fin de la cinématique. */
@@ -156,16 +196,22 @@ export class CinematicLayer {
       const shot = SHOTS[index]
       const start = index === 0 ? 0 : SHOTS[index - 1].end
       this.drawShot(ctx, shot, this.images[index], clamp((t - start) / (shot.end - start)), frame, calm)
-      if (index === 2) this.drawNameCard(ctx, t - start, w, h)
-      this.drawWeather(ctx, frame, calm, index === 2 ? 1.8 : 1)
+      if (shot.card) this.drawNameCard(ctx, shot.card, t - start, w, h)
+      this.drawWeather(ctx, frame, calm, shot.card ? 1.8 : 1)
       // bandes noires de cinéma
       ctx.fillStyle = '#000'
       ctx.fillRect(0, 0, w, h * 0.075)
       ctx.fillRect(0, h * 0.925, w, h * 0.075)
-      this.drawPetalWipe(ctx, t, w, h, calm)
-      // éclair blanc à la coupe vers le gros plan
-      const cut = SHOTS[1].end
-      if (t >= cut && t < cut + TIMELINE.flash) this.flash(ctx, w, h, (1 - (t - cut) / TIMELINE.flash) * (calm ? 0.35 : 0.9))
+      // la transition qui a amené ce plan, et celle vers le suivant, qui commence avant la coupe
+      const transitions: [Shot['enter'] | undefined, number][] = [
+        [shot.enter, start],
+        [SHOTS[index + 1]?.enter, shot.end],
+      ]
+      for (const [enter, cut] of transitions) {
+        if (enter === 'petal') this.drawPetalWipe(ctx, t - cut, w, h, calm)
+        if (enter === 'slash') this.drawSlash(ctx, t - cut, w, h, calm)
+        if (enter === 'flash' && t >= cut && t < cut + TIMELINE.flash) this.flash(ctx, w, h, (1 - (t - cut) / TIMELINE.flash) * (calm ? 0.35 : 0.9))
+      }
       return
     }
 
@@ -260,9 +306,10 @@ export class CinematicLayer {
 
   /** Le pétale qui passe devant l'objectif : il traverse l'écran en tournant et le recouvre entièrement à mi-course. */
   private drawPetalWipe(ctx: CanvasRenderingContext2D, t: number, w: number, h: number, calm: boolean): void {
-    const [start, end] = TIMELINE.petal
-    if (t < start || t > end) return
-    const p = (t - start) / (end - start)
+    // `t` : temps depuis la coupe ; le pétale recouvre l'écran à la coupe
+    const half = TIMELINE.petal / 2
+    if (t < -half || t > half) return
+    const p = (t + half) / TIMELINE.petal
     if (calm) {
       // « Réduire les mouvements » : un fondu rose à la place du pétale qui traverse
       this.flash(ctx, w, h, 1 - Math.abs(p - 0.5) * 2, '255, 160, 200')
@@ -299,26 +346,60 @@ export class CinematicLayer {
   }
 
   /** Le nom de Moussa sur le gros plan : il glisse depuis la gauche, sur une bande rouge inclinée. */
-  private drawNameCard(ctx: CanvasRenderingContext2D, t: number, w: number, h: number): void {
+  private drawNameCard(ctx: CanvasRenderingContext2D, card: NonNullable<Shot['card']>, t: number, w: number, h: number): void {
     const k = easeOut(clamp((t - 0.2) / 0.45))
     if (k <= 0) return
-    const x = lerp(-0.6 * w, 0.06 * w, k)
+    const left = card.side === 'left'
+    const x = left ? lerp(-0.6 * w, 0.06 * w, k) : lerp(1.6 * w, 0.94 * w, k)
     const y = h * 0.74
     ctx.save()
     ctx.translate(x, y)
     ctx.transform(1, 0, -0.2, 1, 0, 0)
-    ctx.fillStyle = RED
-    ctx.fillRect(-w * 0.1, h * 0.01, w * 0.5 * k + w * 0.1, h * 0.012)
-    ctx.font = `${Math.round(h * 0.12)}px ${DISPLAY_FONT}`
+    ctx.textAlign = left ? 'left' : 'right'
     ctx.textBaseline = 'alphabetic'
     ctx.fillStyle = RED
-    ctx.fillText('MOUSSA SAGNA', h * 0.008, h * 0.008)
+    const bar = w * 0.5 * k + w * 0.1
+    ctx.fillRect(left ? -w * 0.1 : w * 0.1 - bar, h * 0.01, bar, h * 0.012)
+    ctx.font = `${Math.round(h * 0.12)}px ${DISPLAY_FONT}`
+    ctx.fillText(card.title, h * 0.008, h * 0.008)
     ctx.fillStyle = '#fff'
-    ctx.fillText('MOUSSA SAGNA', 0, 0)
+    ctx.fillText(card.title, 0, 0)
     ctx.font = `600 ${Math.round(h * 0.036)}px ${BODY_FONT}`
-    ctx.fillStyle = '#fff'
-    ctx.fillText('DÉVELOPPEUR FRONTEND', h * 0.004, h * 0.07)
+    ctx.fillText(card.subtitle, left ? h * 0.004 : -h * 0.004, h * 0.07)
     ctx.restore()
+  }
+
+  /**
+   * Une coupe en diagonale : une bande sombre bordée de rouge balaie l'écran de gauche à droite. Elle le
+   * recouvre entièrement à la coupe (`t` = 0, temps depuis la coupe), puis découvre le plan suivant.
+   */
+  private drawSlash(ctx: CanvasRenderingContext2D, t: number, w: number, h: number, calm: boolean): void {
+    const half = TIMELINE.slash / 2
+    if (t < -half || t > half) return
+    if (calm) {
+      // « Réduire les mouvements » : un fondu au noir à la place du balayage
+      this.flash(ctx, w, h, 1 - Math.abs(t) / half, '10, 6, 12')
+      return
+    }
+    const p = (t + half) / TIMELINE.slash
+    const lean = h * 0.35
+    // avant la coupe, le bord avant avance ; après, c'est le bord arrière qui le suit
+    const front = p < 0.5 ? lerp(-lean, w + lean, ease(p * 2)) : w + lean * 2
+    const back = p < 0.5 ? -lean * 2 : lerp(-lean, w + lean, ease((p - 0.5) * 2))
+    const band = (from: number, to: number, color: string) => {
+      ctx.beginPath()
+      ctx.moveTo(from + lean, 0)
+      ctx.lineTo(to + lean, 0)
+      ctx.lineTo(to - lean, h)
+      ctx.lineTo(from - lean, h)
+      ctx.closePath()
+      ctx.fillStyle = color
+      ctx.fill()
+    }
+    band(back, front, '#0a060c')
+    const edge = h * 0.03
+    if (p < 0.5) band(front - edge, front, RED)
+    else band(back, back + edge, RED)
   }
 
   /** Une annonce : elle arrive en se resserrant, tient, puis s'étire en disparaissant, sur une bande sombre. */

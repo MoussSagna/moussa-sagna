@@ -141,17 +141,20 @@ Les illustrations ont les mains vides et aucun éclairage d'effet : une lueur pe
 
 ### La cinématique d'entrée
 
-`CinematicLayer` (`src/game/cinematic/CinematicLayer.ts`) joue au chargement et à chaque « Rejouer l'intro », avant le combat. Trois plans illustrés plein cadre (`../art/cinematic-*.png`, préparés par `tools/prepare_cinematic.py`) :
+`CinematicLayer` (`src/game/cinematic/CinematicLayer.ts`) joue au chargement et à chaque « Rejouer l'intro », avant le combat. Six plans illustrés plein cadre (`../art/cinematic-*.png`, préparés par `tools/prepare_cinematic.py`), trois pour Moussa puis trois pour l'adversaire :
 
 1. **Le temple vide** : la caméra descend de la lune vers l'esplanade.
 2. **Un pétale passe devant l'objectif** : il traverse l'écran en tournant et le recouvre entièrement à mi-course, au moment de la coupe vers Moussa en pied, sur lequel la caméra s'approche.
 3. **Le gros plan**, après un éclair blanc, avec son nom qui glisse sur une bande rouge.
+4. **L'adversaire de dos face à la ville**, après une coupe en diagonale (une bande sombre bordée de rouge qui balaie l'écran).
+5. **L'adversaire de plus près**, en coupe franche.
+6. **L'adversaire qui se retourne avec un sourire**, après un éclair blanc, avec son carton venu de la droite. Il n'a pas encore de nom : le carton affiche « ??? ».
 
-Tout le mouvement est fait par le code : cadrage et zoom de chaque plan (`SHOTS`), lueur de la lune qui pulse, lanternes qui vacillent (positions repérées par le script), pluie, pétales, bandes noires de cinéma. Les durées sont dans `SHOTS` et `TIMELINE`.
+Tout le mouvement est fait par le code : cadrage et zoom de chaque plan (`SHOTS`), lueur de la lune qui pulse, lanternes qui vacillent (positions repérées par le script), pluie, pétales, bandes noires de cinéma. Chaque plan déclare dans `SHOTS` sa fin, son mouvement de caméra, sa transition d'arrivée (`enter`) et son éventuel carton de nom ; les durées des transitions et des annonces sont dans `TIMELINE`.
 
 Tant que les plans recouvrent l'écran, `StageEngine` ne dessine pas le stage. Ensuite, un éclair blanc ramène au stage, dont le travelling d'ouverture commence, et les annonces s'enchaînent par-dessus : « Face your destiny », « Round 1 », « Fight! ». Le personnage ne répond à aucune commande avant le « Fight! ». Le bouton « Passer » (ou Échap) saute les plans illustrés et mène directement aux annonces ; `StageEngine.onCinematic` prévient React pour l'afficher ou le masquer.
 
-« Réduire les mouvements » fixe la caméra sur le cadrage d'arrivée de chaque plan, remplace le pétale qui traverse par un fondu rose, adoucit les éclairs et supprime la secousse du « Fight! ».
+« Réduire les mouvements » fixe la caméra sur le cadrage d'arrivée de chaque plan, remplace le pétale qui traverse par un fondu rose et la coupe en diagonale par un fondu au noir, adoucit les éclairs et supprime la secousse du « Fight! ».
 
 ### La rafale de coups de pied
 

@@ -2,8 +2,9 @@
 
 Usage (depuis lab/) : python3 tools/prepare_cinematic.py [--debug dossier]
 Lit, dans art/ à la racine du dépôt, cinematic-temple.png (le temple vide), cinematic-hero.png (Moussa en pied
-devant le temple) et cinematic-closeup.png (gros plan), illustrations plein cadre d'environ 1670 x 941.
-Efface le logo des baskets du plan en pied, puis écrit les trois plans en WebP dans public/assets/cinematic/.
+devant le temple), cinematic-closeup.png (gros plan) et les trois cinematic-rival-*.png (l'adversaire de dos, de
+plus près, puis qui se retourne), illustrations plein cadre d'environ 1670 x 941.
+Efface le logo des baskets du plan en pied, puis écrit les six plans en WebP dans public/assets/cinematic/.
 Affiche aussi la position des lanternes de chaque plan, reprise à la main dans src/game/cinematic/CinematicLayer.ts.
 """
 import sys
@@ -52,7 +53,7 @@ def lanterns(rgb: np.ndarray) -> list:
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    for name in ['temple', 'hero', 'closeup']:
+    for name in ['temple', 'hero', 'closeup', 'rival-wide', 'rival-back', 'rival-turn']:
         rgb = np.asarray(Image.open(ART / f'cinematic-{name}.png').convert('RGB')).copy()
         if name in LOGOS:
             rgb = erase_logos(rgb, LOGOS[name])
