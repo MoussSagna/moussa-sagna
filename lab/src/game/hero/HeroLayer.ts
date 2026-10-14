@@ -182,22 +182,42 @@ const SPECIAL = {
 }
 
 /**
- * Seconde attaque spéciale : la frappe au sol. Il se baisse avec les trois premiers dessins de la sortie de fin de
- * round, pose la main au sol pour charger (`charge`), se redresse et frappe de la paume en avançant (`palm`), puis
- * revient. Les dessins dans l'ordre, avec leur durée en secondes. Le coup touche pendant les `active` premières
- * secondes de la frappe ; le corps avance de `advance` (fraction de la largeur de l'écran) en `advanceSeconds`.
- * `reach` et `height` : bout de la paume devant le point d'appui et hauteur, en pixels de la toile.
+ * Rafale de l'attaque spéciale : coups enchaînés très vite, dans un ordre tiré au hasard à chaque attaque (jamais
+ * deux fois le même de suite). `count` coups de `seconds` chacun ; chacun touche une fois, avec la hauteur de son
+ * coup dans l'enchaînement normal. `power` et `stop` : réaction de la cible et arrêt sur image, petits pour que la
+ * rafale reste fluide.
+ */
+const FLURRY = {
+  poses: ['punchHit', 'punchMidHit', 'punchHeavyHit', 'kickHit'] as PoseName[],
+  heights: { punchHit: 1010, punchMidHit: 960, punchHeavyHit: 1150, kickHit: 1220 } as Partial<Record<PoseName, number>>,
+  count: 12,
+  seconds: 0.085,
+  reach: 760,
+  power: 0.35,
+  stop: 0.03,
+}
+
+/**
+ * Seconde attaque spéciale. Il se baisse, se rue sur l'adversaire (`rush`, à `rushSpeed` largeurs d'écran par
+ * seconde, jusqu'à lui ou jusqu'au bord), enchaîne une rafale de coups (`FLURRY`), puis finit par la frappe au sol :
+ * main au sol pour charger (`charge`), redressement et frappe de la paume en avançant (`palm`), retour. Les dessins
+ * dans l'ordre, avec leur durée en secondes ; `flurry` : rang du coup de la rafale. La paume touche pendant les
+ * `active` premières secondes de la frappe ; le corps avance de `advance` (fraction de la largeur de l'écran) en
+ * `advanceSeconds`. `reach` et `height` : bout de la paume devant le point d'appui et hauteur, en pixels de la toile.
  */
 const GROUND = {
   steps: [
     { pose: 'exitLean', seconds: 0.07 },
-    { pose: 'exitCrouch', seconds: 0.07 },
+    { pose: 'exitCrouch', seconds: 0.08 },
+    { pose: 'dashForward', seconds: 0.28, rush: true },
+    ...Array.from({ length: FLURRY.count }, (_, flurry) => ({ pose: 'punchHit' as PoseName, seconds: FLURRY.seconds, flurry })),
     { pose: 'exitGround', seconds: 0.08 },
     { pose: 'groundCharge', seconds: 1.34, charge: true },
     { pose: 'groundRise', seconds: 0.07 },
     { pose: 'groundPalm', seconds: 0.42, palm: true },
     { pose: 'groundRise', seconds: 0.14 },
-  ] as { pose: PoseName; seconds: number; charge?: boolean; palm?: boolean }[],
+  ] as { pose: PoseName; seconds: number; charge?: boolean; palm?: boolean; rush?: boolean; flurry?: number }[],
+  rushSpeed: 2.2,
   active: 0.12,
   advance: 0.13,
   advanceSeconds: 0.24,
@@ -210,9 +230,10 @@ const GROUND = {
   hand: [585, 1235] as [number, number],
   palm: [985, 700] as [number, number],
 }
-const groundStart = (key: 'charge' | 'palm') => GROUND.steps.slice(0, GROUND.steps.findIndex((step) => step[key])).reduce((sum, step) => sum + step.seconds, 0)
+const groundStart = (key: 'charge' | 'palm' | 'rush') => GROUND.steps.slice(0, GROUND.steps.findIndex((step) => step[key])).reduce((sum, step) => sum + step.seconds, 0)
 const GROUND_CHARGE = groundStart('charge')
 const GROUND_PALM = groundStart('palm')
+const GROUND_RUSH = groundStart('rush')
 const GROUND_TOTAL = GROUND.steps.reduce((sum, step) => sum + step.seconds, 0)
 
 /**
@@ -432,6 +453,13 @@ export class HeroLayer {
   private groundImpact = false
   /** Position au début de la frappe au sol : le corps avance à partir d'elle pendant la frappe. */
   private groundFrom = PLACEMENT.x
+  /** Les coups de la rafale en cours, et le rang du dernier qui a touché. */
+  private flurry: PoseName[] = []
+  private flurryLanded = -1
+  /** Effets dessinés des coups de la rafale qui ont touché : point d'impact, hauteur, âge, rang du coup. */
+  private flurryFx: { x: number; height: number; age: number; index: number }[] = []
+  /** Position aux images précédentes de la ruée, pour ses images fantômes. */
+  private rushTrail: number[] = []
   /** Planche des effets de la frappe au sol, et le programme qui en dessine un morceau. */
   private fx: WebGLTexture | null = null
   private sprite: Program<(typeof SPRITE_UNIFORMS)[number]> | null = null
@@ -589,6 +617,13 @@ export class HeroLayer {
    */
   strike(pixel: number): Strike | null {
     if (this.pose === 'ground') {
+      // la rafale : chaque coup touche une fois
+      const step = this.groundStep()
+      if (step.flurry !== undefined) {
+        if (step.flurry === this.flurryLanded) return null
+        const pose = this.flurry[step.flurry]
+        return { x: this.x + FLURRY.reach * pixel, height: FLURRY.heights[pose] ?? 1000, power: FLURRY.power, stop: FLURRY.stop }
+      }
       const t = this.groundTime - GROUND_PALM
       if (t < 0 || t >= GROUND.active || this.groundLanded) return null
       return { x: this.x + GROUND.reach * pixel, height: GROUND.height, power: GROUND.power, stop: GROUND.stop }
@@ -604,7 +639,11 @@ export class HeroLayer {
    * `guarded` : le coup a été paré. L'enchaînement reste possible, comme sur un coup porté.
    */
   land(strike: Strike, x: number, guarded = false): void {
-    if (this.pose === 'ground') {
+    const flurry = this.pose === 'ground' ? this.groundStep().flurry : undefined
+    if (flurry !== undefined) {
+      this.flurryLanded = flurry
+      this.flurryFx.push({ x, height: strike.height, age: 0, index: flurry })
+    } else if (this.pose === 'ground') {
       // la frappe au sol explose sur la cible, en plus de l'étincelle
       this.groundLanded = true
       this.impacts.push({ x, height: strike.height, age: 0, power: 1, blast: true, guard: guarded, seed: strike.height })
@@ -659,6 +698,8 @@ export class HeroLayer {
   /** Fait vieillir les impacts. À appeler à chaque image avec le temps réel : ils continuent pendant l'arrêt sur image. */
   tick(delta: number): void {
     for (const impact of this.impacts) impact.age += delta
+    for (const fx of this.flurryFx) fx.age += delta
+    this.flurryFx = this.flurryFx.filter((fx) => fx.age < 0.22)
     this.impacts = this.impacts.filter((impact) => impact.age < (impact.blast ? IMPACT.blast : IMPACT.spark).seconds)
   }
 
@@ -792,12 +833,26 @@ export class HeroLayer {
     this.groundLanded = false
     this.cutInTaken = false
     this.groundFrom = this.x
+    this.flurryLanded = -1
+    this.rushTrail = []
+    // rafale : un coup au hasard à chaque fois, jamais deux fois le même de suite
+    this.flurry = []
+    for (let i = 0; i < FLURRY.count; i++) {
+      const choices = FLURRY.poses.filter((pose) => pose !== this.flurry[i - 1])
+      this.flurry.push(choices[Math.floor(Math.random() * choices.length)])
+    }
     this.sincePunch = Infinity
+  }
+
+  /** Le dessin à afficher pendant la frappe au sol : celui de l'étape, ou le coup tiré au hasard pendant la rafale. */
+  private groundPose(): PoseName {
+    const step = this.groundStep()
+    return step.flurry !== undefined ? (this.flurry[step.flurry] ?? step.pose) : step.pose
   }
 
   /** Vrai pendant la frappe au sol : le moteur assombrit alors le décor. */
   get superActive(): boolean {
-    return this.pose === 'ground'
+    return this.pose === 'ground' && this.groundTime >= GROUND_CHARGE - 0.08
   }
 
   /** Vrai une seule fois, quand la charge de la frappe au sol commence : c'est le moment du plan de coupe. */
@@ -962,10 +1017,21 @@ export class HeroLayer {
       if (this.fireball.x > 1.2) this.fireball = null
     }
     if (this.pose === 'ground') {
+      const before = this.groundTime
       this.groundTime += frame.delta
-      // pendant la frappe, il avance un peu, sans franchir le bord ni l'adversaire
-      const k = Math.max(0, Math.min(1, (this.groundTime - GROUND_PALM) / GROUND.advanceSeconds))
-      this.x = Math.max(PLACEMENT.minX, Math.min(this.limit(), this.groundFrom + GROUND.advance * (1 - (1 - k) ** 3)))
+      // la ruée : il fonce jusqu'à l'adversaire ou jusqu'au bord, en laissant des images fantômes
+      if (this.groundStep().rush) {
+        this.rushTrail = [this.x, ...this.rushTrail].slice(0, 6)
+        this.x = Math.max(PLACEMENT.minX, Math.min(this.limit(), this.x + GROUND.rushSpeed * frame.delta))
+      } else if (this.groundTime < GROUND_PALM) {
+        this.rushTrail = []
+      }
+      // pendant la frappe, il avance encore un peu, sans franchir le bord ni l'adversaire
+      if (before < GROUND_PALM && this.groundTime >= GROUND_PALM) this.groundFrom = this.x
+      if (this.groundTime >= GROUND_PALM) {
+        const k = Math.min(1, (this.groundTime - GROUND_PALM) / GROUND.advanceSeconds)
+        this.x = Math.max(PLACEMENT.minX, Math.min(this.limit(), this.groundFrom + GROUND.advance * (1 - (1 - k) ** 3)))
+      }
       if (this.groundTime < GROUND_TOTAL) return
       this.pose = 'guard'
     }
@@ -1076,7 +1142,7 @@ export class HeroLayer {
    * Effets de la frappe au sol. `front` : faux pour ceux qui passent derrière le personnage (l'énergie qui tourne
    * pendant la charge, les cailloux), vrai pour ceux de devant (l'onde et l'éclair de la paume, la poussière).
    */
-  private drawGround(gl: WebGLRenderingContext, frame: FrameInfo, left: number, top: number, w: number, h: number, calm: boolean, front: boolean): void {
+  private drawGround(gl: WebGLRenderingContext, frame: FrameInfo, left: number, top: number, w: number, h: number, calm: boolean, front: boolean, zoom = 1): void {
     const sprite = this.sprite
     if (!sprite || !this.fx) return
     gl.useProgram(sprite.program)
@@ -1120,6 +1186,17 @@ export class HeroLayer {
       // un second jaillissement de cailloux juste avant la frappe
       const late = charge - (GROUND_PALM - GROUND_CHARGE - 0.4)
       if (late > 0) draw(FX.rocks as FxRect, [hx, hy - 0.5 * (FX.rocks[3] / FX.rocks[2]) * 1000 * grow(late, 0.2) * uy], 1000 * (0.5 + 0.5 * grow(late, 0.2)), fade(late, 0.2, 0.5), true)
+    }
+    // chaque coup de la rafale qui touche : un éclair en étoile et une entaille au point d'impact, en alternance
+    if (front) {
+      const sx = left + GROUND_POINT[0] * ux
+      const sy = top + GROUND_POINT[1] * uy
+      for (const fx of this.flurryFx) {
+        const point: [number, number] = [sx + (fx.x - this.x) * zoom, sy - fx.height * uy]
+        const k = fx.age / 0.22
+        draw(FX.star as FxRect, point, 520 * (0.6 + 0.6 * grow(fx.age, 0.05)), 1 - k * k, fx.index % 2 === 1)
+        draw((fx.index % 2 ? FX.slash : FX.crescent) as FxRect, [point[0] - 60 * ux, point[1]], 560, (1 - k) * grow(fx.age, 0.03), fx.index % 3 === 0)
+      }
     }
     if (palm >= 0 && front) {
       const tip = at('groundPalm', GROUND.palm)
@@ -1216,7 +1293,7 @@ export class HeroLayer {
         : this.pose === 'punch'
           ? this.punchPose()
         : this.pose === 'ground'
-          ? this.groundStep().pose
+          ? this.groundPose()
         : this.pose === 'hurt'
           ? this.hurtTime < HURT.stun
             ? 'hurt'
@@ -1249,7 +1326,8 @@ export class HeroLayer {
                 : null
     const bends = BENDS[name]
     // traînée derrière le personnage : du côté opposé à sa course
-    const smear = this.pose === 'dash' && !calm ? this.dashing.direction * DASH.smear * this.dashSpeed() : 0
+    const rushing = this.pose === 'ground' && this.groundTime >= GROUND_RUSH && this.groundStep().rush
+    const smear = calm ? 0 : this.pose === 'dash' ? this.dashing.direction * DASH.smear * this.dashSpeed() : rushing ? DASH.smear * 0.8 : 0
 
     /** Dessine la pose affichée, ou `other` (une pose de même point d'appui et de même échelle, en un calque). */
     const drawLayers = (vx: number, vy: number, vz: number, vw: number, alpha = 1, raise = 0, other?: PoseName) => {
@@ -1326,6 +1404,15 @@ export class HeroLayer {
       }
     }
 
+    // pendant la ruée, des images fantômes à ses positions précédentes
+    if (this.pose === 'ground' && this.groundStep().rush && !calm) {
+      this.rushTrail.forEach((x, index) => {
+        if (index % 2 === 0) return
+        const shift = (x - this.x) * camera.zoom
+        drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * (left + shift) - 1, 1 - 2 * top, 0.35 / (1 + index * 0.5))
+      })
+    }
+
     // la frappe au sol : l'énergie qui tourne et les cailloux, derrière le personnage
     if (this.pose === 'ground') this.drawGround(gl, frame, left, top, w, h, calm, false)
 
@@ -1345,7 +1432,7 @@ export class HeroLayer {
     const unitY = (2 * h) / CANVAS[1]
 
     // la frappe au sol : l'onde, l'éclair de la paume et la poussière, devant le personnage
-    if (this.pose === 'ground') this.drawGround(gl, frame, left, top, w, h, calm, true)
+    if (this.pose === 'ground') this.drawGround(gl, frame, left, top, w, h, calm, true, camera.zoom)
 
     // la fumée et les cailloux du bond de sortie, devant lui
     if (this.pose === 'exit' && this.exitTime >= EXIT_CROUCH) this.drawSmoke(gl, flat, this.exitTime - EXIT_CROUCH, sx, sy, unitX / 2, unitY / 2, calm)
