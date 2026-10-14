@@ -15,4 +15,10 @@ export const STAGE_BACKGROUND_URL = `${base}assets/backgrounds/stage.webp`;
 export const STAGE_DEPTH_URL = `${base}assets/backgrounds/depth.png`;
 
 /** Atlas des poses de Moussa : public/assets/fighters/moussa/poses/ (2048 × 2048, WebP sans perte). */
+/**
+ * Plans de la cinématique d'entrée : public/assets/cinematic/ (environ 1670 × 941). Repris tels quels de
+ * `../lab/public/assets/cinematic/`, où `tools/prepare_cinematic.py` les prépare (logo des baskets effacé).
+ */
+export const cinematicShotUrl = (shot: string): string => `${base}assets/cinematic/${shot}.webp`;
+
 export const heroPoseUrl = (pose: string): string => `${base}assets/fighters/moussa/poses/${pose}.webp`;

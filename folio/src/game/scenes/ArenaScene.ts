@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
-import { STAGE_BACKGROUND_URL, STAGE_DEPTH_URL } from '../../assets';
+import { STAGE_BACKGROUND_URL, STAGE_DEPTH_URL, cinematicShotUrl } from '../../assets';
+import { CINEMATIC_TEXTS } from '../../data/cinematic';
+import { CINEMATIC_SHOTS, Cinematic } from '../cinematic/cinematic';
 import { CONTROLS } from '../controls';
 import { HeroAtlases } from '../hero/HeroAtlases';
 import { GROUND, HeroRig, feetOf, singleLayerPlacement } from '../hero/HeroRig';
@@ -35,6 +37,10 @@ const SHADOW_DEPTH = 2;
 const GHOST_DEPTH = 3;
 const HERO_DEPTH = 4;
 const WEATHER_DEPTH = 100;
+/** La cinématique d'entrée recouvre tout, météo comprise. */
+const CINEMATIC_DEPTH = 200;
+const CINEMATIC_KEY = 'arena-cinematic';
+const cinematicShotKey = (shot: string): string => `cinematic-${shot}`;
 
 const SHADOW_KEY = 'hero-shadow';
 
@@ -96,6 +102,10 @@ export class ArenaScene extends Phaser.Scene {
   private boltAt = -99;
   private calm = false;
   private motionQuery: MediaQueryList | null = null;
+  /** Cinématique d'entrée : son déroulé, et la texture et l'image où elle est recopiée à chaque image. */
+  private cinematic = new Cinematic(CINEMATIC_TEXTS);
+  private cinematicTexture: Phaser.Textures.CanvasTexture | null = null;
+  private cinematicImage: Phaser.GameObjects.Image | null = null;
 
   constructor() {
     super('ArenaScene');
@@ -110,6 +120,9 @@ export class ArenaScene extends Phaser.Scene {
     });
     this.load.image(BACKGROUND_KEY, STAGE_BACKGROUND_URL);
     this.load.image(DEPTH_KEY, STAGE_DEPTH_URL);
+    for (const shot of CINEMATIC_SHOTS) {
+      this.load.image(cinematicShotKey(shot), cinematicShotUrl(shot));
+    }
   }
 
   create(): void {
@@ -128,12 +141,16 @@ export class ArenaScene extends Phaser.Scene {
       this.addGroundLine();
     }
 
+    this.addCinematic();
+
     if (!webgl) {
       console.warn('[ArenaScene] WebGL indisponible : rendu Canvas utilisé en secours, décor fixe.');
     }
   }
 
   override update(_time: number, deltaMs: number): void {
+    // la cinématique suit le temps réel, même quand les images ralentissent
+    this.updateCinematic(Math.min(0.25, deltaMs / 1000));
     if (!this.stage || !this.weatherGraphics) {
       return;
     }
@@ -267,9 +284,66 @@ export class ArenaScene extends Phaser.Scene {
     this.registry.events.on(`changedata-${CONTROLS.attack}`, this.attack, this);
   }
 
-  /** Vrai si les images de cette action sont arrivées. */
+  /** Vrai si les images de cette action sont arrivées, et que la cinématique d'entrée laisse jouer. */
   private can(action: Action): boolean {
-    return this.hero?.atlases.has(...ACTION_POSES[action]) ?? false;
+    return !this.cinematic.locked && (this.hero?.atlases.has(...ACTION_POSES[action]) ?? false);
+  }
+
+  /**
+   * Cinématique d'entrée : elle se dessine en Canvas 2D dans une texture de la taille de la scène, affichée
+   * par-dessus tout. Elle démarre dès que ses plans sont chargés ; sans eux, l'arène s'ouvre directement.
+   */
+  private addCinematic(): void {
+    const { width, height } = this.scale;
+    const texture = this.textures.exists(CINEMATIC_KEY) ? null : this.textures.createCanvas(CINEMATIC_KEY, width, height);
+    if (!texture) {
+      return;
+    }
+    this.cinematicTexture = texture;
+    this.cinematicImage = this.add.image(0, 0, CINEMATIC_KEY).setOrigin(0).setDepth(CINEMATIC_DEPTH);
+    this.cinematic.setImages(
+      CINEMATIC_SHOTS.map((shot) => {
+        const key = cinematicShotKey(shot);
+        return this.textures.exists(key) ? (this.textures.get(key).getSourceImage() as HTMLImageElement) : null;
+      }),
+    );
+    void Cinematic.loadFonts();
+    this.cinematic.start();
+    this.registry.events.on(`changedata-${CONTROLS.skipCinematic}`, this.skipCinematic, this);
+    this.registry.events.on(`changedata-${CONTROLS.replayCinematic}`, this.replayCinematic, this);
+    window.addEventListener('keydown', this.onCinematicKey);
+  }
+
+  private skipCinematic(): void {
+    this.cinematic.skip();
+  }
+
+  private replayCinematic(): void {
+    this.cinematic.start();
+  }
+
+  /** Échap passe les plans de la cinématique. */
+  private onCinematicKey = (event: KeyboardEvent): void => {
+    if (event.key === 'Escape' && this.cinematic.covering) {
+      this.cinematic.skip();
+    }
+  };
+
+  /** Fait avancer la cinématique et recopie son dessin dans la texture ; une dernière fois pour l'effacer à la fin. */
+  private updateCinematic(delta: number): void {
+    const texture = this.cinematicTexture;
+    if (!texture || !this.cinematicImage) {
+      return;
+    }
+    const wasPlaying = this.cinematic.playing;
+    this.cinematic.update(delta);
+    const playing = this.cinematic.playing;
+    this.cinematicImage.setVisible(playing);
+    if (!playing && !wasPlaying) {
+      return;
+    }
+    this.cinematic.draw(texture.getContext(), { time: this.clock, delta, width: texture.width, height: texture.height }, this.calm);
+    texture.refresh();
   }
 
   /** Les boutons de l'interface passent par le registre : un passage à 1 ou -1 est un appui. */
@@ -301,6 +375,9 @@ export class ArenaScene extends Phaser.Scene {
 
   /** Déplacement demandé : le clavier d'abord, sinon les boutons de l'interface. */
   private walkDirection(): number {
+    if (this.cinematic.locked) {
+      return 0;
+    }
     const direction = this.keyboard?.direction ?? 0;
     if (direction !== 0) {
       return direction;
@@ -388,6 +465,9 @@ export class ArenaScene extends Phaser.Scene {
     this.registry.events.off(`changedata-${CONTROLS.walk}`, this.onWalkButton, this);
     this.registry.events.off(`changedata-${CONTROLS.jump}`, this.jump, this);
     this.registry.events.off(`changedata-${CONTROLS.attack}`, this.attack, this);
+    this.registry.events.off(`changedata-${CONTROLS.skipCinematic}`, this.skipCinematic, this);
+    this.registry.events.off(`changedata-${CONTROLS.replayCinematic}`, this.replayCinematic, this);
+    window.removeEventListener('keydown', this.onCinematicKey);
     this.keyboard?.destroy();
     this.keyboard = null;
     this.atlases?.close();
