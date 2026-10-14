@@ -425,6 +425,8 @@ export class HeroLayer {
   /** Temps écoulé depuis le début de la frappe au sol, et vrai dès qu'elle a touché. */
   private groundTime = 0
   private groundLanded = false
+  /** Vrai dès que le plan de coupe de la frappe au sol en cours a été lancé. */
+  private cutInTaken = false
   /** Position au début de la frappe au sol : le corps avance à partir d'elle pendant la frappe. */
   private groundFrom = PLACEMENT.x
   /** Planche des effets de la frappe au sol, et le programme qui en dessine un morceau. */
@@ -781,8 +783,21 @@ export class HeroLayer {
     this.pose = 'ground'
     this.groundTime = 0
     this.groundLanded = false
+    this.cutInTaken = false
     this.groundFrom = this.x
     this.sincePunch = Infinity
+  }
+
+  /** Vrai pendant la frappe au sol : le moteur assombrit alors le décor. */
+  get superActive(): boolean {
+    return this.pose === 'ground'
+  }
+
+  /** Vrai une seule fois, quand la charge de la frappe au sol commence : c'est le moment du plan de coupe. */
+  takeCutIn(): boolean {
+    if (this.pose !== 'ground' || this.cutInTaken || this.groundTime < GROUND_CHARGE) return false
+    this.cutInTaken = true
+    return true
   }
 
   /** Le dessin en cours de la frappe au sol. */

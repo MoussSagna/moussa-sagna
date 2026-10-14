@@ -98,6 +98,12 @@ const TIMELINE = {
 }
 /** Annonce « K.O. » : début et fin, en secondes depuis le K.O. du personnage au sol. */
 const KO_ANNOUNCE: [number, number] = [0, 1.7]
+/**
+ * Plan de coupe de la frappe au sol : un gros plan de Moussa qui charge, dans une bande inclinée qui s'ouvre au
+ * milieu de l'écran, pendant que le combat est figé. Durée, et temps d'ouverture et de fermeture de la bande.
+ */
+export const CUT_IN_SECONDS = 1.05
+const CUT_IN = { file: 'cinematic/cutin.webp', open: 0.14, close: 0.16, height: 0.6, pan: 0.05 }
 const SHOTS_END = SHOTS[SHOTS.length - 1].end
 /** Instant à partir duquel le personnage peut jouer, et fin de la cinématique. */
 export const CINEMATIC_FIGHT_AT = TIMELINE.fight[0]
@@ -134,6 +140,11 @@ export class CinematicLayer {
   private time = -1
   /** Temps écoulé depuis l'annonce « K.O. », ou -1 quand elle n'est pas affichée. */
   private koTime = -1
+  /** Temps écoulé depuis le début du plan de coupe, ou -1 quand il n'est pas affiché. */
+  private cutInTime = -1
+  private cutInImage: HTMLImageElement | null = null
+  /** Traits de vitesse du plan de coupe : hauteur dans la bande, longueur, vitesse. */
+  private streaks = Array.from({ length: 26 }, () => ({ y: Math.random(), length: 0.08 + Math.random() * 0.25, speed: 1.5 + Math.random() * 2.5, x: Math.random() }))
   /** Numéro du round annoncé. */
   private round = 1
   private drops = Array.from({ length: 220 }, () => ({ x: Math.random(), y: Math.random(), length: 0.03 + Math.random() * 0.05, speed: 1.6 + Math.random() * 1.2 }))
@@ -154,6 +165,7 @@ export class CinematicLayer {
   /** Charge les plans et les polices. Résout `false` si un plan manque : la cinématique ne jouera pas. */
   async load(): Promise<boolean> {
     this.images = await Promise.all(SHOTS.map((shot) => loadImage(asset(shot.file))))
+    this.cutInImage = await loadImage(asset(CUT_IN.file))
     try {
       await Promise.all([document.fonts.load(`100px ${DISPLAY_FONT}`), document.fonts.load(`600 40px ${BODY_FONT}`)])
     } catch {
@@ -189,12 +201,21 @@ export class CinematicLayer {
     return this.time >= 0 && this.time < CINEMATIC_FIGHT_AT
   }
 
+  /** Lance le plan de coupe de la frappe au sol. */
+  cutIn(): void {
+    if (this.cutInImage) this.cutInTime = 0
+  }
+
   /** Affiche « K.O. » par-dessus le stage, le temps de `KO_ANNOUNCE`. */
   showKO(): void {
     this.koTime = 0
   }
 
   update(delta: number): void {
+    if (this.cutInTime >= 0) {
+      this.cutInTime += delta
+      if (this.cutInTime >= CUT_IN_SECONDS) this.cutInTime = -1
+    }
     if (this.koTime >= 0) {
       this.koTime += delta
       if (this.koTime >= KO_ANNOUNCE[1]) this.koTime = -1
@@ -210,6 +231,7 @@ export class CinematicLayer {
     const { width: w, height: h } = frame
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, w, h)
+    if (this.cutInTime >= 0) this.drawCutIn(ctx, this.cutInTime, frame, calm)
     if (this.koTime >= 0) this.announce(ctx, this.koTime, KO_ANNOUNCE, 'K.O.', 0.3, RED, w, h, calm)
     const t = this.time
     if (t < 0) return
@@ -459,6 +481,70 @@ export class CinematicLayer {
     ctx.fillText(text, 0, 0)
     ctx.restore()
     if (fight && age < 0.15) this.flash(ctx, w, h, (1 - age / 0.15) * (calm ? 0.25 : 0.6))
+  }
+
+  /**
+   * Le plan de coupe : l'écran s'assombrit, une bande inclinée s'ouvre au milieu avec le gros plan de Moussa qui
+   * glisse lentement, des traits de vitesse et des bords rouges, puis elle se referme.
+   */
+  private drawCutIn(ctx: CanvasRenderingContext2D, t: number, frame: FrameInfo, calm: boolean): void {
+    const image = this.cutInImage
+    if (!image) return
+    const { width: w, height: h, delta } = frame
+    const opening = easeOut(clamp(t / CUT_IN.open))
+    const closing = clamp((t - (CUT_IN_SECONDS - CUT_IN.close)) / CUT_IN.close)
+    const size = opening * (1 - closing * closing)
+    ctx.fillStyle = `rgba(0, 0, 0, ${0.6 * (1 - closing)})`
+    ctx.fillRect(0, 0, w, h)
+    if (size <= 0) return
+    const half = (h * CUT_IN.height * size) / 2
+    const lean = h * 0.12
+    const band = () => {
+      ctx.beginPath()
+      ctx.moveTo(0, h / 2 - half + lean)
+      ctx.lineTo(w, h / 2 - half - lean)
+      ctx.lineTo(w, h / 2 + half - lean)
+      ctx.lineTo(0, h / 2 + half + lean)
+      ctx.closePath()
+    }
+    ctx.save()
+    band()
+    ctx.clip()
+    const fill = ctx.createLinearGradient(0, 0, w, 0)
+    fill.addColorStop(0, '#2a0306')
+    fill.addColorStop(0.55, '#7a0a10')
+    fill.addColorStop(1, '#1a0204')
+    ctx.fillStyle = fill
+    ctx.fillRect(0, 0, w, h)
+    // traits de vitesse qui filent vers la gauche, derrière le personnage
+    ctx.strokeStyle = 'rgba(255, 190, 190, 0.35)'
+    ctx.lineWidth = Math.max(1, h / 400)
+    ctx.beginPath()
+    for (const streak of this.streaks) {
+      if (!calm) streak.x -= streak.speed * delta
+      if (streak.x < -streak.length) streak.x += 1 + streak.length
+      const y = h / 2 + (streak.y - 0.5) * h * CUT_IN.height * 1.4
+      ctx.moveTo(streak.x * w, y)
+      ctx.lineTo((streak.x + streak.length) * w, y)
+    }
+    ctx.stroke()
+    // le gros plan couvre la bande et glisse lentement vers la gauche
+    const scale = Math.max(w / image.width, (h * CUT_IN.height * 1.25) / image.height) * 1.08
+    const pan = calm ? 0 : CUT_IN.pan * (0.5 - t / CUT_IN_SECONDS)
+    ctx.drawImage(image, w / 2 - (image.width * scale) / 2 + pan * w, h / 2 - (image.height * scale) / 2, image.width * scale, image.height * scale)
+    ctx.restore()
+    // bords de la bande : un trait rouge et un trait blanc
+    ctx.save()
+    band()
+    ctx.lineWidth = h * 0.012
+    ctx.strokeStyle = RED
+    ctx.stroke()
+    ctx.lineWidth = h * 0.004
+    ctx.strokeStyle = '#fff'
+    ctx.stroke()
+    ctx.restore()
+    // éclair à l'ouverture
+    if (t < 0.1) this.flash(ctx, w, h, (1 - t / 0.1) * (calm ? 0.25 : 0.7))
   }
 
   private flash(ctx: CanvasRenderingContext2D, w: number, h: number, alpha: number, rgb = '255, 255, 255'): void {

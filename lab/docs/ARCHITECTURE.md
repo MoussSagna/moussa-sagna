@@ -177,6 +177,8 @@ Quand la fumée est retombée (`exitDone`), le moteur ramène le personnage en g
 
 Seconde attaque spéciale (`HeroLayer.groundSpecial()`, touche I ou bouton « Spécial 2 »), depuis la garde ou la marche. Elle remplace la rafale de coups de pied. Le personnage se baisse avec les trois premiers dessins de la sortie de fin de round, pose la main au sol pour charger, se redresse et frappe de la paume en avançant un peu, puis revient (`GROUND.steps`). Le coup touche une fois, au début de la frappe ; le corps avance de `GROUND.advance` sans franchir le bord ni l'adversaire.
 
+Pendant toute la frappe, le décor, l'adversaire et la météo sont assombris par un filtre CSS (`StageEngine.dimmed`) : seul le personnage reste éclairé. Quand la charge commence, le combat se fige le temps d'un plan de coupe (`CinematicLayer.cutIn`, `CUT_IN_SECONDS`) : une bande inclinée s'ouvre au milieu de l'écran sur un gros plan de Moussa qui charge (`../art/cinematic-cutin.png`, détouré par `tools/prepare_cinematic.py`), qui glisse lentement devant des traits de vitesse, puis se referme et la frappe part.
+
 Les effets sont des morceaux d'une planche dessinée (`../art/fx-ground-special.png`, rectangles dans `FX`), dessinés par un petit programme qui lit un rectangle de la texture (`SPRITE_FRAGMENT`) : pendant la charge, un anneau d'énergie rouge derrière le personnage et des cailloux arrachés sous sa main ; à la frappe, une onde en croissant et un éclair devant la paume, de la poussière derrière lui. L'énergie clignote entre le dessin et son miroir. « Réduire les mouvements » arrête le clignotement et atténue les effets.
 
 ### Le mannequin

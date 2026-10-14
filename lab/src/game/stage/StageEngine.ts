@@ -1,4 +1,4 @@
-import { CinematicLayer } from '../cinematic/CinematicLayer'
+import { CUT_IN_SECONDS, CinematicLayer } from '../cinematic/CinematicLayer'
 import { DummyLayer } from '../dummy/DummyLayer'
 import { HeroLayer, PLACEMENT } from '../hero/HeroLayer'
 import type { Strike } from '../hero/HeroLayer'
@@ -60,6 +60,8 @@ export class StageEngine {
   private shake = 0
   private weather: WeatherLayer
   private canvases: HTMLCanvasElement[]
+  /** Plans assombris pendant la frappe au sol. */
+  private dimmed: HTMLCanvasElement[]
   private raf = 0
   private start = performance.now()
   private last = 0
@@ -78,6 +80,8 @@ export class StageEngine {
     this.hero = new HeroLayer(canvases.hero)
     this.weather = new WeatherLayer(canvases.weather)
     this.cinematic = new CinematicLayer(canvases.cinematic)
+    this.dimmed = [canvases.backdrop, canvases.dummy, canvases.rival, canvases.weather]
+    for (const canvas of this.dimmed) canvas.style.transition = 'filter 0.15s'
     this.canvases = [canvases.backdrop, canvases.dummy, canvases.rival, canvases.hero, canvases.weather, canvases.cinematic]
   }
 
@@ -280,6 +284,16 @@ export class StageEngine {
     const target = this.opponent()
     target.update(fight)
     this.hero.tick(delta)
+    // frappe au sol : quand la charge commence, le combat se fige le temps du plan de coupe
+    if (this.hero.takeCutIn()) {
+      this.cinematic.cutIn()
+      this.stop = CUT_IN_SECONDS
+    }
+    // et tant qu'elle dure, le décor, l'adversaire et la météo sont assombris : seul le personnage reste éclairé
+    const dim = this.hero.superActive ? 'brightness(0.35) saturate(0.7)' : ''
+    for (const canvas of this.dimmed) {
+      if (canvas.style.filter !== dim) canvas.style.filter = dim
+    }
     if (this.hero.koLanded && !this.koAnnounced) {
       // il touche le sol : la caméra tremble et « K.O. » s'affiche
       this.koAnnounced = true
