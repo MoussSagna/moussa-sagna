@@ -25,8 +25,10 @@ interface Props {
   attack: number
   /** Change de valeur à chaque attaque spéciale demandée. */
   special: number
-  /** Change de valeur à chaque seconde attaque spéciale (rafale de coups de pied) demandée. */
-  kicks: number
+  /** Change de valeur à chaque seconde attaque spéciale (frappe au sol) demandée. */
+  special2: number
+  /** Change de valeur à chaque K.O. demandé (le personnage perd le round). */
+  knockOut: number
   /** Change de valeur à chaque fin de round demandée. */
   endRound: number
   /** Change de valeur à chaque attaque demandée au mannequin. */
@@ -35,7 +37,7 @@ interface Props {
 }
 
 /** L'écran du stage : décor animé, personnage en garde, météo et carton de titre. */
-export function StageScreen({ options, introKey, walk, crouch, block, dash, jump, attack, special, kicks, endRound, dummyAttack, onUnavailable }: Props) {
+export function StageScreen({ options, introKey, walk, crouch, block, dash, jump, attack, special, special2, knockOut, endRound, dummyAttack, onUnavailable }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLCanvasElement>(null)
   const dummy = useRef<HTMLCanvasElement>(null)
@@ -106,8 +108,12 @@ export function StageScreen({ options, introKey, walk, crouch, block, dash, jump
   }, [special])
 
   useEffect(() => {
-    if (kicks > 0) engine.current?.kicks()
-  }, [kicks])
+    if (special2 > 0) engine.current?.groundSpecial()
+  }, [special2])
+
+  useEffect(() => {
+    if (knockOut > 0) engine.current?.knockOut()
+  }, [knockOut])
 
   useEffect(() => {
     if (endRound > 0) engine.current?.endRound()

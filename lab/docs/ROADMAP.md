@@ -18,9 +18,12 @@
 - [x] Adversaire : parade, tenue par une case à cocher pour tester les coups parés.
 - [x] Adversaire : coup encaissé en deux dessins.
 - [ ] Adversaire : marche, coup, recul quand il encaisse, puis un comportement.
-- [x] Seconde attaque spéciale : rafale de coups de pied en trois dessins qui défilent, images fantômes, coups multiples (à juger en mouvement).
+- [x] Seconde attaque spéciale : mise au point figée sur le personnage, ruée, rafale de dix coups au hasard et trois coups lourds, un effet à chaque impact, puis frappe au sol, avec décor assombri, plan de coupe sur le gros plan de Moussa et effets dessinés (remplace la rafale de coups de pied) (à juger en mouvement).
 - [x] Cinématique d'entrée en six plans (temple, Moussa en pied, gros plan, puis l'adversaire en trois plans) avec transition par un pétale, puis « Face your destiny », « Round 1 », « Fight! » ; on peut la passer (à juger en mouvement).
 - [x] Fin de round : il se baisse et disparaît d'un bond dans la fumée, puis « Round 2 » (à juger en mouvement).
+- [x] Coup de pied en quatrième coup de l'enchaînement, après le coup fort (à juger en mouvement).
+- [x] K.O. du personnage : quatre dessins, fumée à la chute, « K.O. », puis round suivant (à juger en mouvement).
+- [x] Sauts avant et arrière : le saut vertical, avec un déplacement en vol et le corps incliné dans le sens du saut (à juger en mouvement).
 - [x] Enchaînement seulement si le coup touche, et annulation de la récupération d'un coup par l'attaque spéciale.
 - [x] Un seul atlas lié à la fois : plus de limite au nombre de poses.
 - [x] Logos de marque effacés sur les baskets de la garde et de la marche.

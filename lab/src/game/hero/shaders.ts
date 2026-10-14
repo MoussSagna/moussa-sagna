@@ -95,3 +95,8 @@ void main(){
   vec3 col=uTint*(i*1.3+ring)+uGlow*pow(i,1.8)+vec3(1.)*(pow(i,3.)+core);
   gl_FragColor=vec4(col,min(1.,i*.8+core+ring*.5))*uPower;
 }`
+
+// Un morceau d'une planche d'images (les effets de la frappe au sol) : uUv donne son rectangle dans la texture.
+export const SPRITE_FRAGMENT = `precision mediump float;
+varying vec2 v; uniform sampler2D uTex; uniform vec4 uUv; uniform float uAlpha;
+void main(){ gl_FragColor=texture2D(uTex,uUv.xy+v*uUv.zw)*uAlpha; }`

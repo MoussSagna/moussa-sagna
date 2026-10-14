@@ -59,7 +59,9 @@ Le personnage est fait de vingt-neuf illustrations dans la même vue (trois quar
 | `punchStart` | `../art/hero-punch-start.png` | coup de poing léger : bras à mi-course, au démarrage et au retour |
 | `punchHit` | `../art/hero-punch-hit.png` | coup de poing léger : bras tendu |
 | `specialCharge`, `specialThrow`, `specialRecover` | `../art/hero-special-*.png` | attaque spéciale : charge à la hanche, lancer à deux mains, retour |
-| `kicksHigh`, `kicksMid`, `kicksLow` | `../art/hero-kicks-*.png` | rafale de coups de pied : la même pose, jambe tendue en haut, au milieu et en bas |
+| `koStagger`, `koFall`, `koAir`, `koDown` | `../art/hero-ko-*.png` | K.O. : il titube, bascule, est projeté en l'air, puis reste au sol |
+| `groundCharge`, `groundRise`, `groundPalm` | `../art/hero-ground-*.png` | frappe au sol : main au sol, redressement, paume tendue |
+| `kickStart`, `kickHit` | `../art/hero-kick-*.png` | coup de pied, quatrième coup de l'enchaînement : genou armé (démarrage et retour), jambe tendue |
 | `exitLean`, `exitCrouch`, `exitGround`, `exitSpring` | `../art/hero-exit-*.png` | sortie de fin de round : il se penche, s'accroupit, pose la main au sol, prêt à bondir |
 | `hurt`, `hurtRecover` | `../art/hero-hurt.png`, `../art/hero-hurt-recover.png` | coup encaissé : tête projetée en arrière, puis retour |
 | `specialIn1`, `specialIn2`, `specialIn3` | `../art/hero-special-in-*.png` | attaque spéciale : dessins intermédiaires avant la charge, avant le lancer et avant le retour |
@@ -107,6 +109,8 @@ Il n'y a pas encore d'adversaire : la parade se déclenche à la main, avec Espa
 La hauteur est calculée par le moteur : une montée (`JUMP.rise`) puis une retombée plus courte (`JUMP.fall`), deux demi-paraboles qui se rejoignent au sommet. Le dessin regroupé couvre presque tout le vol (la montée en extension ne dure que le tout début) et il est déformé en continu autour des pieds : tassé pendant l'impulsion, étiré à pleine vitesse, à sa forme au sommet, écrasé à la réception. C'est cette déformation, et non le changement de dessin, qui donne le mouvement ; « Réduire les mouvements » l'atténue. Pendant le vol, l'ombre rétrécit et le reflet s'éloigne des pieds en s'estompant. Le saut ne peut pas être dirigé ni interrompu.
 
 `App.tsx` le déclenche avec la flèche haut, Z (W sur un clavier QWERTY) ou le bouton « Sauter ».
+
+**Sauts avant et arrière** : une direction tenue au moment de l'appui sur saut (`StageEngine.jump` transmet `walk`) donne un saut avant ou arrière. Ce sont les mêmes dessins et la même trajectoire verticale ; le corps avance à vitesse constante pendant tout le vol (`JUMP.forward`, `JUMP.back`), sans franchir le bord du stage ni l'adversaire, et s'incline dans le sens du saut, au plus fort en milieu de vol (`JUMP.lean`, `jumpMatrix`).
 
 ### Les coups de poing
 
@@ -157,19 +161,25 @@ Tant que les plans recouvrent l'écran, `StageEngine` ne dessine pas le stage. E
 
 « Réduire les mouvements » fixe la caméra sur le cadrage d'arrivée de chaque plan, remplace le pétale qui traverse par un fondu rose et la coupe en diagonale par un fondu au noir, adoucit les éclairs et supprime la secousse du « Fight! ».
 
+### Le K.O.
+
+`StageEngine.knockOut()` (touche O ou bouton « K.O. ») met le personnage hors de combat, pour tester sa défaite : arrêt sur image et secousse, puis `HeroLayer.knockOut()` enchaîne trois dessins (il titube, bascule en arrière, est projeté en l'air sur une courbe) en reculant, et le dessin au sol (`KO`). À la chute, la caméra tremble, de la fumée et des cailloux jaillissent (les mêmes que la fin de round, plus petits) et `CinematicLayer.showKO` affiche « K.O. ». Après `KO.total` secondes, il revient en garde et le round suivant est annoncé. Pendant le K.O., il ne peut être ni touché ni commandé.
+
+`../art/hero-ko-down.png` est l'illustration fournie, plus large que les autres : réduite à 0,85 et posée sur une toile de 1024 × 1536, ce que `POSE_SCALE` compense.
+
 ### La fin de round
 
 `StageEngine.endRound()` (touche P ou bouton « Fin du round ») lance `HeroLayer.exit()`. Le personnage enchaîne ses quatre dessins de sortie (`EXIT.steps`), puis bondit hors de l'écran par le haut avec le dessin du saut étiré et deux images fantômes. Au départ du bond, sept bouffées de fumée dessinées (`../art/fx-smoke.png`, découpées par `tools/prepare_fx.py`) surgissent au sol en grossissant, s'écartent, montent un peu et s'effacent (`SMOKE`), et des cailloux sont projetés en l'air (`PEBBLES`). Les bouffées sont dessinées avec le programme du reflet, chacune sur sa propre unité de texture à partir de `SMOKE_UNIT`.
 
 Quand la fumée est retombée (`exitDone`), le moteur ramène le personnage en garde à sa place de départ et `CinematicLayer.startRound` annonce « Round 2 » puis « Fight! » ; le personnage ne répond qu'au « Fight! ». Pendant la sortie, il ne peut pas être touché. « Réduire les mouvements » retire les images fantômes et les cailloux.
 
-### La rafale de coups de pied
+### La frappe au sol
 
-Seconde attaque spéciale (`HeroLayer.kicks()`, touche I ou bouton « Spécial 2 »), depuis la garde ou la marche. Après un court élan, jambe au milieu, les trois dessins de la jambe tendue défilent très vite (haut, milieu, bas, milieu…, `KICKS.frame` secondes chacun), puis le retour reprend la jambe basse. Les trois illustrations ne diffèrent que par la jambe : c'est ce qui permet de les faire alterner sans saccade, et ici l'alternance rapide est l'effet recherché.
+Seconde attaque spéciale (`HeroLayer.groundSpecial()`, touche I ou bouton « Spécial 2 »), depuis la garde ou la marche. Le personnage se baisse et pose la main au sol : le jeu se fige le temps d'une mise au point (`FOCUS_SECONDS`), où la caméra zoome et se recentre vers lui (`FOCUS` dans `StageEngine`, recentrage partiel pour ne pas déformer le décor), le décor s'assombrit et des traits de vitesse convergent vers lui sur un vignettage rouge (`CinematicLayer.focus`). Puis il se rue sur l'adversaire avec le dessin du dash avant, une traînée et des images fantômes (`GROUND.rushSpeed`), puis enchaîne une rafale de dix coups très rapides (`FLURRY`) : direct léger, moyen, uppercut et coup de pied, dans un ordre tiré au hasard à chaque attaque, sans répéter deux fois le même de suite. Elle se termine par trois coups plus lents et plus lourds, toujours les mêmes (`HEAVY` : direct, uppercut, coup de pied), qui explosent sur la cible et font trembler l'écran. Chaque coup touche une fois, avec son étincelle, une étoile et une entaille dessinées au point d'impact, un court arrêt sur image et une petite secousse. Il finit par la frappe au sol : il pose la main au sol pour charger, se redresse et frappe de la paume en avançant encore un peu, puis revient (`GROUND.steps`). La paume touche une fois ; le corps avance de `GROUND.advance` sans franchir le bord ni l'adversaire.
 
-L'effet de vitesse est fait par le moteur : derrière la jambe affichée, les deux dessins précédents de la rafale restent visibles en transparence (`KICKS.ghosts`). Comme le corps est identique dans les trois dessins, seule la jambe se dédouble. « Réduire les mouvements » retire ces images fantômes.
+À partir de la charge, le décor, l'adversaire et la météo sont assombris par un filtre CSS (`StageEngine.dimmed`) : seul le personnage reste éclairé. Quand la charge commence, le combat se fige le temps d'un plan de coupe (`CinematicLayer.cutIn`, `CUT_IN_SECONDS`) : une bande inclinée s'ouvre au milieu de l'écran sur un gros plan de Moussa qui charge (`../art/cinematic-cutin.png`, détouré par `tools/prepare_cinematic.py`), qui glisse lentement devant des traits de vitesse, puis se referme et la frappe part.
 
-Pendant la rafale, un coup part toutes les `KICKS.interval` secondes tant que la cible est à portée, chacun avec son étincelle, à la hauteur du pied du dessin affiché, et un arrêt sur image très court.
+Les effets sont des morceaux d'une planche dessinée (`../art/fx-ground-special.png`, rectangles dans `FX`), dessinés par un petit programme qui lit un rectangle de la texture (`SPRITE_FRAGMENT`) : pendant la charge, un anneau d'énergie rouge derrière le personnage et des cailloux arrachés sous sa main ; à la frappe, une onde en croissant et un éclair devant la paume, de la poussière derrière lui. L'anneau bat comme un cœur tant que la charge dure, et un second jaillissement de cailloux précède la frappe. À l'impact, la frappe explose sur la cible (en plus de l'étincelle), l'écran flashe en blanc puis en rouge (`CinematicLayer.impactFlash`), l'arrêt sur image est long et la secousse plus forte que pour un coup normal (`GROUND.power` au-delà de 1). L'énergie clignote entre le dessin et son miroir. « Réduire les mouvements » arrête le clignotement et atténue les effets.
 
 ### Le mannequin
 

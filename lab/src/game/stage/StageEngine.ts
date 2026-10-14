@@ -1,4 +1,4 @@
-import { CinematicLayer } from '../cinematic/CinematicLayer'
+import { CUT_IN_SECONDS, FOCUS_SECONDS, CinematicLayer } from '../cinematic/CinematicLayer'
 import { DummyLayer } from '../dummy/DummyLayer'
 import { HeroLayer, PLACEMENT } from '../hero/HeroLayer'
 import type { Strike } from '../hero/HeroLayer'
@@ -23,6 +23,12 @@ export interface StageCanvases {
 const INTRO_MS = 3600
 /** Secousse de la caméra à l'impact : amplitude (fraction d'écran) pour un coup de pleine puissance, et vitesse d'extinction. */
 const SHAKE = { amplitude: 0.006, decay: 16 }
+/**
+ * Mise au point du début de l'attaque spéciale : la caméra zoome de `zoom` et se recentre vers le personnage
+ * (`pull` : part du chemin parcouru, pour ne pas montrer le bord du décor), le temps de `FOCUS_SECONDS`.
+ * `height` : hauteur visée, en fraction de l'écran (le haut du corps du personnage baissé).
+ */
+const FOCUS = { zoom: 0.38, pull: 0.45, height: 0.8, ease: 0.12 }
 
 /**
  * Orchestre l'écran du stage : une seule boucle, une seule caméra, six plans
@@ -43,9 +49,13 @@ export class StageEngine {
   private cinematic: CinematicLayer
   /** Vrai tant que les plans illustrés de la cinématique recouvrent le stage, à l'image précédente. */
   private covered = false
+  /** Temps écoulé depuis le début de la mise au point, ou -1. */
+  private focusTime = -1
   /** Round en cours, et vrai pendant la sortie de fin de round. */
   private round = 1
   private roundEnding = false
+  /** Vrai dès que « K.O. » a été annoncé pour le K.O. en cours. */
+  private koAnnounced = false
   private backdrop: StageBackdrop
   private dummy: DummyLayer
   private rival: RivalLayer
@@ -58,6 +68,8 @@ export class StageEngine {
   private shake = 0
   private weather: WeatherLayer
   private canvases: HTMLCanvasElement[]
+  /** Plans assombris pendant la frappe au sol. */
+  private dimmed: HTMLCanvasElement[]
   private raf = 0
   private start = performance.now()
   private last = 0
@@ -76,6 +88,8 @@ export class StageEngine {
     this.hero = new HeroLayer(canvases.hero)
     this.weather = new WeatherLayer(canvases.weather)
     this.cinematic = new CinematicLayer(canvases.cinematic)
+    this.dimmed = [canvases.backdrop, canvases.dummy, canvases.rival, canvases.weather]
+    for (const canvas of this.dimmed) canvas.style.transition = 'filter 0.15s'
     this.canvases = [canvases.backdrop, canvases.dummy, canvases.rival, canvases.hero, canvases.weather, canvases.cinematic]
   }
 
@@ -114,14 +128,15 @@ export class StageEngine {
     return this.options.opponent === 'rival' ? this.rival : this.dummy
   }
 
-  /** Lance la seconde attaque spéciale du personnage, la rafale de coups de pied. */
-  kicks(): void {
-    if (!this.cinematic.locked) this.hero.kicks()
+  /** Lance la seconde attaque spéciale du personnage, la frappe au sol. */
+  groundSpecial(): void {
+    if (!this.cinematic.locked) this.hero.groundSpecial()
   }
 
   /** Lance un saut vertical du personnage. */
   jump(): void {
-    if (!this.cinematic.locked) this.hero.jump()
+    // une direction tenue au moment du saut en fait un saut avant ou arrière
+    if (!this.cinematic.locked) this.hero.jump(this.walk)
   }
 
   /** Rejoue la cinématique d'entrée, puis le travelling d'ouverture du stage. */
@@ -131,6 +146,18 @@ export class StageEngine {
     this.round = 1
     if (this.roundEnding) this.hero.reenter()
     this.roundEnding = false
+  }
+
+  /**
+   * Le personnage perd le round : K.O. Il est projeté au sol, « K.O. » s'affiche, puis il se retrouve en garde et
+   * le round suivant est annoncé.
+   */
+  knockOut(): void {
+    if (this.cinematic.locked || this.roundEnding || this.hero.knockedOut) return
+    this.hero.knockOut()
+    this.koAnnounced = false
+    this.stop = 0.22 * (this.options.calm ? 0.5 : 1)
+    this.shake = 1
   }
 
   /**
@@ -198,7 +225,7 @@ export class StageEngine {
     }
     // son attaque : encaissée, ou parée si le personnage est en parade
     const blow = target.strike(pixel)
-    if (blow && !this.hero.exiting && this.hero.front(pixel) >= blow.x) {
+    if (blow && !this.hero.exiting && !this.hero.knockedOut && this.hero.front(pixel) >= blow.x) {
       target.land()
       const guarded = this.hero.takeHit(blow, pixel)
       this.stop = blow.stop * (guarded ? 0.5 : 1) * (calm ? 0.5 : 1)
@@ -229,6 +256,23 @@ export class StageEngine {
       ox: p.x * 0.02 + Math.sin(time * 0.21) * 0.007 * sway + (1 - settle) * 0.045 * sway,
       oy: p.y * 0.008 + Math.cos(time * 0.17) * 0.003 * sway,
       zoom: 1.045 + (1 - settle) * 0.13 * sway + Math.sin(time * 0.13) * 0.006 * sway,
+    }
+    // mise au point du début de l'attaque spéciale : zoom et recentrage sur le personnage, entrée et sortie adoucies
+    if (this.focusTime >= 0) {
+      this.focusTime += delta
+      if (this.focusTime >= FOCUS_SECONDS) this.focusTime = -1
+    }
+    if (this.focusTime >= 0 && !calm) {
+      const t = this.focusTime
+      const k = Math.min(1, t / FOCUS.ease) * Math.min(1, (FOCUS_SECONDS - t) / FOCUS.ease)
+      const e = k * k * (3 - 2 * k)
+      const zoom = camera.zoom + FOCUS.zoom * e
+      const depth = PLACEMENT.depth
+      const ox = (0.5 - this.hero.position) / depth
+      const oy = (0.5 + 0.05 / zoom - FOCUS.height) / depth
+      camera.zoom = zoom
+      camera.ox += (ox - camera.ox) * FOCUS.pull * e
+      camera.oy += (oy - camera.oy) * FOCUS.pull * e
     }
     // secousse d'impact : elle déplace tous les plans ensemble
     this.shake *= Math.exp(-delta * SHAKE.decay)
@@ -265,6 +309,38 @@ export class StageEngine {
     const target = this.opponent()
     target.update(fight)
     this.hero.tick(delta)
+    // frappe au sol : quand la charge commence, le combat se fige le temps du plan de coupe
+    if (this.hero.takeFocus()) {
+      // la main au sol : le jeu se fige, la caméra se resserre sur lui
+      this.cinematic.focus()
+      this.focusTime = 0
+      this.stop = FOCUS_SECONDS
+    }
+    if (this.hero.takeCutIn()) {
+      this.cinematic.cutIn()
+      this.stop = CUT_IN_SECONDS
+    }
+    // à l'impact : un éclair sur tout l'écran et une secousse plus forte que d'habitude
+    if (this.hero.takeGroundImpact()) {
+      this.cinematic.impactFlash()
+      this.shake = 2.2
+    }
+    // et tant qu'elle dure, le décor, l'adversaire et la météo sont assombris : seul le personnage reste éclairé
+    const dim = this.hero.superActive || this.focusTime >= 0 ? 'brightness(0.35) saturate(0.7)' : ''
+    for (const canvas of this.dimmed) {
+      if (canvas.style.filter !== dim) canvas.style.filter = dim
+    }
+    if (this.hero.koLanded && !this.koAnnounced) {
+      // il touche le sol : la caméra tremble et « K.O. » s'affiche
+      this.koAnnounced = true
+      this.shake = 1
+      this.cinematic.showKO()
+    }
+    if (this.hero.koDone) {
+      this.round += 1
+      this.hero.reenter()
+      this.cinematic.startRound(this.round)
+    }
     if (this.roundEnding && this.hero.exitDone) {
       this.roundEnding = false
       this.round += 1

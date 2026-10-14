@@ -3,7 +3,9 @@
 Usage (depuis lab/) : python3 tools/prepare_cinematic.py [--debug dossier]
 Lit, dans art/ à la racine du dépôt, cinematic-temple.png (le temple vide), cinematic-hero.png (Moussa en pied
 devant le temple), cinematic-closeup.png (gros plan) et les trois cinematic-rival-*.png (l'adversaire de dos, de
-plus près, puis qui se retourne), illustrations plein cadre d'environ 1670 x 941.
+plus près, puis qui se retourne), illustrations plein cadre d'environ 1670 x 941. Lit aussi cinematic-cutin.png
+(gros plan de Moussa qui charge, sur fond vert) : son fond est retiré et il est écrit en cutin.webp, avec sa
+transparence, pour le plan de coupe de la frappe au sol.
 Efface le logo des baskets du plan en pied, puis écrit les six plans en WebP dans public/assets/cinematic/.
 Affiche aussi la position des lanternes de chaque plan, reprise à la main dans src/game/cinematic/CinematicLayer.ts.
 """
@@ -63,6 +65,17 @@ def main() -> None:
         if DEBUG and name in LOGOS:
             DEBUG.mkdir(parents=True, exist_ok=True)
             Image.fromarray(rgb[790:860, 640:980]).resize((1360, 280), Image.NEAREST).save(DEBUG / f'{name}-baskets.png')
+    cut_in()
+
+
+def cut_in() -> None:
+    """Le gros plan du plan de coupe : fond vert retiré, transparence gardée."""
+    from prepare_poses import key_green
+    rgb = np.asarray(Image.open(ART / 'cinematic-cutin.png').convert('RGB')).copy()
+    art = key_green(rgb)
+    art[art[..., 3] == 0] = 0
+    Image.fromarray(art).save(OUT / 'cutin.webp', lossless=True, quality=100, method=6)
+    print(f'cutin : {art.shape[1]} x {art.shape[0]}, {(OUT / "cutin.webp").stat().st_size / 1024:.0f} Ko')
 
 
 if __name__ == '__main__':

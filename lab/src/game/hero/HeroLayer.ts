@@ -3,22 +3,23 @@ import type { Camera, FrameInfo } from '../types'
 import { CANVAS, POSES } from './poseData'
 import { BENDS, GAIT, WALK_SPEED, guardMatrices, heldMatrix, scaleAbout, walkMatrices } from './poseRig'
 import type { Affine } from './poseRig'
-import { FIRE_FRAGMENT, SPARK_FRAGMENT, FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from './shaders'
+import { FIRE_FRAGMENT, SPARK_FRAGMENT, SPRITE_FRAGMENT, FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from './shaders'
 
 const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas', 'uAtlasSize', 'uBend', 'uAxis', 'uAlpha', 'uSmear'] as const
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 const FIRE_UNIFORMS = ['uRect', 'uT', 'uPower', 'uTail', 'uWobble'] as const
 const lerpRange = ([a, b]: [number, number], k: number) => a + (b - a) * k
+const SPRITE_UNIFORMS = ['uRect', 'uTex', 'uUv', 'uAlpha'] as const
 const SPARK_UNIFORMS = ['uRect', 'uK', 'uSeed', 'uPower', 'uTint', 'uGlow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'kicksHigh', 'kicksMid', 'kicksLow', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring', 'kickStart', 'kickHit', 'groundCharge', 'groundRise', 'groundPalm', 'koStagger', 'koFall', 'koAir', 'koDown']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 export const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
 
 /** Point de la toile posé sur le sol : le milieu des appuis de la garde. Les autres poses s'y alignent. */
-const GROUND = POSES.guard.anchor
+const GROUND_POINT = POSES.guard.anchor
 /** Point de chaque pose posé sur ce point du sol, dans sa propre toile. */
 const FEET: Record<PoseName, [number, number]> = {
   guard: POSES.guard.anchor,
@@ -46,13 +47,19 @@ const FEET: Record<PoseName, [number, number]> = {
   specialThrow: POSES.specialThrow.anchor,
   specialRecover: POSES.specialRecover.anchor,
   hurt: POSES.hurt.anchor,
+  kickStart: POSES.kickStart.anchor,
+  kickHit: POSES.kickHit.anchor,
   exitLean: POSES.exitLean.anchor,
   exitCrouch: POSES.exitCrouch.anchor,
   exitGround: POSES.exitGround.anchor,
   exitSpring: POSES.exitSpring.anchor,
-  kicksHigh: POSES.kicksHigh.anchor,
-  kicksMid: POSES.kicksMid.anchor,
-  kicksLow: POSES.kicksLow.anchor,
+  koStagger: POSES.koStagger.anchor,
+  koFall: POSES.koFall.anchor,
+  koAir: POSES.koAir.anchor,
+  koDown: POSES.koDown.anchor,
+  groundCharge: POSES.groundCharge.anchor,
+  groundRise: POSES.groundRise.anchor,
+  groundPalm: POSES.groundPalm.anchor,
   hurtRecover: POSES.hurtRecover.anchor,
   punchChain1: POSES.punchChain1.anchor,
   punchChain2: POSES.punchChain2.anchor,
@@ -75,9 +82,14 @@ const POSE_SCALE: Record<PoseName, number> = {
   specialCharge: 1, specialThrow: 1.12, specialRecover: 1,
   specialIn1: 1, specialIn2: 1, specialIn3: 1,
   hurt: 1, hurtRecover: 1,
-  kicksHigh: 1.17, kicksMid: 1.17, kicksLow: 1.17,
+  // frappe au sol : mesuré sur la longueur des baskets
+  groundCharge: 1.27, groundRise: 1.27, groundPalm: 1.27,
+  // K.O. : mesuré sur la longueur des baskets ; le dessin au sol a été réduit à 0,85 pour tenir dans la toile
+  koStagger: 1.12, koFall: 1.1, koAir: 1.1, koDown: 1.3,
   // sortie de fin de round : mesuré sur la longueur de la basket avant
   exitLean: 0.965, exitCrouch: 0.965, exitGround: 0.965, exitSpring: 0.965,
+  // coup de pied : mesuré sur le visage (bandeau-menton), comme la rafale de coups de pied
+  kickStart: 1.07, kickHit: 1.12,
 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
@@ -103,6 +115,13 @@ const JUMP = {
   /** Déformation du dessin : tassement à l'impulsion et à la réception, étirement à pleine vitesse. */
   squash: 0.09,
   stretch: 0.07,
+  /**
+   * Sauts avant et arrière : distance parcourue en vol (fraction de la largeur de l'écran) et inclinaison du
+   * corps dans le sens du saut (pixels de décalage en haut du corps). Le saut arrière va moins loin.
+   */
+  forward: 0.17,
+  back: 0.13,
+  lean: 55,
 }
 
 /**
@@ -112,13 +131,14 @@ const JUMP = {
  * `power` (de 0 à 1) règle la réaction de la cible et la taille de l'étincelle, `stop` est la durée de
  * l'arrêt sur image, en secondes.
  * Chaque coup a ses dessins par phase ; le démarrage peut en avoir plusieurs, qui se partagent sa durée.
- * Le léger réutilise son dessin de démarrage pour la récupération. Le fort est un uppercut du bras avant. Le moyen ne s'obtient qu'en enchaînant
+ * Le léger réutilise son dessin de démarrage pour la récupération. Le fort est un uppercut du bras avant. Le coup de pied (`kick`), quatrième et dernier coup de l'enchaînement, part après le fort. Le moyen ne s'obtient qu'en enchaînant
  * après le léger : son démarrage est fait des deux dessins de transition entre le jab et le direct.
  */
 const PUNCHES = {
   light: { startup: 4 / 60, active: 3 / 60, recovery: 7 / 60, reach: 580, height: 1010, power: 0.35, stop: 0.06, start: ['punchStart'], hit: 'punchHit', recover: 'punchStart' },
   medium: { startup: 6 / 60, active: 4 / 60, recovery: 11 / 60, reach: 560, height: 960, power: 0.6, stop: 0.09, start: ['punchChain1', 'punchChain2'], hit: 'punchMidHit', recover: 'punchMidRecover' },
   heavy: { startup: 11 / 60, active: 6 / 60, recovery: 20 / 60, reach: 480, height: 1150, power: 1, stop: 0.15, start: ['punchHeavyStart'], hit: 'punchHeavyHit', recover: 'punchHeavyRecover' },
+  kick: { startup: 6 / 60, active: 4 / 60, recovery: 11 / 60, reach: 700, height: 1220, power: 1, stop: 0.17, start: ['kickStart'], hit: 'kickHit', recover: 'kickStart' },
 } satisfies Record<string, { startup: number; active: number; recovery: number; reach: number; height: number; power: number; stop: number; start: PoseName[]; hit: PoseName; recover: PoseName }>
 export type PunchStrength = keyof typeof PUNCHES
 
@@ -129,7 +149,7 @@ export type PunchStrength = keyof typeof PUNCHES
  * Annulation : de la même façon, la touche d'attaque spéciale pressée pendant un coup qui touche remplace
  * sa récupération par l'attaque spéciale.
  */
-const CHAIN: Partial<Record<PunchStrength, PunchStrength>> = { light: 'medium', medium: 'heavy' }
+const CHAIN: Partial<Record<PunchStrength, PunchStrength>> = { light: 'medium', medium: 'heavy', heavy: 'kick' }
 /**
  * Délai de grâce, en secondes : après la fin d'un coup, un appui pendant ce délai lance encore le coup
  * suivant au lieu de recommencer au premier. Sans lui, il faudrait appuyer pendant le quart de seconde du coup.
@@ -162,30 +182,92 @@ const SPECIAL = {
 }
 
 /**
- * Seconde attaque spéciale : une rafale de coups de pied. Durées en secondes. Après un instant d'élan
- * (`startup`, jambe au milieu), les trois dessins de la jambe tendue défilent très vite dans l'ordre de
- * `cycle`, `frame` secondes chacun, pendant `active` secondes ; le retour (`recovery`) reprend la jambe basse.
- * Pendant la rafale, un coup part toutes les `interval` secondes, tant qu'il y a une cible à portée.
- * `reach` : portée devant le point d'appui, `heights` : hauteur du pied de chaque dessin, en pixels de la toile.
- * `ghosts` : dessins précédents laissés derrière la jambe (rang dans la rafale, opacité), pour l'effet de vitesse.
+ * Rafale de l'attaque spéciale : coups enchaînés très vite, dans un ordre tiré au hasard à chaque attaque (jamais
+ * deux fois le même de suite). `count` coups de `seconds` chacun ; chacun touche une fois, avec la hauteur de son
+ * coup dans l'enchaînement normal. `power` et `stop` : réaction de la cible et arrêt sur image, petits pour que la
+ * rafale reste fluide.
  */
-const KICKS = {
-  startup: 0.09,
-  active: 0.84,
-  recovery: 0.16,
-  cycle: ['kicksHigh', 'kicksMid', 'kicksLow', 'kicksMid'] as PoseName[],
-  frame: 0.035,
-  interval: 0.11,
-  reach: 520,
-  heights: { kicksHigh: 1290, kicksMid: 1040, kicksLow: 560 } as Partial<Record<PoseName, number>>,
-  power: 0.3,
-  stop: 0.035,
-  ghosts: [
-    [1, 0.5],
-    [2, 0.28],
-  ] as [number, number][],
+const FLURRY = {
+  poses: ['punchHit', 'punchMidHit', 'punchHeavyHit', 'kickHit'] as PoseName[],
+  heights: { punchHit: 1010, punchMidHit: 960, punchHeavyHit: 1150, kickHit: 1220 } as Partial<Record<PoseName, number>>,
+  count: 10,
+  seconds: 0.085,
+  reach: 760,
+  power: 0.35,
+  stop: 0.03,
 }
-const KICKS_TOTAL = KICKS.startup + KICKS.active + KICKS.recovery
+
+/**
+ * Fin de la rafale : trois coups plus lents et plus lourds, toujours dans cet ordre, qui explosent sur la cible et
+ * font trembler l'écran. `power` au-delà de 1 : secousse plus forte que pour un coup normal.
+ */
+const HEAVY = {
+  poses: ['punchMidHit', 'punchHeavyHit', 'kickHit'] as PoseName[],
+  seconds: 0.22,
+  power: 1.8,
+  stop: 0.12,
+}
+
+/**
+ * Seconde attaque spéciale. Il se baisse, se rue sur l'adversaire (`rush`, à `rushSpeed` largeurs d'écran par
+ * seconde, jusqu'à lui ou jusqu'au bord), enchaîne une rafale de coups (`FLURRY`), puis finit par la frappe au sol :
+ * main au sol pour charger (`charge`), redressement et frappe de la paume en avançant (`palm`), retour. Les dessins
+ * dans l'ordre, avec leur durée en secondes ; `flurry` : rang du coup de la rafale. La paume touche pendant les
+ * `active` premières secondes de la frappe ; le corps avance de `advance` (fraction de la largeur de l'écran) en
+ * `advanceSeconds`. `reach` et `height` : bout de la paume devant le point d'appui et hauteur, en pixels de la toile.
+ */
+const GROUND = {
+  steps: [
+    { pose: 'exitLean', seconds: 0.07 },
+    { pose: 'exitCrouch', seconds: 0.08 },
+    // la main au sol : le jeu se fige ici, le temps de la mise au point sur le personnage
+    { pose: 'exitGround', seconds: 0.1, focus: true },
+    { pose: 'dashForward', seconds: 0.28, rush: true },
+    ...Array.from({ length: FLURRY.count }, (_, flurry) => ({ pose: 'punchHit' as PoseName, seconds: FLURRY.seconds, flurry })),
+    ...HEAVY.poses.map((_, index) => ({ pose: 'punchHit' as PoseName, seconds: HEAVY.seconds, flurry: FLURRY.count + index, heavy: true })),
+    { pose: 'exitGround', seconds: 0.08 },
+    { pose: 'groundCharge', seconds: 1.34, charge: true },
+    { pose: 'groundRise', seconds: 0.07 },
+    { pose: 'groundPalm', seconds: 0.42, palm: true },
+    { pose: 'groundRise', seconds: 0.14 },
+  ] as { pose: PoseName; seconds: number; charge?: boolean; palm?: boolean; rush?: boolean; flurry?: number; heavy?: boolean; focus?: boolean }[],
+  rushSpeed: 2.2,
+  active: 0.12,
+  advance: 0.13,
+  advanceSeconds: 0.24,
+  reach: 680,
+  height: 700,
+  /** Puissance au-delà de 1 : secousse et recul de la cible plus forts que pour un coup normal. */
+  power: 1.5,
+  stop: 0.28,
+  /** Main posée au sol pendant la charge, paume tendue pendant la frappe : dans leur illustration. */
+  hand: [585, 1235] as [number, number],
+  palm: [985, 700] as [number, number],
+}
+const groundStart = (key: 'charge' | 'palm' | 'rush') => GROUND.steps.slice(0, GROUND.steps.findIndex((step) => step[key])).reduce((sum, step) => sum + step.seconds, 0)
+const GROUND_CHARGE = groundStart('charge')
+const GROUND_PALM = groundStart('palm')
+const GROUND_RUSH = groundStart('rush')
+const GROUND_TOTAL = GROUND.steps.reduce((sum, step) => sum + step.seconds, 0)
+
+/**
+ * Effets de la frappe au sol, découpés dans une planche (`../art/fx-ground-special.png`, préparée par
+ * `tools/prepare_fx.py`) : rectangle de chaque effet dans la planche, en pixels.
+ */
+const FX = {
+  file: 'fx/ground-special.webp',
+  size: [1536, 1024] as [number, number],
+  ring: [0, 0, 480, 400],
+  crescent: [1080, 0, 456, 420],
+  slash: [0, 390, 520, 210],
+  star: [610, 395, 170, 195],
+  rocks: [0, 590, 480, 175],
+  dust: [0, 770, 500, 120],
+  cloud: [1070, 760, 466, 130],
+} satisfies Record<string, unknown>
+type FxRect = [number, number, number, number]
+/** Unité de texture de la planche d'effets, après celles de la fumée. */
+const FX_UNIT = 6
 
 /**
  * Sortie de fin de round : il se baisse en quatre dessins (`steps`, durées en secondes), puis bondit hors de
@@ -211,6 +293,26 @@ const EXIT = {
 }
 const EXIT_CROUCH = EXIT.steps.reduce((sum, step) => sum + step.seconds, 0)
 const EXIT_GONE = EXIT_CROUCH + EXIT.leap
+
+/**
+ * K.O. : il titube, bascule en arrière, est projeté en l'air puis retombe au sol, où il reste. Les dessins dans
+ * l'ordre, avec leur durée en secondes ; le dernier (au sol) dure jusqu'à la fin (`total`). Il recule de `push`
+ * (fraction de la largeur de l'écran) pendant `pushSeconds`. En l'air, ses pieds montent jusqu'à `height` pixels
+ * de la toile. À la chute, de la fumée et des cailloux jaillissent du sol.
+ */
+const KO = {
+  steps: [
+    { pose: 'koStagger', seconds: 0.24 },
+    { pose: 'koFall', seconds: 0.18 },
+    { pose: 'koAir', seconds: 0.36 },
+  ] as { pose: PoseName; seconds: number }[],
+  push: 0.1,
+  pushSeconds: 0.78,
+  height: 300,
+  total: 3.2,
+}
+const KO_AIR = KO.steps[0].seconds + KO.steps[1].seconds
+const KO_DOWN = KO.steps.reduce((sum, step) => sum + step.seconds, 0)
 
 /**
  * Fumée du bond : les bouffées dessinées (`tools/prepare_fx.py`), de la plus petite à la plus grande, avec leur
@@ -339,7 +441,7 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'kicksHigh' | 'kicksMid' | 'kicksLow' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring'> | 'dash' | 'jump' | 'punch' | 'special' | 'kicks' | 'exit' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'groundCharge' | 'groundRise' | 'groundPalm' | 'koStagger' | 'koFall' | 'koAir' | 'koDown' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring' | 'kickStart' | 'kickHit'> | 'dash' | 'jump' | 'punch' | 'special' | 'ground' | 'exit' | 'ko' = 'guard'
   /** Temps écoulé depuis le début de l'attaque spéciale en cours. */
   private specialTime = 0
   /** Boule de feu en vol : position (fraction de la largeur du stage), hauteur au-dessus du sol (pixels de la toile), âge. */
@@ -356,15 +458,36 @@ export class HeroLayer {
   private impacts: { x: number; height: number; age: number; power: number; blast: boolean; guard?: boolean; seed: number }[] = []
   /** Temps écoulé depuis le coup encaissé en cours. */
   private hurtTime = 0
-  /** Temps écoulé depuis le début de la rafale de coups de pied, et instant de son dernier coup qui a touché. */
-  private kickTime = 0
+  /** Temps écoulé depuis le début de la frappe au sol, et vrai dès qu'elle a touché. */
+  private groundTime = 0
+  private groundLanded = false
+  /** Vrai dès que le plan de coupe de la frappe au sol en cours a été lancé. */
+  private cutInTaken = false
+  /** Vrai à l'image où la frappe au sol touche : le moteur fait alors flasher l'écran. */
+  private groundImpact = false
+  /** Position au début de la frappe au sol : le corps avance à partir d'elle pendant la frappe. */
+  private groundFrom = PLACEMENT.x
+  /** Les coups de la rafale en cours, et le rang du dernier qui a touché. */
+  private flurry: PoseName[] = []
+  private flurryLanded = -1
+  /** Effets dessinés des coups de la rafale qui ont touché : point d'impact, hauteur, âge, rang du coup. */
+  private flurryFx: { x: number; height: number; age: number; index: number; heavy: boolean }[] = []
+  /** Vrai dès que la mise au point du début de l'attaque spéciale a été lancée. */
+  private focusTaken = false
+  /** Position aux images précédentes de la ruée, pour ses images fantômes. */
+  private rushTrail: number[] = []
+  /** Planche des effets de la frappe au sol, et le programme qui en dessine un morceau. */
+  private fx: WebGLTexture | null = null
+  private sprite: Program<(typeof SPRITE_UNIFORMS)[number]> | null = null
+  /** Temps écoulé depuis le début du K.O., et position au moment du coup. */
+  private koTime = 0
+  private koFrom = PLACEMENT.x
   /** Temps écoulé depuis le début de la sortie de fin de round. */
   private exitTime = 0
   /** Les bouffées de fumée, chargées avec les poses. */
   private smoke: (WebGLTexture | null)[] = []
   /** Cailloux projetés au bond : vitesse (pixels de la toile par seconde) et taille. */
   private pebbles: { vx: number; vy: number; size: number }[] = []
-  private lastKick = -Infinity
   /** Temps restant pendant lequel la parade est maintenue de force, après un coup paré. */
   private blockStun = 0
   /** Recul en cours après un coup reçu ou paré : position de départ, distance, temps écoulé, durée. */
@@ -378,6 +501,8 @@ export class HeroLayer {
   private sincePunch = Infinity
   /** Temps écoulé depuis le début du saut en cours. */
   private jumpTime = 0
+  /** Saut en cours : sens (1 avant, -1 arrière, 0 vertical) et position de départ. */
+  private jumping = { direction: 0, from: PLACEMENT.x }
   /** L'atlas de chaque pose. Un seul est lié à la fois, celui de la pose affichée. */
   private images = new Map<PoseName, HTMLImageElement>()
   /** Atlas envoyés à la carte graphique, du moins récemment utilisé au plus récent. */
@@ -417,6 +542,11 @@ export class HeroLayer {
       this.images.set(POSE_NAMES[index], image)
     }
     this.atlas('guard')
+    const sprite = createProgram(gl, FLAT_VERTEX, SPRITE_FRAGMENT)
+    if (!sprite) return false
+    this.sprite = { program: sprite, attribute: gl.getAttribLocation(sprite, 'a'), u: uniforms(gl, sprite, SPRITE_UNIFORMS) }
+    const sheet = await loadImage(asset(FX.file))
+    this.fx = sheet ? uploadTexture(gl, FX_UNIT, sheet, { alpha: true, premultiply: true }) : null
     const puffs = await Promise.all(SMOKE.files.map((file) => loadImage(asset(file))))
     this.smoke = puffs.map((image, index) => (image ? uploadTexture(gl, SMOKE_UNIT + index, image, { alpha: true, premultiply: true }) : null))
 
@@ -502,10 +632,18 @@ export class HeroLayer {
    * touché. `pixel` : largeur d'un pixel de la toile, en fraction de la largeur du stage.
    */
   strike(pixel: number): Strike | null {
-    if (this.pose === 'kicks') {
-      const t = this.kickTime - KICKS.startup
-      if (t < 0 || t >= KICKS.active || this.kickTime - this.lastKick < KICKS.interval) return null
-      return { x: this.x + KICKS.reach * pixel, height: KICKS.heights[this.kickPose()] ?? 1000, power: KICKS.power, stop: KICKS.stop }
+    if (this.pose === 'ground') {
+      // la rafale : chaque coup touche une fois
+      const step = this.groundStep()
+      if (step.flurry !== undefined) {
+        if (step.flurry === this.flurryLanded) return null
+        const pose = this.flurry[step.flurry]
+        const heavy = step.heavy === true
+        return { x: this.x + FLURRY.reach * pixel, height: FLURRY.heights[pose] ?? 1000, power: heavy ? HEAVY.power : FLURRY.power, stop: heavy ? HEAVY.stop : FLURRY.stop }
+      }
+      const t = this.groundTime - GROUND_PALM
+      if (t < 0 || t >= GROUND.active || this.groundLanded) return null
+      return { x: this.x + GROUND.reach * pixel, height: GROUND.height, power: GROUND.power, stop: GROUND.stop }
     }
     if (this.pose !== 'punch' || this.punchLanded) return null
     const move = PUNCHES[this.punchStrength]
@@ -518,9 +656,19 @@ export class HeroLayer {
    * `guarded` : le coup a été paré. L'enchaînement reste possible, comme sur un coup porté.
    */
   land(strike: Strike, x: number, guarded = false): void {
-    // la rafale touche plusieurs fois : elle attend seulement l'intervalle suivant
-    if (this.pose === 'kicks') this.lastKick = this.kickTime
-    else this.punchLanded = true
+    const flurry = this.pose === 'ground' ? this.groundStep().flurry : undefined
+    if (flurry !== undefined) {
+      this.flurryLanded = flurry
+      const heavy = this.groundStep().heavy === true
+      this.flurryFx.push({ x, height: strike.height, age: 0, index: flurry, heavy })
+      // les trois coups lourds explosent sur la cible
+      if (heavy) this.impacts.push({ x, height: strike.height, age: 0, power: 1, blast: true, guard: guarded, seed: flurry * 13 })
+    } else if (this.pose === 'ground') {
+      // la frappe au sol explose sur la cible, en plus de l'étincelle
+      this.groundLanded = true
+      this.impacts.push({ x, height: strike.height, age: 0, power: 1, blast: true, guard: guarded, seed: strike.height })
+      this.groundImpact = true
+    } else this.punchLanded = true
     this.impacts.push({ x, height: strike.height, age: 0, power: strike.power, blast: false, guard: guarded, seed: this.impacts.length + strike.height })
   }
 
@@ -549,7 +697,7 @@ export class HeroLayer {
    */
   takeHit(strike: Strike, pixel: number): boolean {
     // en pleine sortie de fin de round, il n'est plus là pour être touché
-    if (this.pose === 'exit') return false
+    if (this.pose === 'exit' || this.pose === 'ko') return false
     const guarded = this.pose === 'block' || this.pose === 'crouchBlock'
     const height = !guarded ? strike.height : this.pose === 'block' ? GUARD_HIT.height : GUARD_HIT.crouchHeight
     this.impacts.push({ x: this.front(pixel), height, age: 0, power: strike.power, blast: false, guard: guarded, seed: this.x * 50 + this.impacts.length })
@@ -570,6 +718,8 @@ export class HeroLayer {
   /** Fait vieillir les impacts. À appeler à chaque image avec le temps réel : ils continuent pendant l'arrêt sur image. */
   tick(delta: number): void {
     for (const impact of this.impacts) impact.age += delta
+    for (const fx of this.flurryFx) fx.age += delta
+    this.flurryFx = this.flurryFx.filter((fx) => fx.age < (fx.heavy ? 0.32 : 0.22))
     this.impacts = this.impacts.filter((impact) => impact.age < (impact.blast ? IMPACT.blast : IMPACT.spark).seconds)
   }
 
@@ -609,13 +759,58 @@ export class HeroLayer {
     this.slide = null
     this.blockStun = 0
     this.sincePunch = Infinity
-    // cailloux : toujours les mêmes, pour que la sortie soit identique d'une fois à l'autre
+    this.throwPebbles()
+  }
+
+  /** Cailloux projetés : toujours les mêmes, pour que l'effet soit identique d'une fois à l'autre. */
+  private throwPebbles(): void {
     this.pebbles = Array.from({ length: PEBBLES.count }, (_, i) => {
       const r = Math.abs((Math.sin(i * 12.9898) * 43758.5453) % 1)
       const angle = (i / (PEBBLES.count - 1) - 0.5) * 2 * PEBBLES.spread + (r - 0.5) * 0.3
       const speed = lerpRange(PEBBLES.speed, (r * 7.3) % 1)
       return { vx: Math.sin(angle) * speed, vy: Math.cos(angle) * speed, size: lerpRange(PEBBLES.size, (r * 3.1) % 1) }
     })
+  }
+
+  /** K.O. : il est mis hors de combat, quoi qu'il fasse. `koDone` devient vrai quand il est resté assez au sol. */
+  knockOut(): void {
+    if (this.pose === 'ko' || this.pose === 'exit') return
+    this.pose = 'ko'
+    this.koTime = 0
+    this.koFrom = this.x
+    this.slide = null
+    this.blockStun = 0
+    this.fireball = null
+    this.sincePunch = Infinity
+    this.throwPebbles()
+  }
+
+  /** Vrai pendant le K.O. */
+  get knockedOut(): boolean {
+    return this.pose === 'ko'
+  }
+
+  /** Vrai à l'instant où il touche le sol, pendant le K.O. */
+  get koLanded(): boolean {
+    return this.pose === 'ko' && this.koTime >= KO_DOWN
+  }
+
+  /** Vrai quand le K.O. est fini : il est resté au sol assez longtemps. */
+  get koDone(): boolean {
+    return this.pose === 'ko' && this.koTime >= KO.total
+  }
+
+  /** Dessin du K.O. et hauteur des pieds (pixels de la toile) : en l'air, une courbe qui monte et redescend. */
+  private koState(): { name: PoseName; lift: number } {
+    let end = 0
+    for (const step of KO.steps) {
+      end += step.seconds
+      if (this.koTime < end) {
+        const air = step.pose === 'koAir' ? Math.sin((Math.PI * (this.koTime - KO_AIR)) / step.seconds) : 0
+        return { name: step.pose, lift: KO.height * air }
+      }
+    }
+    return { name: 'koDown', lift: 0 }
   }
 
   /** Vrai pendant la sortie de fin de round. */
@@ -631,6 +826,7 @@ export class HeroLayer {
   /** Ramène le personnage en garde à sa place de départ, pour le round suivant. */
   reenter(): void {
     this.pose = 'guard'
+    this.slide = null
     this.x = PLACEMENT.x
     this.fireball = null
     this.impacts = []
@@ -648,28 +844,73 @@ export class HeroLayer {
     return { name: 'jumpRise', lift: EXIT.height * k * k, leap: k }
   }
 
-  /** Lance la seconde attaque spéciale, la rafale de coups de pied. Possible depuis la garde ou la marche. */
-  kicks(): void {
+  /** Lance la seconde attaque spéciale, la frappe au sol. Possible depuis la garde ou la marche. */
+  groundSpecial(): void {
     const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
     if (!free) return
-    this.pose = 'kicks'
-    this.kickTime = 0
-    this.lastKick = -Infinity
+    this.pose = 'ground'
+    this.groundTime = 0
+    this.groundLanded = false
+    this.cutInTaken = false
+    this.groundFrom = this.x
+    this.flurryLanded = -1
+    this.rushTrail = []
+    // rafale : un coup au hasard à chaque fois, jamais deux fois le même de suite, puis les trois coups lourds
+    this.flurry = []
+    for (let i = 0; i < FLURRY.count; i++) {
+      const choices = FLURRY.poses.filter((pose) => pose !== this.flurry[i - 1])
+      this.flurry.push(choices[Math.floor(Math.random() * choices.length)])
+    }
+    this.flurry.push(...HEAVY.poses)
+    this.focusTaken = false
     this.sincePunch = Infinity
   }
 
-  /** Rang du dessin en cours dans la rafale de coups de pied, ou -1 hors de la rafale. */
-  private kickIndex(): number {
-    const t = this.kickTime - KICKS.startup
-    if (t < 0 || t >= KICKS.active) return -1
-    return Math.floor(t / KICKS.frame)
+  /** Le dessin à afficher pendant la frappe au sol : celui de l'étape, ou le coup tiré au hasard pendant la rafale. */
+  private groundPose(): PoseName {
+    const step = this.groundStep()
+    return step.flurry !== undefined ? (this.flurry[step.flurry] ?? step.pose) : step.pose
   }
 
-  /** Le dessin en cours de la rafale de coups de pied : jambe au milieu, rafale, puis jambe basse. */
-  private kickPose(): PoseName {
-    const index = this.kickIndex()
-    if (index >= 0) return KICKS.cycle[index % KICKS.cycle.length]
-    return this.kickTime < KICKS.startup ? 'kicksMid' : 'kicksLow'
+  /** Vrai pendant la frappe au sol : le moteur assombrit alors le décor. */
+  get superActive(): boolean {
+    return this.pose === 'ground' && this.groundTime >= GROUND_CHARGE - 0.08
+  }
+
+  /** Vrai une seule fois, quand la charge de la frappe au sol commence : c'est le moment du plan de coupe. */
+  /** Vrai une seule fois, quand il pose la main au sol au début de l'attaque spéciale : le moment de la mise au point. */
+  takeFocus(): boolean {
+    if (this.pose !== 'ground' || this.focusTaken || !this.groundStep().focus) return false
+    this.focusTaken = true
+    return true
+  }
+
+  /** Position du personnage, en fraction de la largeur de l'écran. */
+  get position(): number {
+    return this.x
+  }
+
+  takeCutIn(): boolean {
+    if (this.pose !== 'ground' || this.cutInTaken || this.groundTime < GROUND_CHARGE) return false
+    this.cutInTaken = true
+    return true
+  }
+
+  /** Vrai une seule fois, à l'image où la frappe au sol touche. */
+  takeGroundImpact(): boolean {
+    const hit = this.groundImpact
+    this.groundImpact = false
+    return hit
+  }
+
+  /** Le dessin en cours de la frappe au sol. */
+  private groundStep(): (typeof GROUND.steps)[number] {
+    let end = 0
+    for (const step of GROUND.steps) {
+      end += step.seconds
+      if (this.groundTime < end) return step
+    }
+    return GROUND.steps[GROUND.steps.length - 1]
   }
 
   /** Le dessin en cours de l'attaque spéciale. */
@@ -683,11 +924,17 @@ export class HeroLayer {
   }
 
   /** Lance un saut vertical. Possible seulement depuis la garde ou la marche. */
-  jump(): void {
+  jump(direction = 0): void {
     const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
     if (!free) return
     this.pose = 'jump'
     this.jumpTime = 0
+    this.jumping = { direction: Math.sign(direction), from: this.x }
+  }
+
+  /** Avancée du vol, de 0 au décollage à 1 à l'atterrissage ; le corps garde une vitesse horizontale constante. */
+  private jumpFlight(): number {
+    return Math.max(0, Math.min(1, (this.jumpTime - JUMP.start) / (JUMP.rise + JUMP.fall)))
   }
 
   /**
@@ -717,6 +964,16 @@ export class HeroLayer {
       sx: 1 - stretch * 0.6,
       sy: 1 + stretch,
     }
+  }
+
+  /**
+   * Déformation du dessin en saut : tassement ou étirement autour des pieds et, pour un saut avant ou arrière,
+   * inclinaison du corps dans le sens du saut, nulle au sol et maximale en milieu de vol.
+   */
+  private jumpMatrix(feet: [number, number], sx: number, sy: number, amplitude: number): Affine {
+    const k = this.jumpFlight()
+    const shear = (-this.jumping.direction * JUMP.lean * Math.sin(Math.PI * k) * amplitude) / feet[1]
+    return [sx, 0, shear, sy, feet[0] - sx * feet[0] - shear * feet[1], feet[1] - sy * feet[1]]
   }
 
   /** Vitesse du dash en cours : 1 au départ, 0 à l'arrêt. */
@@ -754,6 +1011,13 @@ export class HeroLayer {
       this.exitTime += frame.delta
       return
     }
+    if (this.pose === 'ko') {
+      this.koTime += frame.delta
+      // il recule en freinant, sans sortir du stage
+      const k = Math.min(1, this.koTime / KO.pushSeconds)
+      this.x = Math.max(PLACEMENT.minX, this.koFrom - KO.push * (1 - (1 - k) ** 2))
+      return
+    }
     // recul après un coup reçu ou paré : il part vite et freine
     if (this.slide) {
       const slide = this.slide
@@ -786,9 +1050,23 @@ export class HeroLayer {
       this.fireball.x += SPECIAL.speed * frame.delta
       if (this.fireball.x > 1.2) this.fireball = null
     }
-    if (this.pose === 'kicks') {
-      this.kickTime += frame.delta
-      if (this.kickTime < KICKS_TOTAL) return
+    if (this.pose === 'ground') {
+      const before = this.groundTime
+      this.groundTime += frame.delta
+      // la ruée : il fonce jusqu'à l'adversaire ou jusqu'au bord, en laissant des images fantômes
+      if (this.groundStep().rush) {
+        this.rushTrail = [this.x, ...this.rushTrail].slice(0, 6)
+        this.x = Math.max(PLACEMENT.minX, Math.min(this.limit(), this.x + GROUND.rushSpeed * frame.delta))
+      } else if (this.groundTime < GROUND_PALM) {
+        this.rushTrail = []
+      }
+      // pendant la frappe, il avance encore un peu, sans franchir le bord ni l'adversaire
+      if (before < GROUND_PALM && this.groundTime >= GROUND_PALM) this.groundFrom = this.x
+      if (this.groundTime >= GROUND_PALM) {
+        const k = Math.min(1, (this.groundTime - GROUND_PALM) / GROUND.advanceSeconds)
+        this.x = Math.max(PLACEMENT.minX, Math.min(this.limit(), this.groundFrom + GROUND.advance * (1 - (1 - k) ** 3)))
+      }
+      if (this.groundTime < GROUND_TOTAL) return
       this.pose = 'guard'
     }
     if (this.pose === 'special') {
@@ -838,6 +1116,12 @@ export class HeroLayer {
     }
     if (this.pose === 'jump') {
       this.jumpTime += frame.delta
+      // saut avant ou arrière : le corps avance pendant tout le vol, sans franchir le bord ni l'adversaire
+      const { direction, from } = this.jumping
+      if (direction !== 0) {
+        const distance = direction > 0 ? JUMP.forward : JUMP.back
+        this.x = Math.max(PLACEMENT.minX, Math.min(this.limit(), from + direction * distance * this.jumpFlight()))
+      }
       if (this.jumpTime < JUMP.start + JUMP.rise + JUMP.fall + JUMP.land) return
       this.pose = 'guard'
     }
@@ -889,10 +1173,86 @@ export class HeroLayer {
   }
 
   /**
+   * Effets de la frappe au sol. `front` : faux pour ceux qui passent derrière le personnage (l'énergie qui tourne
+   * pendant la charge, les cailloux), vrai pour ceux de devant (l'onde et l'éclair de la paume, la poussière).
+   */
+  private drawGround(gl: WebGLRenderingContext, frame: FrameInfo, left: number, top: number, w: number, h: number, calm: boolean, front: boolean, zoom = 1): void {
+    const sprite = this.sprite
+    if (!sprite || !this.fx) return
+    gl.useProgram(sprite.program)
+    gl.enableVertexAttribArray(sprite.attribute)
+    gl.vertexAttribPointer(sprite.attribute, 2, gl.FLOAT, false, 0, 0)
+    gl.uniform1i(sprite.u.uTex, FX_UNIT)
+    const ux = w / CANVAS[0]
+    const uy = h / CANVAS[1]
+    /** Un point d'une illustration, à l'écran, à la place qu'elle occupe à cet instant. */
+    const at = (pose: PoseName, [px, py]: [number, number]): [number, number] => {
+      const feet = FEET[pose]
+      const scale = POSE_SCALE[pose]
+      return [left + ((px - feet[0]) * scale + GROUND_POINT[0]) * ux, top + ((py - feet[1]) * scale + GROUND_POINT[1]) * uy]
+    }
+    /** Un effet de la planche : centre à l'écran, largeur en pixels de la toile, opacité, retourné ou non. */
+    const draw = ([rx, ry, rw, rh]: FxRect, [cx, cy]: [number, number], width: number, alpha: number, flip = false) => {
+      if (alpha <= 0.01) return
+      const [sw, sh] = FX.size
+      gl.uniform4f(sprite.u.uUv, rx / sw, ry / sh, rw / sw, rh / sh)
+      gl.uniform1f(sprite.u.uAlpha, Math.min(1, alpha) * (calm ? 0.7 : 1))
+      gl.uniform4f(sprite.u.uRect, cx * 2 - 1, 1 - cy * 2, width * ux * (flip ? -1 : 1), -width * (rh / rw) * uy)
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    }
+    const fade = (t: number, start: number, end: number) => 1 - Math.max(0, Math.min(1, (t - start) / (end - start)))
+    const grow = (t: number, seconds: number) => 1 - (1 - Math.min(1, Math.max(0, t / seconds))) ** 3
+    // l'énergie clignote d'un dessin à son miroir, comme un dessin animé à deux images
+    const flicker = !calm && Math.floor(frame.time * 18) % 2 === 1
+
+    const charge = this.groundTime - GROUND_CHARGE
+    const palm = this.groundTime - GROUND_PALM
+    const hand = at('groundCharge', GROUND.hand)
+    if (charge >= 0 && !front) {
+      // pendant la charge : un anneau d'énergie rouge autour de lui, qui grossit puis s'efface après la frappe
+      const ring = at('groundCharge', [560, 960])
+      // l'anneau grossit puis bat comme un cœur tant que la charge dure
+      const beat = calm ? 0 : 60 * Math.sin(charge * 9)
+      draw(FX.ring as FxRect, ring, 900 + 380 * grow(charge, 0.3) + beat, grow(charge, 0.12) * fade(palm, 0, 0.25), flicker)
+      // les cailloux arrachés du sol sous la main
+      const [hx, hy] = hand
+      draw(FX.rocks as FxRect, [hx, hy - 0.5 * (FX.rocks[3] / FX.rocks[2]) * 900 * grow(charge, 0.2) * uy], 900 * (0.5 + 0.5 * grow(charge, 0.2)), fade(charge, 0.25, 0.7))
+      // un second jaillissement de cailloux juste avant la frappe
+      const late = charge - (GROUND_PALM - GROUND_CHARGE - 0.4)
+      if (late > 0) draw(FX.rocks as FxRect, [hx, hy - 0.5 * (FX.rocks[3] / FX.rocks[2]) * 1000 * grow(late, 0.2) * uy], 1000 * (0.5 + 0.5 * grow(late, 0.2)), fade(late, 0.2, 0.5), true)
+    }
+    // chaque coup de la rafale qui touche : un éclair en étoile et une entaille au point d'impact, en alternance
+    if (front) {
+      const sx = left + GROUND_POINT[0] * ux
+      const sy = top + GROUND_POINT[1] * uy
+      for (const fx of this.flurryFx) {
+        const point: [number, number] = [sx + (fx.x - this.x) * zoom, sy - fx.height * uy]
+        const size = fx.heavy ? 1.7 : 1
+        const k = fx.age / (fx.heavy ? 0.32 : 0.22)
+        draw(FX.star as FxRect, point, 520 * size * (0.6 + 0.6 * grow(fx.age, 0.05)), 1 - k * k, fx.index % 2 === 1)
+        draw((fx.index % 2 ? FX.slash : FX.crescent) as FxRect, [point[0] - 60 * ux, point[1]], 560 * size, (1 - k) * grow(fx.age, 0.03), fx.index % 3 === 0)
+      }
+    }
+    if (palm >= 0 && front) {
+      const tip = at('groundPalm', GROUND.palm)
+      // l'onde en croissant devant la paume, l'éclair au bout des doigts
+      // devant la main, pour ne pas recouvrir le personnage
+      draw(FX.crescent as FxRect, [tip[0] + 160 * ux, tip[1]], 700 + 380 * grow(palm, 0.15), fade(palm, 0.14, 0.42), flicker)
+      draw(FX.star as FxRect, tip, 640 * (0.6 + 0.6 * grow(palm, 0.08)), fade(palm, 0.1, 0.28))
+      draw(FX.slash as FxRect, [tip[0] + 320 * ux, tip[1] + 30 * uy], 820, fade(palm, 0.06, 0.26) * grow(palm, 0.04))
+      draw(FX.slash as FxRect, [tip[0] + 260 * ux, tip[1] - 80 * uy], 700, fade(palm, 0.08, 0.3) * grow(palm, 0.06), true)
+      // la poussière soulevée derrière lui par l'élan, au ras du sol
+      const [fx, fy] = at('groundPalm', [300, 1225])
+      draw(FX.dust as FxRect, [fx - 140 * ux, fy - 50 * uy], 1100 * (0.6 + 0.4 * grow(palm, 0.25)), fade(palm, 0.25, 0.55), true)
+      draw(FX.cloud as FxRect, [fx - 260 * ux, fy - 60 * uy], 900 * (0.5 + 0.5 * grow(palm, 0.35)), fade(palm, 0.3, 0.6) * grow(palm, 0.1), true)
+    }
+  }
+
+  /**
    * La fumée et les cailloux du bond, `t` secondes après le départ. `sx`, `sy` : les pieds à l'écran ; `ux`, `uy` :
    * taille d'un pixel de la toile, en fraction de l'écran.
    */
-  private drawSmoke(gl: WebGLRenderingContext, flat: Program<(typeof FLAT_UNIFORMS)[number]>, t: number, sx: number, sy: number, ux: number, uy: number, calm: boolean): void {
+  private drawSmoke(gl: WebGLRenderingContext, flat: Program<(typeof FLAT_UNIFORMS)[number]>, t: number, sx: number, sy: number, ux: number, uy: number, calm: boolean, size = 1): void {
     gl.useProgram(flat.program)
     gl.enableVertexAttribArray(flat.attribute)
     gl.vertexAttribPointer(flat.attribute, 2, gl.FLOAT, false, 0, 0)
@@ -911,7 +1271,7 @@ export class HeroLayer {
     }
     // bouffées : des petites, sur les côtés, à la grande, au centre, qui passe devant
     gl.uniform1f(flat.u.uShadow, 0)
-    for (const [index, offset, delay, size, flip] of [...SMOKE.puffs].reverse()) {
+    for (const [index, offset, delay, puffSize, flip] of [...SMOKE.puffs].reverse()) {
       const age = t - delay
       const texture = this.smoke[index]
       if (age <= 0 || !texture) continue
@@ -919,10 +1279,10 @@ export class HeroLayer {
       const alpha = 1 - Math.max(0, Math.min(1, (age - fadeStart) / (fadeEnd - fadeStart)))
       if (alpha <= 0) continue
       const grow = 1 - (1 - Math.min(1, age / SMOKE.grow)) ** 3
-      const scale = size * (0.35 + 0.65 * grow) * (calm ? 0.8 : 1)
+      const scale = puffSize * size * (0.35 + 0.65 * grow) * (calm ? 0.8 : 1)
       const [iw, ih] = SMOKE.sizes[index]
       const away = Math.sign(offset) * SMOKE.drift * Math.min(1, age / 0.8)
-      const x = sx + (offset + away) * ux
+      const x = sx + (offset + away) * size * ux
       // posée sur le sol, elle monte un peu en s'effaçant
       const bottom = sy - SMOKE.rise * Math.min(1, age / 1.2) * uy
       gl.uniform1i(flat.u.uTex, SMOKE_UNIT + index)
@@ -949,23 +1309,26 @@ export class HeroLayer {
     const sy = (PLACEMENT.y + PLACEMENT.depth * camera.oy - 0.5) * camera.zoom + 0.5
     const h = PLACEMENT.scale * camera.zoom
     const w = h * (CANVAS[0] / CANVAS[1]) * (frame.height / frame.width)
-    const left = sx - (GROUND[0] / CANVAS[0]) * w
-    const top = sy - (GROUND[1] / CANVAS[1]) * h
+    const left = sx - (GROUND_POINT[0] / CANVAS[0]) * w
+    const top = sy - (GROUND_POINT[1] / CANVAS[1]) * h
 
     const jump = this.pose === 'jump' ? this.jumpState() : null
     const leaving = this.pose === 'exit' ? this.exitState() : null
     // une fois parti d'un bond, il n'est plus dessiné : il ne reste que la fumée
     const hidden = this.pose === 'exit' && !leaving
-    const lift = jump ? jump.lift : leaving ? leaving.lift : 0
+    const ko = this.pose === 'ko' ? this.koState() : null
+    const lift = jump ? jump.lift : leaving ? leaving.lift : ko ? ko.lift : 0
     const name: PoseName =
-      leaving
+      ko
+        ? ko.name
+        : leaving
         ? leaving.name
         : this.pose === 'jump'
         ? (jump?.name ?? 'guard')
         : this.pose === 'punch'
           ? this.punchPose()
-        : this.pose === 'kicks'
-          ? this.kickPose()
+        : this.pose === 'ground'
+          ? this.groundPose()
         : this.pose === 'hurt'
           ? this.hurtTime < HURT.stun
             ? 'hurt'
@@ -976,7 +1339,7 @@ export class HeroLayer {
           ? this.dashing.direction > 0
             ? 'dashForward'
             : 'dashBack'
-          : this.pose === 'exit'
+          : this.pose === 'exit' || this.pose === 'ko'
             ? 'guard'
             : this.pose
     const amplitude = calm ? CALM_AMPLITUDE : 1
@@ -990,7 +1353,7 @@ export class HeroLayer {
           : HELD.includes(name)
             ? [heldMatrix(POSES[name].anchor, frame.time, amplitude)]
             : jump
-              ? [scaleAbout(feet, 1 + (jump.sx - 1) * amplitude, 1 + (jump.sy - 1) * amplitude)]
+              ? [this.jumpMatrix(feet, 1 + (jump.sx - 1) * amplitude, 1 + (jump.sy - 1) * amplitude, amplitude)]
               : leaving && leaving.leap > 0
                 ? [scaleAbout(feet, 1 - EXIT.stretch * 0.5 * amplitude, 1 + EXIT.stretch * amplitude)]
               : this.pose === 'dash' && !calm
@@ -998,7 +1361,8 @@ export class HeroLayer {
                 : null
     const bends = BENDS[name]
     // traînée derrière le personnage : du côté opposé à sa course
-    const smear = this.pose === 'dash' && !calm ? this.dashing.direction * DASH.smear * this.dashSpeed() : 0
+    const rushing = this.pose === 'ground' && this.groundTime >= GROUND_RUSH && this.groundStep().rush
+    const smear = calm ? 0 : this.pose === 'dash' ? this.dashing.direction * DASH.smear * this.dashSpeed() : rushing ? DASH.smear * 0.8 : 0
 
     /** Dessine la pose affichée, ou `other` (une pose de même point d'appui et de même échelle, en un calque). */
     const drawLayers = (vx: number, vy: number, vz: number, vw: number, alpha = 1, raise = 0, other?: PoseName) => {
@@ -1023,8 +1387,8 @@ export class HeroLayer {
         // la pose est agrandie autour de ses pieds, puis ses pieds sont posés sur le point du sol
         const mx = [m ? m[0] : 1, m ? m[2] : 0, (m ? m[4] : 0) - feet[0]]
         const my = [m ? m[1] : 0, m ? m[3] : 1, (m ? m[5] : 0) - feet[1]]
-        gl.uniform3f(u.uMx, mx[0] * scale, mx[1] * scale, mx[2] * scale + GROUND[0])
-        gl.uniform3f(u.uMy, my[0] * scale, my[1] * scale, my[2] * scale + GROUND[1] - raise)
+        gl.uniform3f(u.uMx, mx[0] * scale, mx[1] * scale, mx[2] * scale + GROUND_POINT[0])
+        gl.uniform3f(u.uMy, my[0] * scale, my[1] * scale, my[2] * scale + GROUND_POINT[1] - raise)
         gl.uniform4f(u.uBox, bx, by, bw, bh)
         gl.uniform2f(u.uAtlas, item.atlas[0], item.atlas[1])
         gl.uniform4f(u.uBend, bend ? bend.amplitude * amplitude : 0, bend ? bend.length : 1, frame.time * (name === 'walk' ? 7 : 2.4) + index, 0)
@@ -1051,7 +1415,7 @@ export class HeroLayer {
     const py = (h / CANVAS[1]) * REFLECTION.squash
     // en l'air, le reflet s'éloigne des pieds et s'estompe, et l'ombre rétrécit
     const air = Math.min(1, lift / JUMP.height)
-    const mirrorTop = sy + (GROUND[1] - VIEW.y - VIEW.height + lift) * py
+    const mirrorTop = sy + (GROUND_POINT[1] - VIEW.y - VIEW.height + lift) * py
     gl.uniform1f(flat.u.uShadow, 0)
     gl.uniform1f(flat.u.uAlpha, REFLECTION.alpha * (1 - 0.6 * air))
     gl.uniform4f(
@@ -1075,16 +1439,17 @@ export class HeroLayer {
       }
     }
 
-    // pendant la rafale de coups de pied, les dessins précédents restent un instant derrière la jambe ;
-    // le corps est le même dans les trois dessins, seule la jambe se dédouble
-    const kick = this.pose === 'kicks' ? this.kickIndex() : -1
-    if (kick >= 0 && !calm) {
-      for (const [back, alpha] of [...KICKS.ghosts].reverse()) {
-        if (kick < back) continue
-        const ghost = KICKS.cycle[(kick - back) % KICKS.cycle.length]
-        if (ghost !== name) drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * left - 1, 1 - 2 * top, alpha, 0, ghost)
-      }
+    // pendant la ruée, des images fantômes à ses positions précédentes
+    if (this.pose === 'ground' && this.groundStep().rush && !calm) {
+      this.rushTrail.forEach((x, index) => {
+        if (index % 2 === 0) return
+        const shift = (x - this.x) * camera.zoom
+        drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * (left + shift) - 1, 1 - 2 * top, 0.35 / (1 + index * 0.5))
+      })
     }
+
+    // la frappe au sol : l'énergie qui tourne et les cailloux, derrière le personnage
+    if (this.pose === 'ground') this.drawGround(gl, frame, left, top, w, h, calm, false)
 
     // pendant le bond de sortie, des images fantômes restent en dessous de lui
     if (leaving && leaving.leap > 0 && !calm) {
@@ -1101,8 +1466,13 @@ export class HeroLayer {
     const unitX = (2 * w) / CANVAS[0]
     const unitY = (2 * h) / CANVAS[1]
 
+    // la frappe au sol : l'onde, l'éclair de la paume et la poussière, devant le personnage
+    if (this.pose === 'ground') this.drawGround(gl, frame, left, top, w, h, calm, true, camera.zoom)
+
     // la fumée et les cailloux du bond de sortie, devant lui
     if (this.pose === 'exit' && this.exitTime >= EXIT_CROUCH) this.drawSmoke(gl, flat, this.exitTime - EXIT_CROUCH, sx, sy, unitX / 2, unitY / 2, calm)
+    // et celles de sa chute au sol, à la fin d'un K.O.
+    if (this.pose === 'ko' && this.koTime >= KO_DOWN) this.drawSmoke(gl, flat, this.koTime - KO_DOWN, sx, sy, unitX / 2, unitY / 2, calm, 0.55)
 
     // 5. la boule de feu : elle grossit dans les mains pendant la charge, puis vole devant le personnage
     const fire = this.fire
@@ -1124,8 +1494,8 @@ export class HeroLayer {
       if (charging) {
         const k = this.specialTime / SPECIAL_LAUNCH
         const hands = this.specialStep().hands ?? feet
-        const x = left + ((hands[0] - feet[0]) * scale + GROUND[0]) * (w / CANVAS[0])
-        const y = top + ((hands[1] - feet[1]) * scale + GROUND[1]) * (h / CANVAS[1])
+        const x = left + ((hands[0] - feet[0]) * scale + GROUND_POINT[0]) * (w / CANVAS[0])
+        const y = top + ((hands[1] - feet[1]) * scale + GROUND_POINT[1]) * (h / CANVAS[1])
         ball(x, y, SPECIAL.chargeRadius * k, SPECIAL.chargeRadius * k, 0.5 + 0.5 * k, 0)
       }
       if (this.fireball) {
