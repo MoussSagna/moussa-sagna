@@ -60,6 +60,7 @@ Le personnage est fait de vingt-neuf illustrations dans la même vue (trois quar
 | `punchHit` | `../art/hero-punch-hit.png` | coup de poing léger : bras tendu |
 | `specialCharge`, `specialThrow`, `specialRecover` | `../art/hero-special-*.png` | attaque spéciale : charge à la hanche, lancer à deux mains, retour |
 | `kicksHigh`, `kicksMid`, `kicksLow` | `../art/hero-kicks-*.png` | rafale de coups de pied : la même pose, jambe tendue en haut, au milieu et en bas |
+| `kickStart`, `kickHit` | `../art/hero-kick-*.png` | coup de pied, quatrième coup de l'enchaînement : genou armé (démarrage et retour), jambe tendue |
 | `exitLean`, `exitCrouch`, `exitGround`, `exitSpring` | `../art/hero-exit-*.png` | sortie de fin de round : il se penche, s'accroupit, pose la main au sol, prêt à bondir |
 | `hurt`, `hurtRecover` | `../art/hero-hurt.png`, `../art/hero-hurt-recover.png` | coup encaissé : tête projetée en arrière, puis retour |
 | `specialIn1`, `specialIn2`, `specialIn3` | `../art/hero-special-in-*.png` | attaque spéciale : dessins intermédiaires avant la charge, avant le lancer et avant le retour |

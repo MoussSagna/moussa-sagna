@@ -167,7 +167,7 @@ function App() {
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↑</kbd> ou{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Z</kbd> pour sauter (avec une direction tenue : saut avant ou arrière),{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">J</kbd> pour attaquer : un appui pour le
-        coup léger, puis d'autres pour enchaîner le coup moyen et le coup fort ;{' '}
+        coup léger, puis d'autres pour enchaîner le coup moyen, le coup fort et le coup de pied ;{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">L</kbd> pour la boule de feu,{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">I</kbd> pour la rafale de coups de pied,{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">P</kbd> pour finir le round ;{' '}

@@ -12,7 +12,7 @@ const lerpRange = ([a, b]: [number, number], k: number) => a + (b - a) * k
 const SPARK_UNIFORMS = ['uRect', 'uK', 'uSeed', 'uPower', 'uTint', 'uGlow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'kicksHigh', 'kicksMid', 'kicksLow', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'kicksHigh', 'kicksMid', 'kicksLow', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring', 'kickStart', 'kickHit']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 export const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -46,6 +46,8 @@ const FEET: Record<PoseName, [number, number]> = {
   specialThrow: POSES.specialThrow.anchor,
   specialRecover: POSES.specialRecover.anchor,
   hurt: POSES.hurt.anchor,
+  kickStart: POSES.kickStart.anchor,
+  kickHit: POSES.kickHit.anchor,
   exitLean: POSES.exitLean.anchor,
   exitCrouch: POSES.exitCrouch.anchor,
   exitGround: POSES.exitGround.anchor,
@@ -78,6 +80,8 @@ const POSE_SCALE: Record<PoseName, number> = {
   kicksHigh: 1.17, kicksMid: 1.17, kicksLow: 1.17,
   // sortie de fin de round : mesuré sur la longueur de la basket avant
   exitLean: 0.965, exitCrouch: 0.965, exitGround: 0.965, exitSpring: 0.965,
+  // coup de pied : mesuré sur le visage (bandeau-menton), comme la rafale de coups de pied
+  kickStart: 1.15, kickHit: 1.2,
 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
@@ -119,13 +123,14 @@ const JUMP = {
  * `power` (de 0 à 1) règle la réaction de la cible et la taille de l'étincelle, `stop` est la durée de
  * l'arrêt sur image, en secondes.
  * Chaque coup a ses dessins par phase ; le démarrage peut en avoir plusieurs, qui se partagent sa durée.
- * Le léger réutilise son dessin de démarrage pour la récupération. Le fort est un uppercut du bras avant. Le moyen ne s'obtient qu'en enchaînant
+ * Le léger réutilise son dessin de démarrage pour la récupération. Le fort est un uppercut du bras avant. Le coup de pied (`kick`), quatrième et dernier coup de l'enchaînement, part après le fort. Le moyen ne s'obtient qu'en enchaînant
  * après le léger : son démarrage est fait des deux dessins de transition entre le jab et le direct.
  */
 const PUNCHES = {
   light: { startup: 4 / 60, active: 3 / 60, recovery: 7 / 60, reach: 580, height: 1010, power: 0.35, stop: 0.06, start: ['punchStart'], hit: 'punchHit', recover: 'punchStart' },
   medium: { startup: 6 / 60, active: 4 / 60, recovery: 11 / 60, reach: 560, height: 960, power: 0.6, stop: 0.09, start: ['punchChain1', 'punchChain2'], hit: 'punchMidHit', recover: 'punchMidRecover' },
   heavy: { startup: 11 / 60, active: 6 / 60, recovery: 20 / 60, reach: 480, height: 1150, power: 1, stop: 0.15, start: ['punchHeavyStart'], hit: 'punchHeavyHit', recover: 'punchHeavyRecover' },
+  kick: { startup: 9 / 60, active: 5 / 60, recovery: 16 / 60, reach: 700, height: 1220, power: 1, stop: 0.17, start: ['kickStart'], hit: 'kickHit', recover: 'kickStart' },
 } satisfies Record<string, { startup: number; active: number; recovery: number; reach: number; height: number; power: number; stop: number; start: PoseName[]; hit: PoseName; recover: PoseName }>
 export type PunchStrength = keyof typeof PUNCHES
 
@@ -136,7 +141,7 @@ export type PunchStrength = keyof typeof PUNCHES
  * Annulation : de la même façon, la touche d'attaque spéciale pressée pendant un coup qui touche remplace
  * sa récupération par l'attaque spéciale.
  */
-const CHAIN: Partial<Record<PunchStrength, PunchStrength>> = { light: 'medium', medium: 'heavy' }
+const CHAIN: Partial<Record<PunchStrength, PunchStrength>> = { light: 'medium', medium: 'heavy', heavy: 'kick' }
 /**
  * Délai de grâce, en secondes : après la fin d'un coup, un appui pendant ce délai lance encore le coup
  * suivant au lieu de recommencer au premier. Sans lui, il faudrait appuyer pendant le quart de seconde du coup.
@@ -346,7 +351,7 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'kicksHigh' | 'kicksMid' | 'kicksLow' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring'> | 'dash' | 'jump' | 'punch' | 'special' | 'kicks' | 'exit' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'kicksHigh' | 'kicksMid' | 'kicksLow' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring' | 'kickStart' | 'kickHit'> | 'dash' | 'jump' | 'punch' | 'special' | 'kicks' | 'exit' = 'guard'
   /** Temps écoulé depuis le début de l'attaque spéciale en cours. */
   private specialTime = 0
   /** Boule de feu en vol : position (fraction de la largeur du stage), hauteur au-dessus du sol (pixels de la toile), âge. */
