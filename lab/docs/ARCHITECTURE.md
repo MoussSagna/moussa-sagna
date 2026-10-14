@@ -59,6 +59,7 @@ Le personnage est fait de vingt-neuf illustrations dans la même vue (trois quar
 | `punchStart` | `../art/hero-punch-start.png` | coup de poing léger : bras à mi-course, au démarrage et au retour |
 | `punchHit` | `../art/hero-punch-hit.png` | coup de poing léger : bras tendu |
 | `specialCharge`, `specialThrow`, `specialRecover` | `../art/hero-special-*.png` | attaque spéciale : charge à la hanche, lancer à deux mains, retour |
+| `koStagger`, `koFall`, `koAir`, `koDown` | `../art/hero-ko-*.png` | K.O. : il titube, bascule, est projeté en l'air, puis reste au sol |
 | `groundCharge`, `groundRise`, `groundPalm` | `../art/hero-ground-*.png` | frappe au sol : main au sol, redressement, paume tendue |
 | `kickStart`, `kickHit` | `../art/hero-kick-*.png` | coup de pied, quatrième coup de l'enchaînement : genou armé (démarrage et retour), jambe tendue |
 | `exitLean`, `exitCrouch`, `exitGround`, `exitSpring` | `../art/hero-exit-*.png` | sortie de fin de round : il se penche, s'accroupit, pose la main au sol, prêt à bondir |
@@ -159,6 +160,12 @@ Tout le mouvement est fait par le code : cadrage et zoom de chaque plan (`SHOTS`
 Tant que les plans recouvrent l'écran, `StageEngine` ne dessine pas le stage. Ensuite, un éclair blanc ramène au stage, dont le travelling d'ouverture commence, et les annonces s'enchaînent par-dessus : « Face your destiny », « Round 1 », « Fight! ». Le personnage ne répond à aucune commande avant le « Fight! ». Le bouton « Passer » (ou Échap) saute les plans illustrés et mène directement aux annonces ; `StageEngine.onCinematic` prévient React pour l'afficher ou le masquer.
 
 « Réduire les mouvements » fixe la caméra sur le cadrage d'arrivée de chaque plan, remplace le pétale qui traverse par un fondu rose et la coupe en diagonale par un fondu au noir, adoucit les éclairs et supprime la secousse du « Fight! ».
+
+### Le K.O.
+
+`StageEngine.knockOut()` (touche O ou bouton « K.O. ») met le personnage hors de combat, pour tester sa défaite : arrêt sur image et secousse, puis `HeroLayer.knockOut()` enchaîne trois dessins (il titube, bascule en arrière, est projeté en l'air sur une courbe) en reculant, et le dessin au sol (`KO`). À la chute, la caméra tremble, de la fumée et des cailloux jaillissent (les mêmes que la fin de round, plus petits) et `CinematicLayer.showKO` affiche « K.O. ». Après `KO.total` secondes, il revient en garde et le round suivant est annoncé. Pendant le K.O., il ne peut être ni touché ni commandé.
+
+`../art/hero-ko-down.png` est l'illustration fournie, plus large que les autres : réduite à 0,85 et posée sur une toile de 1024 × 1536, ce que `POSE_SCALE` compense.
 
 ### La fin de round
 

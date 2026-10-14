@@ -96,6 +96,8 @@ const TIMELINE = {
   round: [17.0, 18.15] as [number, number],
   fight: [18.25, 19.35] as [number, number],
 }
+/** Annonce « K.O. » : début et fin, en secondes depuis le K.O. du personnage au sol. */
+const KO_ANNOUNCE: [number, number] = [0, 1.7]
 const SHOTS_END = SHOTS[SHOTS.length - 1].end
 /** Instant à partir duquel le personnage peut jouer, et fin de la cinématique. */
 export const CINEMATIC_FIGHT_AT = TIMELINE.fight[0]
@@ -130,6 +132,8 @@ export class CinematicLayer {
   private images: (HTMLImageElement | null)[] = []
   /** Temps écoulé depuis le début, ou -1 quand elle ne joue pas. */
   private time = -1
+  /** Temps écoulé depuis l'annonce « K.O. », ou -1 quand elle n'est pas affichée. */
+  private koTime = -1
   /** Numéro du round annoncé. */
   private round = 1
   private drops = Array.from({ length: 220 }, () => ({ x: Math.random(), y: Math.random(), length: 0.03 + Math.random() * 0.05, speed: 1.6 + Math.random() * 1.2 }))
@@ -185,7 +189,16 @@ export class CinematicLayer {
     return this.time >= 0 && this.time < CINEMATIC_FIGHT_AT
   }
 
+  /** Affiche « K.O. » par-dessus le stage, le temps de `KO_ANNOUNCE`. */
+  showKO(): void {
+    this.koTime = 0
+  }
+
   update(delta: number): void {
+    if (this.koTime >= 0) {
+      this.koTime += delta
+      if (this.koTime >= KO_ANNOUNCE[1]) this.koTime = -1
+    }
     if (this.time < 0) return
     this.time += delta
     if (this.time >= END) this.time = -1
@@ -197,6 +210,7 @@ export class CinematicLayer {
     const { width: w, height: h } = frame
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, w, h)
+    if (this.koTime >= 0) this.announce(ctx, this.koTime, KO_ANNOUNCE, 'K.O.', 0.3, RED, w, h, calm)
     const t = this.time
     if (t < 0) return
 

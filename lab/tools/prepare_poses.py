@@ -2,7 +2,7 @@
 
 Usage (depuis lab/) : python3 tools/prepare_poses.py [--debug dossier]
 Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png, hero-dash-back.png,
-hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png les neuf hero-punch-*.png, les six hero-special-*.png, les deux hero-hurt*.png, les trois hero-ground-*.png, les quatre hero-exit-*.png et les deux hero-kick-*.png
+hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png les neuf hero-punch-*.png, les six hero-special-*.png, les deux hero-hurt*.png, les trois hero-ground-*.png, les quatre hero-ko-*.png, les quatre hero-exit-*.png et les deux hero-kick-*.png
 (fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
@@ -63,6 +63,10 @@ LOGOS = dict(
 RED_LOGOS = dict(groundCharge=[(770, 1145, 840, 1200)], groundRise=[(775, 1160, 840, 1210)], groundPalm=[(770, 1140, 840, 1195)],
                  kickStart=[(420, 1312, 498, 1374), (640, 726, 684, 786)],
                  kickHit=[(316, 1308, 373, 1354), (876, 390, 910, 420)])
+# Logos gris ou noirs sur un panneau blanc : dans chaque rectangle, serré autour du logo, les pixels gris ou
+# sombres peu colorés sont repeints d'après le blanc qui les entoure.
+GRAY_LOGOS = dict(koStagger=[(185, 1262, 255, 1320), (825, 1300, 890, 1365)], koFall=[(305, 1250, 375, 1320), (810, 1170, 885, 1235)],
+                  koAir=[(812, 540, 858, 606), (868, 550, 905, 610)], koDown=[(818, 1212, 872, 1265)])
 FAINT_LOGOS = dict(jumpStart=[[(150, 1228), (188, 1226), (204, 1262), (205, 1296), (150, 1296)]],
                    punchStart=[[(740, 1300), (800, 1300), (800, 1345), (740, 1345)]],
                    punchHit=[[(740, 1288), (800, 1288), (800, 1340), (740, 1340)]])
@@ -85,6 +89,8 @@ SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=
               # rafale de coups de pied : calée sur le pied arrière de la garde, qui sert d'appui (dessins 1,17 fois plus petits)
               # frappe au sol : calée sur le milieu des pieds
               groundCharge=515, groundRise=509, groundPalm=496,
+              # K.O. : calé sur le milieu des pieds, puis sur le milieu du corps en l'air et au sol
+              koStagger=600, koFall=600, koAir=520, koDown=500,
               # sortie de fin de round : calée sur le milieu des deux pieds, qui bougent d'un dessin à l'autre
               exitLean=517, exitCrouch=541, exitGround=496, exitSpring=500,
               # coup de pied : calé sur l'aplomb des hanches, comme la garde, pour que le corps ne saute pas
@@ -161,6 +167,7 @@ FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png',
              hurt='hero-hurt.png', hurtRecover='hero-hurt-recover.png',
              exitLean='hero-exit-lean.png', exitCrouch='hero-exit-crouch.png', exitGround='hero-exit-ground.png', exitSpring='hero-exit-spring.png',
              kickStart='hero-kick-start.png', kickHit='hero-kick-hit.png',
+             koStagger='hero-ko-stagger.png', koFall='hero-ko-fall.png', koAir='hero-ko-air.png', koDown='hero-ko-down.png',
              groundCharge='hero-ground-charge.png', groundRise='hero-ground-rise.png', groundPalm='hero-ground-palm.png',
              punchChain1='hero-punch-chain-1.png', punchChain2='hero-punch-chain-2.png', punchMidHit='hero-punch-mid-hit.png', punchMidRecover='hero-punch-mid-recover.png')
 
@@ -177,6 +184,13 @@ def load(name: str) -> np.ndarray:
     for x0, y0, x1, y1 in RED_LOGOS.get(name, []):
         r, g, b = [rgb[y0:y1, x0:x1, i].astype(int) for i in range(3)]
         mark = ((r > 110) & (r - g > 50) & (r - b > 40)) | (np.maximum(np.maximum(r, g), b) < 70)
+        mask = np.zeros(rgb.shape[:2], np.uint8)
+        mask[y0:y1, x0:x1][mark] = 255
+        mask = cv2.dilate(mask, np.ones((3, 3), np.uint8))
+        rgb = cv2.inpaint(rgb, mask, 4, cv2.INPAINT_TELEA)
+    for x0, y0, x1, y1 in GRAY_LOGOS.get(name, []):
+        zone = rgb[y0:y1, x0:x1].astype(int)
+        mark = (zone.max(axis=2) < 215) & (zone.max(axis=2) - zone.min(axis=2) < 45)
         mask = np.zeros(rgb.shape[:2], np.uint8)
         mask[y0:y1, x0:x1][mark] = 255
         mask = cv2.dilate(mask, np.ones((3, 3), np.uint8))

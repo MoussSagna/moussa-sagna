@@ -13,7 +13,7 @@ const SPRITE_UNIFORMS = ['uRect', 'uTex', 'uUv', 'uAlpha'] as const
 const SPARK_UNIFORMS = ['uRect', 'uK', 'uSeed', 'uPower', 'uTint', 'uGlow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring', 'kickStart', 'kickHit', 'groundCharge', 'groundRise', 'groundPalm']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring', 'kickStart', 'kickHit', 'groundCharge', 'groundRise', 'groundPalm', 'koStagger', 'koFall', 'koAir', 'koDown']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 export const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -53,6 +53,10 @@ const FEET: Record<PoseName, [number, number]> = {
   exitCrouch: POSES.exitCrouch.anchor,
   exitGround: POSES.exitGround.anchor,
   exitSpring: POSES.exitSpring.anchor,
+  koStagger: POSES.koStagger.anchor,
+  koFall: POSES.koFall.anchor,
+  koAir: POSES.koAir.anchor,
+  koDown: POSES.koDown.anchor,
   groundCharge: POSES.groundCharge.anchor,
   groundRise: POSES.groundRise.anchor,
   groundPalm: POSES.groundPalm.anchor,
@@ -80,6 +84,8 @@ const POSE_SCALE: Record<PoseName, number> = {
   hurt: 1, hurtRecover: 1,
   // frappe au sol : mesuré sur la longueur des baskets
   groundCharge: 1.27, groundRise: 1.27, groundPalm: 1.27,
+  // K.O. : mesuré sur la longueur des baskets ; le dessin au sol a été réduit à 0,85 pour tenir dans la toile
+  koStagger: 1.12, koFall: 1.1, koAir: 1.1, koDown: 1.3,
   // sortie de fin de round : mesuré sur la longueur de la basket avant
   exitLean: 0.965, exitCrouch: 0.965, exitGround: 0.965, exitSpring: 0.965,
   // coup de pied : mesuré sur le visage (bandeau-menton), comme la rafale de coups de pied
@@ -253,6 +259,26 @@ const EXIT_CROUCH = EXIT.steps.reduce((sum, step) => sum + step.seconds, 0)
 const EXIT_GONE = EXIT_CROUCH + EXIT.leap
 
 /**
+ * K.O. : il titube, bascule en arrière, est projeté en l'air puis retombe au sol, où il reste. Les dessins dans
+ * l'ordre, avec leur durée en secondes ; le dernier (au sol) dure jusqu'à la fin (`total`). Il recule de `push`
+ * (fraction de la largeur de l'écran) pendant `pushSeconds`. En l'air, ses pieds montent jusqu'à `height` pixels
+ * de la toile. À la chute, de la fumée et des cailloux jaillissent du sol.
+ */
+const KO = {
+  steps: [
+    { pose: 'koStagger', seconds: 0.24 },
+    { pose: 'koFall', seconds: 0.18 },
+    { pose: 'koAir', seconds: 0.36 },
+  ] as { pose: PoseName; seconds: number }[],
+  push: 0.1,
+  pushSeconds: 0.78,
+  height: 300,
+  total: 3.2,
+}
+const KO_AIR = KO.steps[0].seconds + KO.steps[1].seconds
+const KO_DOWN = KO.steps.reduce((sum, step) => sum + step.seconds, 0)
+
+/**
  * Fumée du bond : les bouffées dessinées (`tools/prepare_fx.py`), de la plus petite à la plus grande, avec leur
  * taille en pixels de l'image. `puffs` : quelle bouffée, décalage horizontal depuis les pieds (pixels de la toile),
  * retard, taille, retournée ou non (la traînée de chaque bouffée part vers l'extérieur). Une bouffée surgit en
@@ -379,7 +405,7 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'groundCharge' | 'groundRise' | 'groundPalm' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring' | 'kickStart' | 'kickHit'> | 'dash' | 'jump' | 'punch' | 'special' | 'ground' | 'exit' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'groundCharge' | 'groundRise' | 'groundPalm' | 'koStagger' | 'koFall' | 'koAir' | 'koDown' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring' | 'kickStart' | 'kickHit'> | 'dash' | 'jump' | 'punch' | 'special' | 'ground' | 'exit' | 'ko' = 'guard'
   /** Temps écoulé depuis le début de l'attaque spéciale en cours. */
   private specialTime = 0
   /** Boule de feu en vol : position (fraction de la largeur du stage), hauteur au-dessus du sol (pixels de la toile), âge. */
@@ -404,6 +430,9 @@ export class HeroLayer {
   /** Planche des effets de la frappe au sol, et le programme qui en dessine un morceau. */
   private fx: WebGLTexture | null = null
   private sprite: Program<(typeof SPRITE_UNIFORMS)[number]> | null = null
+  /** Temps écoulé depuis le début du K.O., et position au moment du coup. */
+  private koTime = 0
+  private koFrom = PLACEMENT.x
   /** Temps écoulé depuis le début de la sortie de fin de round. */
   private exitTime = 0
   /** Les bouffées de fumée, chargées avec les poses. */
@@ -600,7 +629,7 @@ export class HeroLayer {
    */
   takeHit(strike: Strike, pixel: number): boolean {
     // en pleine sortie de fin de round, il n'est plus là pour être touché
-    if (this.pose === 'exit') return false
+    if (this.pose === 'exit' || this.pose === 'ko') return false
     const guarded = this.pose === 'block' || this.pose === 'crouchBlock'
     const height = !guarded ? strike.height : this.pose === 'block' ? GUARD_HIT.height : GUARD_HIT.crouchHeight
     this.impacts.push({ x: this.front(pixel), height, age: 0, power: strike.power, blast: false, guard: guarded, seed: this.x * 50 + this.impacts.length })
@@ -660,13 +689,58 @@ export class HeroLayer {
     this.slide = null
     this.blockStun = 0
     this.sincePunch = Infinity
-    // cailloux : toujours les mêmes, pour que la sortie soit identique d'une fois à l'autre
+    this.throwPebbles()
+  }
+
+  /** Cailloux projetés : toujours les mêmes, pour que l'effet soit identique d'une fois à l'autre. */
+  private throwPebbles(): void {
     this.pebbles = Array.from({ length: PEBBLES.count }, (_, i) => {
       const r = Math.abs((Math.sin(i * 12.9898) * 43758.5453) % 1)
       const angle = (i / (PEBBLES.count - 1) - 0.5) * 2 * PEBBLES.spread + (r - 0.5) * 0.3
       const speed = lerpRange(PEBBLES.speed, (r * 7.3) % 1)
       return { vx: Math.sin(angle) * speed, vy: Math.cos(angle) * speed, size: lerpRange(PEBBLES.size, (r * 3.1) % 1) }
     })
+  }
+
+  /** K.O. : il est mis hors de combat, quoi qu'il fasse. `koDone` devient vrai quand il est resté assez au sol. */
+  knockOut(): void {
+    if (this.pose === 'ko' || this.pose === 'exit') return
+    this.pose = 'ko'
+    this.koTime = 0
+    this.koFrom = this.x
+    this.slide = null
+    this.blockStun = 0
+    this.fireball = null
+    this.sincePunch = Infinity
+    this.throwPebbles()
+  }
+
+  /** Vrai pendant le K.O. */
+  get knockedOut(): boolean {
+    return this.pose === 'ko'
+  }
+
+  /** Vrai à l'instant où il touche le sol, pendant le K.O. */
+  get koLanded(): boolean {
+    return this.pose === 'ko' && this.koTime >= KO_DOWN
+  }
+
+  /** Vrai quand le K.O. est fini : il est resté au sol assez longtemps. */
+  get koDone(): boolean {
+    return this.pose === 'ko' && this.koTime >= KO.total
+  }
+
+  /** Dessin du K.O. et hauteur des pieds (pixels de la toile) : en l'air, une courbe qui monte et redescend. */
+  private koState(): { name: PoseName; lift: number } {
+    let end = 0
+    for (const step of KO.steps) {
+      end += step.seconds
+      if (this.koTime < end) {
+        const air = step.pose === 'koAir' ? Math.sin((Math.PI * (this.koTime - KO_AIR)) / step.seconds) : 0
+        return { name: step.pose, lift: KO.height * air }
+      }
+    }
+    return { name: 'koDown', lift: 0 }
   }
 
   /** Vrai pendant la sortie de fin de round. */
@@ -682,6 +756,7 @@ export class HeroLayer {
   /** Ramène le personnage en garde à sa place de départ, pour le round suivant. */
   reenter(): void {
     this.pose = 'guard'
+    this.slide = null
     this.x = PLACEMENT.x
     this.fireball = null
     this.impacts = []
@@ -816,6 +891,13 @@ export class HeroLayer {
   update(frame: FrameInfo, direction: number, crouch: boolean, block: boolean): void {
     if (this.pose === 'exit') {
       this.exitTime += frame.delta
+      return
+    }
+    if (this.pose === 'ko') {
+      this.koTime += frame.delta
+      // il recule en freinant, sans sortir du stage
+      const k = Math.min(1, this.koTime / KO.pushSeconds)
+      this.x = Math.max(PLACEMENT.minX, this.koFrom - KO.push * (1 - (1 - k) ** 2))
       return
     }
     // recul après un coup reçu ou paré : il part vite et freine
@@ -1023,7 +1105,7 @@ export class HeroLayer {
    * La fumée et les cailloux du bond, `t` secondes après le départ. `sx`, `sy` : les pieds à l'écran ; `ux`, `uy` :
    * taille d'un pixel de la toile, en fraction de l'écran.
    */
-  private drawSmoke(gl: WebGLRenderingContext, flat: Program<(typeof FLAT_UNIFORMS)[number]>, t: number, sx: number, sy: number, ux: number, uy: number, calm: boolean): void {
+  private drawSmoke(gl: WebGLRenderingContext, flat: Program<(typeof FLAT_UNIFORMS)[number]>, t: number, sx: number, sy: number, ux: number, uy: number, calm: boolean, size = 1): void {
     gl.useProgram(flat.program)
     gl.enableVertexAttribArray(flat.attribute)
     gl.vertexAttribPointer(flat.attribute, 2, gl.FLOAT, false, 0, 0)
@@ -1042,7 +1124,7 @@ export class HeroLayer {
     }
     // bouffées : des petites, sur les côtés, à la grande, au centre, qui passe devant
     gl.uniform1f(flat.u.uShadow, 0)
-    for (const [index, offset, delay, size, flip] of [...SMOKE.puffs].reverse()) {
+    for (const [index, offset, delay, puffSize, flip] of [...SMOKE.puffs].reverse()) {
       const age = t - delay
       const texture = this.smoke[index]
       if (age <= 0 || !texture) continue
@@ -1050,10 +1132,10 @@ export class HeroLayer {
       const alpha = 1 - Math.max(0, Math.min(1, (age - fadeStart) / (fadeEnd - fadeStart)))
       if (alpha <= 0) continue
       const grow = 1 - (1 - Math.min(1, age / SMOKE.grow)) ** 3
-      const scale = size * (0.35 + 0.65 * grow) * (calm ? 0.8 : 1)
+      const scale = puffSize * size * (0.35 + 0.65 * grow) * (calm ? 0.8 : 1)
       const [iw, ih] = SMOKE.sizes[index]
       const away = Math.sign(offset) * SMOKE.drift * Math.min(1, age / 0.8)
-      const x = sx + (offset + away) * ux
+      const x = sx + (offset + away) * size * ux
       // posée sur le sol, elle monte un peu en s'effaçant
       const bottom = sy - SMOKE.rise * Math.min(1, age / 1.2) * uy
       gl.uniform1i(flat.u.uTex, SMOKE_UNIT + index)
@@ -1087,9 +1169,12 @@ export class HeroLayer {
     const leaving = this.pose === 'exit' ? this.exitState() : null
     // une fois parti d'un bond, il n'est plus dessiné : il ne reste que la fumée
     const hidden = this.pose === 'exit' && !leaving
-    const lift = jump ? jump.lift : leaving ? leaving.lift : 0
+    const ko = this.pose === 'ko' ? this.koState() : null
+    const lift = jump ? jump.lift : leaving ? leaving.lift : ko ? ko.lift : 0
     const name: PoseName =
-      leaving
+      ko
+        ? ko.name
+        : leaving
         ? leaving.name
         : this.pose === 'jump'
         ? (jump?.name ?? 'guard')
@@ -1107,7 +1192,7 @@ export class HeroLayer {
           ? this.dashing.direction > 0
             ? 'dashForward'
             : 'dashBack'
-          : this.pose === 'exit'
+          : this.pose === 'exit' || this.pose === 'ko'
             ? 'guard'
             : this.pose
     const amplitude = calm ? CALM_AMPLITUDE : 1
@@ -1229,6 +1314,8 @@ export class HeroLayer {
 
     // la fumée et les cailloux du bond de sortie, devant lui
     if (this.pose === 'exit' && this.exitTime >= EXIT_CROUCH) this.drawSmoke(gl, flat, this.exitTime - EXIT_CROUCH, sx, sy, unitX / 2, unitY / 2, calm)
+    // et celles de sa chute au sol, à la fin d'un K.O.
+    if (this.pose === 'ko' && this.koTime >= KO_DOWN) this.drawSmoke(gl, flat, this.koTime - KO_DOWN, sx, sy, unitX / 2, unitY / 2, calm, 0.55)
 
     // 5. la boule de feu : elle grossit dans les mains pendant la charge, puis vole devant le personnage
     const fire = this.fire

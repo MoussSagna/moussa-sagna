@@ -444,6 +444,54 @@ export const POSES = {
       { name: 'body', parent: -1, pivot: [512, 768], box: [16, 423, 1001, 811], atlas: [0, 0] },
     ] as PoseLayer[],
   },
+  koStagger: {
+    file: 'hero/koStagger.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [600, 1435] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [0, 150, 1013, 1295], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  koFall: {
+    file: 'hero/koFall.webp',
+    atlasSize: [2048, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [600, 1423] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [3, 182, 1029, 1250], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  koAir: {
+    file: 'hero/koAir.webp',
+    atlasSize: [1024, 1024] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [520, 1180] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [6, 366, 1014, 824], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  koDown: {
+    file: 'hero/koDown.webp',
+    atlasSize: [1024, 512] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [500, 1440] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [15, 950, 1000, 499], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
   exitLean: {
     file: 'hero/exitLean.webp',
     atlasSize: [1024, 2048] as Point,

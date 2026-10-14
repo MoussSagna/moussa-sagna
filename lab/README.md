@@ -17,6 +17,7 @@ Le lab sert à mettre au point le stage et les animations du personnage avant de
 | Sauter (avec ← ou → tenu : saut arrière ou avant) | ↑ ou Z (W sur un clavier QWERTY) | « Sauter » |
 | Seconde attaque spéciale (frappe au sol) | I | « Spécial 2 » |
 | Passer la cinématique d'entrée | Échap | « Passer » |
+| Perdre par K.O. (puis round suivant) | O | « K.O. » |
 | Finir le round (sortie du personnage, puis round suivant) | P | « Fin du round » |
 | Faire attaquer le mannequin (pour tester les coups reçus et parés) | K | « Le mannequin attaque » |
 | Attaquer | J : un appui pour le coup léger, un second pour enchaîner le coup moyen, un troisième pour le coup fort, un quatrième pour le coup de pied. L'enchaînement ne continue que si le coup touche ; L pendant un coup qui touche l'annule en boule de feu | « Attaquer » |

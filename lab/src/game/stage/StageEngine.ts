@@ -46,6 +46,8 @@ export class StageEngine {
   /** Round en cours, et vrai pendant la sortie de fin de round. */
   private round = 1
   private roundEnding = false
+  /** Vrai dès que « K.O. » a été annoncé pour le K.O. en cours. */
+  private koAnnounced = false
   private backdrop: StageBackdrop
   private dummy: DummyLayer
   private rival: RivalLayer
@@ -135,6 +137,18 @@ export class StageEngine {
   }
 
   /**
+   * Le personnage perd le round : K.O. Il est projeté au sol, « K.O. » s'affiche, puis il se retrouve en garde et
+   * le round suivant est annoncé.
+   */
+  knockOut(): void {
+    if (this.cinematic.locked || this.roundEnding || this.hero.knockedOut) return
+    this.hero.knockOut()
+    this.koAnnounced = false
+    this.stop = 0.22 * (this.options.calm ? 0.5 : 1)
+    this.shake = 1
+  }
+
+  /**
    * Fin du round : le personnage se baisse et disparaît d'un bond dans la fumée ; quand elle est retombée, il
    * revient à sa place et le round suivant est annoncé.
    */
@@ -199,7 +213,7 @@ export class StageEngine {
     }
     // son attaque : encaissée, ou parée si le personnage est en parade
     const blow = target.strike(pixel)
-    if (blow && !this.hero.exiting && this.hero.front(pixel) >= blow.x) {
+    if (blow && !this.hero.exiting && !this.hero.knockedOut && this.hero.front(pixel) >= blow.x) {
       target.land()
       const guarded = this.hero.takeHit(blow, pixel)
       this.stop = blow.stop * (guarded ? 0.5 : 1) * (calm ? 0.5 : 1)
@@ -266,6 +280,17 @@ export class StageEngine {
     const target = this.opponent()
     target.update(fight)
     this.hero.tick(delta)
+    if (this.hero.koLanded && !this.koAnnounced) {
+      // il touche le sol : la caméra tremble et « K.O. » s'affiche
+      this.koAnnounced = true
+      this.shake = 1
+      this.cinematic.showKO()
+    }
+    if (this.hero.koDone) {
+      this.round += 1
+      this.hero.reenter()
+      this.cinematic.startRound(this.round)
+    }
     if (this.roundEnding && this.hero.exitDone) {
       this.roundEnding = false
       this.round += 1
