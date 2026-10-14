@@ -227,6 +227,16 @@ franchement différentes.
 État repris : `lab/` au commit `75c9232` (11 octobre 2026). Toute nouvelle pose doit garder la même vue et la
 même taille de tête, sinon le personnage saute au changement d'état.
 
+## Cinématique d'entrée
+
+À l'ouverture de l'arène, une cinématique présente Moussa puis son adversaire, avant « Face your destiny », « Round 1 » et « Fight! ». Elle est reprise du lab : `src/game/cinematic/cinematic.ts` est une copie adaptée de `../lab/src/game/cinematic/CinematicLayer.ts`, sans dépendance à Phaser, qui dessine en Canvas 2D (plans, caméra, pluie, pétales, lanternes, transitions, cartons, annonces). Les plans sont les WebP de `public/assets/cinematic/`, repris du lab.
+
+- **Dans la scène** : `ArenaScene` charge les plans, crée une `CanvasTexture` de la taille de la scène et une image par-dessus tout (`CINEMATIC_DEPTH`). À chaque image, la cinématique avance et se redessine dans cette texture ; il n'y a ni second canvas ni seconde boucle. Elle suit le temps réel même si l'affichage ralentit (pas plafonné à 0,05 s comme le combat).
+- **Commandes** : le personnage ne répond à rien avant le « Fight! » (`can` et `walkDirection`). Échap ou le bouton « Passer l'intro » sautent les plans ; « Rejouer l'intro » la relance (`CONTROLS.skipCinematic`, `CONTROLS.replayCinematic`).
+- **Textes** : dans `src/data/cinematic.ts`. Le carton de Moussa reprend le nom et le titre de `PROFILE` ; l'adversaire, sans nom, garde « ??? ».
+- **Sans ses plans** (un fichier manquant), la cinématique ne joue pas et l'arène s'ouvre directement.
+- « Réduire les animations » fixe la caméra, remplace le pétale et la coupe en diagonale par des fondus et adoucit les éclairs.
+
 ## Routage
 
 - `BrowserRouter`, avec des adresses lisibles (`/projets/racine-eyewear`).

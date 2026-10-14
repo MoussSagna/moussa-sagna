@@ -40,19 +40,29 @@ export function Training() {
   const [block, setBlock] = useState(false);
   const [jump, setJump] = useState(0);
   const [attack, setAttack] = useState(0);
+  const [skipCinematic, setSkipCinematic] = useState(0);
+  const [replayCinematic, setReplayCinematic] = useState(0);
   return (
     <div className="page page--training">
       <div className="page__inner">
         <PageHead
           eyebrow="Arène · Mode entraînement"
           title="Premiers pas dans l’arène"
-          lead="Moussa se tient en garde dans l’arène, rendue en temps réel ci-dessous. Il marche, dashe, s’accroupit, pare, saute et enchaîne trois coups de poing. Il n’a pas encore d’adversaire : les coups ne touchent rien."
+          lead="Une cinématique présente Moussa et son adversaire, puis Moussa se tient en garde dans l’arène, rendue en temps réel ci-dessous. Il marche, dashe, s’accroupit, pare, saute et enchaîne trois coups de poing. Il n’a pas encore d’adversaire : les coups ne touchent rien."
         />
 
         <figure className="arena-frame rise" style={{ animationDelay: '240ms' }}>
           <div className="arena-frame__screen">
             <Suspense fallback={<p className="arena-frame__loading">Chargement de l’arène…</p>}>
-              <ArenaCanvas walk={walk} crouch={crouch} block={block} jump={jump} attack={attack} />
+              <ArenaCanvas
+                walk={walk}
+                crouch={crouch}
+                block={block}
+                jump={jump}
+                attack={attack}
+                skipCinematic={skipCinematic}
+                replayCinematic={replayCinematic}
+              />
             </Suspense>
           </div>
           <figcaption className="arena-frame__caption">
@@ -66,11 +76,13 @@ export function Training() {
             <HoldButton label="Parer" onHold={setBlock} />
             <HoldButton label="Sauter" onHold={(held) => held && setJump((count) => count + 1)} />
             <HoldButton label="Attaquer" onHold={(held) => held && setAttack((count) => count + 1)} />
+            <HoldButton label="Passer l’intro" onHold={(held) => held && setSkipCinematic((count) => count + 1)} />
+            <HoldButton label="Rejouer l’intro" onHold={(held) => held && setReplayCinematic((count) => count + 1)} />
             <p className="arena-controls__hint">
               Maintiens <kbd>←</kbd> <kbd>→</kbd> ou <kbd>Q</kbd> <kbd>D</kbd> pour marcher, appuie deux fois vite pour
               un dash. Maintiens <kbd>↓</kbd> ou <kbd>S</kbd> pour t’accroupir, <kbd>Espace</kbd> pour parer.{' '}
               <kbd>↑</kbd> ou <kbd>Z</kbd> pour sauter, <kbd>J</kbd> pour attaquer : un appui pour le coup léger, un
-              second pour enchaîner le coup moyen.
+              second pour enchaîner le coup moyen, un troisième pour le coup fort. <kbd>Échap</kbd> passe l’intro.
             </p>
           </div>
         </figure>

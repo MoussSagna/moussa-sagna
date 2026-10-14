@@ -15,6 +15,10 @@ export interface ArenaCommands {
   jump: number;
   /** Compteur : l'augmenter est un appui sur la touche d'attaque. */
   attack: number;
+  /** Compteur : l'augmenter passe les plans de la cinématique d'entrée. */
+  skipCinematic: number;
+  /** Compteur : l'augmenter rejoue la cinématique d'entrée. */
+  replayCinematic: number;
 }
 
 /**
@@ -22,7 +26,7 @@ export interface ArenaCommands {
  * Le moteur n'est créé qu'au montage et détruit au démontage ; les commandes lui sont transmises par son
  * registre, sans le recréer.
  */
-export default function ArenaCanvas({ walk, crouch, block, jump, attack }: ArenaCommands) {
+export default function ArenaCanvas({ walk, crouch, block, jump, attack, skipCinematic, replayCinematic }: ArenaCommands) {
   const parentRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
 
@@ -54,13 +58,19 @@ export default function ArenaCanvas({ walk, crouch, block, jump, attack }: Arena
   useEffect(() => {
     gameRef.current?.registry.set(CONTROLS.attack, attack);
   }, [attack]);
+  useEffect(() => {
+    gameRef.current?.registry.set(CONTROLS.skipCinematic, skipCinematic);
+  }, [skipCinematic]);
+  useEffect(() => {
+    gameRef.current?.registry.set(CONTROLS.replayCinematic, replayCinematic);
+  }, [replayCinematic]);
 
   return (
     <div
       ref={parentRef}
       className="arena-canvas"
       role="img"
-      aria-label="Arène Tokyo Underground : cour de temple sous la pluie, lune rouge, cerisier en fleurs et ville au néon. Moussa s'y tient en garde ; il peut marcher, dasher, s'accroupir, parer, sauter et donner des coups de poing."
+      aria-label="Arène Tokyo Underground, précédée d'une cinématique d'entrée : cour de temple sous la pluie, lune rouge, cerisier en fleurs et ville au néon. Moussa s'y tient en garde ; il peut marcher, dasher, s'accroupir, parer, sauter et donner des coups de poing."
     />
   );
 }

@@ -31,7 +31,7 @@ Il n'y a pas de script de lint.
 | `/projets/:slug` | Étude de cas d'un projet |
 | `/a-propos` | À propos |
 | `/parcours` | Expérience |
-| `/entrainement` | Arène Phaser jouable, au clavier ou aux boutons |
+| `/entrainement` | Cinématique d’entrée, puis arène Phaser jouable, au clavier ou aux boutons |
 | `/contact` | Contact |
 | toute autre adresse | Page de secours |
 
@@ -91,7 +91,7 @@ Les deux moteurs sont différents : rien ne se copie tout seul. Pour une nouvell
 3. Reporter à la main ce qui a changé dans `../lab/src/game/hero/HeroLayer.ts` : l'état et ses réglages dans `heroState.ts`, l'échelle des poses dans `HeroRig.ts`, le dessin dans `scenes/ArenaScene.ts`. Une nouvelle action s'ajoute aussi à `ACTION_POSES` (ses images), à `input.ts` (sa touche) et à `controls.ts` (son bouton).
 4. Lancer le site, regarder l'arène, et noter dans le message de commit le commit du lab qui a été repris.
 
-Dernier état repris : `lab/` au commit `59c1cce` (coup de poing fort, délai de grâce de l’enchaînement, saut raccourci). Pas encore repris : l’attaque spéciale, la rafale de coups de pied, l’effet de vitesse des dashs, les impacts, le mannequin, les coups reçus, l’adversaire et la cinématique d’entrée.
+Dernier état repris : `lab/` au commit `257d2d1` (cinématique d’entrée, avec l’adversaire). Pas encore repris : l’attaque spéciale, la rafale de coups de pied, l’effet de vitesse des dashs, les impacts, le mannequin, les coups reçus, l’adversaire en combat et la fin de round.
 
 ## Ce qui n'est pas dans le dépôt
 

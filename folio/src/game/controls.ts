@@ -13,4 +13,8 @@ export const CONTROLS = {
   jump: 'jump',
   /** Compteur : chaque changement de valeur est un appui sur la touche d'attaque. */
   attack: 'attack',
+  /** Compteur : chaque changement de valeur passe les plans de la cinématique d'entrée. */
+  skipCinematic: 'skipCinematic',
+  /** Compteur : chaque changement de valeur rejoue la cinématique d'entrée. */
+  replayCinematic: 'replayCinematic',
 } as const;
