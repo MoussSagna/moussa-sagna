@@ -1,9 +1,12 @@
-"""Prépare les effets dessinés : les bouffées de fumée de la sortie de fin de round.
+"""Prépare les effets dessinés : les bouffées de fumée de la sortie de fin de round, et la planche d'effets de la
+frappe au sol.
 
 Usage (depuis lab/) : python3 tools/prepare_fx.py
 Lit ../art/fx-smoke.png (plusieurs bouffées côte à côte sur fond vert uni), retire le fond vert, sépare les
 bouffées là où une colonne entière est vide, et écrit chacune dans public/assets/fx/smoke-N.webp, de la plus
 petite à la plus grande. Affiche leur taille, reprise dans SMOKE (src/game/hero/HeroLayer.ts).
+Lit aussi ../art/fx-ground-special.png (planche d'effets déjà détourée) et l'écrit telle quelle dans
+public/assets/fx/ground-special.webp ; les rectangles de chaque effet sont dans FX (HeroLayer.ts).
 """
 import numpy as np
 from PIL import Image
@@ -35,6 +38,9 @@ def main() -> None:
         crop = np.pad(part[ys.min():ys.max() + 1], ((PAD, PAD), (PAD, PAD), (0, 0)))
         Image.fromarray(crop).save(OUT / f'smoke-{index}.webp', lossless=True, quality=100, method=6)
         print(f'smoke-{index} : {crop.shape[1]} x {crop.shape[0]}')
+    sheet = Image.open(ART / 'fx-ground-special.png').convert('RGBA')
+    sheet.save(OUT / 'ground-special.webp', lossless=True, quality=100, method=6)
+    print(f'ground-special : {sheet.width} x {sheet.height}')
 
 
 if __name__ == '__main__':

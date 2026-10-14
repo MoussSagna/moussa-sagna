@@ -16,8 +16,8 @@ const JUMP_KEYS = new Set(['arrowup', 'z', 'w'])
 const ATTACK_KEYS = new Set(['j'])
 /** Touche de l'attaque spéciale. */
 const SPECIAL_KEYS = new Set(['l'])
-/** Touche de la seconde attaque spéciale, la rafale de coups de pied. */
-const KICKS_KEYS = new Set(['i'])
+/** Touche de la seconde attaque spéciale, la frappe au sol. */
+const SPECIAL2_KEYS = new Set(['i'])
 /** Touche qui termine le round : le personnage disparaît, puis le round suivant commence. */
 const END_ROUND_KEYS = new Set(['p'])
 /** Touche qui fait attaquer le mannequin, pour tester les coups reçus et parés. */
@@ -34,7 +34,7 @@ function App() {
   const [jump, setJump] = useState(0)
   const [attack, setAttack] = useState(0)
   const [special, setSpecial] = useState(0)
-  const [kicks, setKicks] = useState(0)
+  const [special2, setSpecial2] = useState(0)
   const [endRound, setEndRound] = useState(0)
   const [dummyAttack, setDummyAttack] = useState(0)
   const [dash, setDash] = useState({ id: 0, direction: 1 })
@@ -79,7 +79,7 @@ function App() {
       const key = event.key.toLowerCase()
       const posture = CROUCH_KEYS.has(key) || BLOCK_KEYS.has(key)
       const jumping = JUMP_KEYS.has(key)
-      const punching = ATTACK_KEYS.has(key) || SPECIAL_KEYS.has(key) || KICKS_KEYS.has(key) || END_ROUND_KEYS.has(key) || DUMMY_KEYS.has(key)
+      const punching = ATTACK_KEYS.has(key) || SPECIAL_KEYS.has(key) || SPECIAL2_KEYS.has(key) || END_ROUND_KEYS.has(key) || DUMMY_KEYS.has(key)
       if ((!(key in KEYS) && !posture && !jumping && !punching) || event.ctrlKey || event.metaKey || event.altKey) return
       const target = event.target
       // on ne détourne les touches que hors des champs de saisie de texte
@@ -92,7 +92,7 @@ function App() {
         if (event.repeat) return
         if (jumping) setJump((count) => count + 1)
         else if (SPECIAL_KEYS.has(key)) setSpecial((count) => count + 1)
-        else if (KICKS_KEYS.has(key)) setKicks((count) => count + 1)
+        else if (SPECIAL2_KEYS.has(key)) setSpecial2((count) => count + 1)
         else if (END_ROUND_KEYS.has(key)) setEndRound((count) => count + 1)
         else if (DUMMY_KEYS.has(key)) setDummyAttack((count) => count + 1)
         else setAttack((count) => count + 1)
@@ -124,7 +124,7 @@ function App() {
   return (
     <main className="mx-auto flex max-w-[1500px] flex-col gap-3.5 px-4 pt-4 pb-8">
       <h1 className="sr-only">Moussa Sagna, développeur frontend</h1>
-      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} block={block} dash={dash} jump={jump} attack={attack} special={special} kicks={kicks} endRound={endRound} dummyAttack={dummyAttack} onUnavailable={onUnavailable} />
+      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} block={block} dash={dash} jump={jump} attack={attack} special={special} special2={special2} endRound={endRound} dummyAttack={dummyAttack} onUnavailable={onUnavailable} />
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-muted">
         <div className="flex gap-2">
@@ -135,7 +135,7 @@ function App() {
           <HoldButton label="Sauter" onHold={(held) => held && setJump((count) => count + 1)} />
           <HoldButton label="Attaquer" onHold={(held) => held && setAttack((count) => count + 1)} />
           <HoldButton label="Spécial" onHold={(held) => held && setSpecial((count) => count + 1)} />
-          <HoldButton label="Spécial 2" onHold={(held) => held && setKicks((count) => count + 1)} />
+          <HoldButton label="Spécial 2" onHold={(held) => held && setSpecial2((count) => count + 1)} />
           <HoldButton label="Fin du round" onHold={(held) => held && setEndRound((count) => count + 1)} />
           <HoldButton label="Le mannequin attaque" onHold={(held) => held && setDummyAttack((count) => count + 1)} />
         </div>
@@ -169,7 +169,7 @@ function App() {
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">J</kbd> pour attaquer : un appui pour le
         coup léger, puis d'autres pour enchaîner le coup moyen, le coup fort et le coup de pied ;{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">L</kbd> pour la boule de feu,{' '}
-        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">I</kbd> pour la rafale de coups de pied,{' '}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">I</kbd> pour la frappe au sol,{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">P</kbd> pour finir le round ;{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">K</kbd> pour que le mannequin t'attaque. {note}
       </p>

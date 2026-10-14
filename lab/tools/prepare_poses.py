@@ -2,7 +2,7 @@
 
 Usage (depuis lab/) : python3 tools/prepare_poses.py [--debug dossier]
 Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png, hero-dash-back.png,
-hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png les neuf hero-punch-*.png, les six hero-special-*.png, les deux hero-hurt*.png les trois hero-kicks-*.png les quatre hero-exit-*.png et les deux hero-kick-*.png
+hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png les neuf hero-punch-*.png, les six hero-special-*.png, les deux hero-hurt*.png, les trois hero-ground-*.png, les quatre hero-exit-*.png et les deux hero-kick-*.png
 (fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
@@ -60,7 +60,8 @@ LOGOS = dict(
 # Logos en relief, tracés en traits pâles sur le blanc : dans chaque polygone, tout pixel clair devient blanc.
 # Logos rouges sur un panneau blanc : dans chaque rectangle (x0, y0, x1, y1), serré autour du logo, les pixels
 # rouges et leur contour sombre sont repeints d'après leur voisinage.
-RED_LOGOS = dict(kickStart=[(420, 1312, 498, 1374), (640, 726, 684, 786)],
+RED_LOGOS = dict(groundCharge=[(770, 1145, 840, 1200)], groundRise=[(775, 1160, 840, 1210)], groundPalm=[(770, 1140, 840, 1195)],
+                 kickStart=[(420, 1312, 498, 1374), (640, 726, 684, 786)],
                  kickHit=[(316, 1308, 373, 1354), (876, 390, 910, 420)])
 FAINT_LOGOS = dict(jumpStart=[[(150, 1228), (188, 1226), (204, 1262), (205, 1296), (150, 1296)]],
                    punchStart=[[(740, 1300), (800, 1300), (800, 1345), (740, 1345)]],
@@ -82,7 +83,8 @@ SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=
               # coup encaissé : calé sur le pied avant
               hurt=524, hurtRecover=524,
               # rafale de coups de pied : calée sur le pied arrière de la garde, qui sert d'appui (dessins 1,17 fois plus petits)
-              kicksHigh=566, kicksMid=566, kicksLow=566,
+              # frappe au sol : calée sur le milieu des pieds
+              groundCharge=515, groundRise=509, groundPalm=496,
               # sortie de fin de round : calée sur le milieu des deux pieds, qui bougent d'un dessin à l'autre
               exitLean=517, exitCrouch=541, exitGround=496, exitSpring=500,
               # coup de pied : calé sur l'aplomb des hanches, comme la garde, pour que le corps ne saute pas
@@ -159,7 +161,7 @@ FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png',
              hurt='hero-hurt.png', hurtRecover='hero-hurt-recover.png',
              exitLean='hero-exit-lean.png', exitCrouch='hero-exit-crouch.png', exitGround='hero-exit-ground.png', exitSpring='hero-exit-spring.png',
              kickStart='hero-kick-start.png', kickHit='hero-kick-hit.png',
-             kicksHigh='hero-kicks-high.png', kicksMid='hero-kicks-mid.png', kicksLow='hero-kicks-low.png',
+             groundCharge='hero-ground-charge.png', groundRise='hero-ground-rise.png', groundPalm='hero-ground-palm.png',
              punchChain1='hero-punch-chain-1.png', punchChain2='hero-punch-chain-2.png', punchMidHit='hero-punch-mid-hit.png', punchMidRecover='hero-punch-mid-recover.png')
 
 

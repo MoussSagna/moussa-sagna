@@ -408,40 +408,40 @@ export const POSES = {
       { name: 'body', parent: -1, pivot: [512, 768], box: [2, 58, 1010, 1359], atlas: [0, 0] },
     ] as PoseLayer[],
   },
-  kicksHigh: {
-    file: 'hero/kicksHigh.webp',
-    atlasSize: [2048, 2048] as Point,
+  groundCharge: {
+    file: 'hero/groundCharge.webp',
+    atlasSize: [1024, 1024] as Point,
     /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
-    anchor: [566, 1440] as Point,
+    anchor: [515, 1293] as Point,
     joints: {
       center: [512, 768] as Point,
     },
     layers: [
-      { name: 'body', parent: -1, pivot: [512, 768], box: [-8, 192, 1030, 1258], atlas: [0, 0] },
+      { name: 'body', parent: -1, pivot: [512, 768], box: [-8, 444, 1008, 859], atlas: [0, 0] },
     ] as PoseLayer[],
   },
-  kicksMid: {
-    file: 'hero/kicksMid.webp',
-    atlasSize: [2048, 2048] as Point,
+  groundRise: {
+    file: 'hero/groundRise.webp',
+    atlasSize: [1024, 1024] as Point,
     /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
-    anchor: [566, 1440] as Point,
+    anchor: [509, 1244] as Point,
     joints: {
       center: [512, 768] as Point,
     },
     layers: [
-      { name: 'body', parent: -1, pivot: [512, 768], box: [-8, 188, 1032, 1261], atlas: [0, 0] },
+      { name: 'body', parent: -1, pivot: [512, 768], box: [26, 370, 969, 884], atlas: [0, 0] },
     ] as PoseLayer[],
   },
-  kicksLow: {
-    file: 'hero/kicksLow.webp',
-    atlasSize: [2048, 2048] as Point,
+  groundPalm: {
+    file: 'hero/groundPalm.webp',
+    atlasSize: [1024, 1024] as Point,
     /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
-    anchor: [566, 1440] as Point,
+    anchor: [496, 1224] as Point,
     joints: {
       center: [512, 768] as Point,
     },
     layers: [
-      { name: 'body', parent: -1, pivot: [512, 768], box: [-8, 188, 1027, 1261], atlas: [0, 0] },
+      { name: 'body', parent: -1, pivot: [512, 768], box: [16, 423, 1001, 811], atlas: [0, 0] },
     ] as PoseLayer[],
   },
   exitLean: {
