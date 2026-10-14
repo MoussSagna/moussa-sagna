@@ -14,7 +14,7 @@ Le lab sert à mettre au point le stage et les animations du personnage avant de
 | S'accroupir | maintenir ↓ ou S | maintenir « S'accroupir » |
 | Parer (debout ou accroupi) | maintenir Espace | maintenir « Parer » |
 | Attaque spéciale (boule de feu) | L | « Spécial » |
-| Sauter | ↑ ou Z (W sur un clavier QWERTY) | « Sauter » |
+| Sauter (avec ← ou → tenu : saut arrière ou avant) | ↑ ou Z (W sur un clavier QWERTY) | « Sauter » |
 | Seconde attaque spéciale (rafale de coups de pied) | I | « Spécial 2 » |
 | Passer la cinématique d'entrée | Échap | « Passer » |
 | Finir le round (sortie du personnage, puis round suivant) | P | « Fin du round » |

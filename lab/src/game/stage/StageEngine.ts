@@ -121,7 +121,8 @@ export class StageEngine {
 
   /** Lance un saut vertical du personnage. */
   jump(): void {
-    if (!this.cinematic.locked) this.hero.jump()
+    // une direction tenue au moment du saut en fait un saut avant ou arrière
+    if (!this.cinematic.locked) this.hero.jump(this.walk)
   }
 
   /** Rejoue la cinématique d'entrée, puis le travelling d'ouverture du stage. */

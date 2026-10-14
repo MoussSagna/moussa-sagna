@@ -103,6 +103,13 @@ const JUMP = {
   /** Déformation du dessin : tassement à l'impulsion et à la réception, étirement à pleine vitesse. */
   squash: 0.09,
   stretch: 0.07,
+  /**
+   * Sauts avant et arrière : distance parcourue en vol (fraction de la largeur de l'écran) et inclinaison du
+   * corps dans le sens du saut (pixels de décalage en haut du corps). Le saut arrière va moins loin.
+   */
+  forward: 0.17,
+  back: 0.13,
+  lean: 55,
 }
 
 /**
@@ -378,6 +385,8 @@ export class HeroLayer {
   private sincePunch = Infinity
   /** Temps écoulé depuis le début du saut en cours. */
   private jumpTime = 0
+  /** Saut en cours : sens (1 avant, -1 arrière, 0 vertical) et position de départ. */
+  private jumping = { direction: 0, from: PLACEMENT.x }
   /** L'atlas de chaque pose. Un seul est lié à la fois, celui de la pose affichée. */
   private images = new Map<PoseName, HTMLImageElement>()
   /** Atlas envoyés à la carte graphique, du moins récemment utilisé au plus récent. */
@@ -683,11 +692,17 @@ export class HeroLayer {
   }
 
   /** Lance un saut vertical. Possible seulement depuis la garde ou la marche. */
-  jump(): void {
+  jump(direction = 0): void {
     const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
     if (!free) return
     this.pose = 'jump'
     this.jumpTime = 0
+    this.jumping = { direction: Math.sign(direction), from: this.x }
+  }
+
+  /** Avancée du vol, de 0 au décollage à 1 à l'atterrissage ; le corps garde une vitesse horizontale constante. */
+  private jumpFlight(): number {
+    return Math.max(0, Math.min(1, (this.jumpTime - JUMP.start) / (JUMP.rise + JUMP.fall)))
   }
 
   /**
@@ -717,6 +732,16 @@ export class HeroLayer {
       sx: 1 - stretch * 0.6,
       sy: 1 + stretch,
     }
+  }
+
+  /**
+   * Déformation du dessin en saut : tassement ou étirement autour des pieds et, pour un saut avant ou arrière,
+   * inclinaison du corps dans le sens du saut, nulle au sol et maximale en milieu de vol.
+   */
+  private jumpMatrix(feet: [number, number], sx: number, sy: number, amplitude: number): Affine {
+    const k = this.jumpFlight()
+    const shear = (-this.jumping.direction * JUMP.lean * Math.sin(Math.PI * k) * amplitude) / feet[1]
+    return [sx, 0, shear, sy, feet[0] - sx * feet[0] - shear * feet[1], feet[1] - sy * feet[1]]
   }
 
   /** Vitesse du dash en cours : 1 au départ, 0 à l'arrêt. */
@@ -838,6 +863,12 @@ export class HeroLayer {
     }
     if (this.pose === 'jump') {
       this.jumpTime += frame.delta
+      // saut avant ou arrière : le corps avance pendant tout le vol, sans franchir le bord ni l'adversaire
+      const { direction, from } = this.jumping
+      if (direction !== 0) {
+        const distance = direction > 0 ? JUMP.forward : JUMP.back
+        this.x = Math.max(PLACEMENT.minX, Math.min(this.limit(), from + direction * distance * this.jumpFlight()))
+      }
       if (this.jumpTime < JUMP.start + JUMP.rise + JUMP.fall + JUMP.land) return
       this.pose = 'guard'
     }
@@ -990,7 +1021,7 @@ export class HeroLayer {
           : HELD.includes(name)
             ? [heldMatrix(POSES[name].anchor, frame.time, amplitude)]
             : jump
-              ? [scaleAbout(feet, 1 + (jump.sx - 1) * amplitude, 1 + (jump.sy - 1) * amplitude)]
+              ? [this.jumpMatrix(feet, 1 + (jump.sx - 1) * amplitude, 1 + (jump.sy - 1) * amplitude, amplitude)]
               : leaving && leaving.leap > 0
                 ? [scaleAbout(feet, 1 - EXIT.stretch * 0.5 * amplitude, 1 + EXIT.stretch * amplitude)]
               : this.pose === 'dash' && !calm

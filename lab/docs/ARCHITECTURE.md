@@ -108,6 +108,8 @@ La hauteur est calculée par le moteur : une montée (`JUMP.rise`) puis une reto
 
 `App.tsx` le déclenche avec la flèche haut, Z (W sur un clavier QWERTY) ou le bouton « Sauter ».
 
+**Sauts avant et arrière** : une direction tenue au moment de l'appui sur saut (`StageEngine.jump` transmet `walk`) donne un saut avant ou arrière. Ce sont les mêmes dessins et la même trajectoire verticale ; le corps avance à vitesse constante pendant tout le vol (`JUMP.forward`, `JUMP.back`), sans franchir le bord du stage ni l'adversaire, et s'incline dans le sens du saut, au plus fort en milieu de vol (`JUMP.lean`, `jumpMatrix`).
+
 ### Les coups de poing
 
 Il n'y a qu'une touche d'attaque. `HeroLayer.attack()` lance le coup léger depuis la garde ou la marche ; un nouvel appui pendant un coup met en attente le coup suivant de l'enchaînement (`CHAIN`), qui part dès la fin des images actives, à la place de la récupération. Un appui dans les `CHAIN_GRACE` secondes qui suivent le retour en garde poursuit aussi l'enchaînement, pour ne pas avoir à appuyer pendant le quart de seconde du coup ; passé ce délai, ou après toute autre action, l'appui repart du coup léger. L'enchaînement complet : léger, moyen, fort.
