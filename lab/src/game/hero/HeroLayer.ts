@@ -190,11 +190,22 @@ const SPECIAL = {
 const FLURRY = {
   poses: ['punchHit', 'punchMidHit', 'punchHeavyHit', 'kickHit'] as PoseName[],
   heights: { punchHit: 1010, punchMidHit: 960, punchHeavyHit: 1150, kickHit: 1220 } as Partial<Record<PoseName, number>>,
-  count: 12,
+  count: 10,
   seconds: 0.085,
   reach: 760,
   power: 0.35,
   stop: 0.03,
+}
+
+/**
+ * Fin de la rafale : trois coups plus lents et plus lourds, toujours dans cet ordre, qui explosent sur la cible et
+ * font trembler l'écran. `power` au-delà de 1 : secousse plus forte que pour un coup normal.
+ */
+const HEAVY = {
+  poses: ['punchMidHit', 'punchHeavyHit', 'kickHit'] as PoseName[],
+  seconds: 0.22,
+  power: 1.8,
+  stop: 0.12,
 }
 
 /**
@@ -209,14 +220,17 @@ const GROUND = {
   steps: [
     { pose: 'exitLean', seconds: 0.07 },
     { pose: 'exitCrouch', seconds: 0.08 },
+    // la main au sol : le jeu se fige ici, le temps de la mise au point sur le personnage
+    { pose: 'exitGround', seconds: 0.1, focus: true },
     { pose: 'dashForward', seconds: 0.28, rush: true },
     ...Array.from({ length: FLURRY.count }, (_, flurry) => ({ pose: 'punchHit' as PoseName, seconds: FLURRY.seconds, flurry })),
+    ...HEAVY.poses.map((_, index) => ({ pose: 'punchHit' as PoseName, seconds: HEAVY.seconds, flurry: FLURRY.count + index, heavy: true })),
     { pose: 'exitGround', seconds: 0.08 },
     { pose: 'groundCharge', seconds: 1.34, charge: true },
     { pose: 'groundRise', seconds: 0.07 },
     { pose: 'groundPalm', seconds: 0.42, palm: true },
     { pose: 'groundRise', seconds: 0.14 },
-  ] as { pose: PoseName; seconds: number; charge?: boolean; palm?: boolean; rush?: boolean; flurry?: number }[],
+  ] as { pose: PoseName; seconds: number; charge?: boolean; palm?: boolean; rush?: boolean; flurry?: number; heavy?: boolean; focus?: boolean }[],
   rushSpeed: 2.2,
   active: 0.12,
   advance: 0.13,
@@ -457,7 +471,9 @@ export class HeroLayer {
   private flurry: PoseName[] = []
   private flurryLanded = -1
   /** Effets dessinés des coups de la rafale qui ont touché : point d'impact, hauteur, âge, rang du coup. */
-  private flurryFx: { x: number; height: number; age: number; index: number }[] = []
+  private flurryFx: { x: number; height: number; age: number; index: number; heavy: boolean }[] = []
+  /** Vrai dès que la mise au point du début de l'attaque spéciale a été lancée. */
+  private focusTaken = false
   /** Position aux images précédentes de la ruée, pour ses images fantômes. */
   private rushTrail: number[] = []
   /** Planche des effets de la frappe au sol, et le programme qui en dessine un morceau. */
@@ -622,7 +638,8 @@ export class HeroLayer {
       if (step.flurry !== undefined) {
         if (step.flurry === this.flurryLanded) return null
         const pose = this.flurry[step.flurry]
-        return { x: this.x + FLURRY.reach * pixel, height: FLURRY.heights[pose] ?? 1000, power: FLURRY.power, stop: FLURRY.stop }
+        const heavy = step.heavy === true
+        return { x: this.x + FLURRY.reach * pixel, height: FLURRY.heights[pose] ?? 1000, power: heavy ? HEAVY.power : FLURRY.power, stop: heavy ? HEAVY.stop : FLURRY.stop }
       }
       const t = this.groundTime - GROUND_PALM
       if (t < 0 || t >= GROUND.active || this.groundLanded) return null
@@ -642,7 +659,10 @@ export class HeroLayer {
     const flurry = this.pose === 'ground' ? this.groundStep().flurry : undefined
     if (flurry !== undefined) {
       this.flurryLanded = flurry
-      this.flurryFx.push({ x, height: strike.height, age: 0, index: flurry })
+      const heavy = this.groundStep().heavy === true
+      this.flurryFx.push({ x, height: strike.height, age: 0, index: flurry, heavy })
+      // les trois coups lourds explosent sur la cible
+      if (heavy) this.impacts.push({ x, height: strike.height, age: 0, power: 1, blast: true, guard: guarded, seed: flurry * 13 })
     } else if (this.pose === 'ground') {
       // la frappe au sol explose sur la cible, en plus de l'étincelle
       this.groundLanded = true
@@ -699,7 +719,7 @@ export class HeroLayer {
   tick(delta: number): void {
     for (const impact of this.impacts) impact.age += delta
     for (const fx of this.flurryFx) fx.age += delta
-    this.flurryFx = this.flurryFx.filter((fx) => fx.age < 0.22)
+    this.flurryFx = this.flurryFx.filter((fx) => fx.age < (fx.heavy ? 0.32 : 0.22))
     this.impacts = this.impacts.filter((impact) => impact.age < (impact.blast ? IMPACT.blast : IMPACT.spark).seconds)
   }
 
@@ -835,12 +855,14 @@ export class HeroLayer {
     this.groundFrom = this.x
     this.flurryLanded = -1
     this.rushTrail = []
-    // rafale : un coup au hasard à chaque fois, jamais deux fois le même de suite
+    // rafale : un coup au hasard à chaque fois, jamais deux fois le même de suite, puis les trois coups lourds
     this.flurry = []
     for (let i = 0; i < FLURRY.count; i++) {
       const choices = FLURRY.poses.filter((pose) => pose !== this.flurry[i - 1])
       this.flurry.push(choices[Math.floor(Math.random() * choices.length)])
     }
+    this.flurry.push(...HEAVY.poses)
+    this.focusTaken = false
     this.sincePunch = Infinity
   }
 
@@ -856,6 +878,18 @@ export class HeroLayer {
   }
 
   /** Vrai une seule fois, quand la charge de la frappe au sol commence : c'est le moment du plan de coupe. */
+  /** Vrai une seule fois, quand il pose la main au sol au début de l'attaque spéciale : le moment de la mise au point. */
+  takeFocus(): boolean {
+    if (this.pose !== 'ground' || this.focusTaken || !this.groundStep().focus) return false
+    this.focusTaken = true
+    return true
+  }
+
+  /** Position du personnage, en fraction de la largeur de l'écran. */
+  get position(): number {
+    return this.x
+  }
+
   takeCutIn(): boolean {
     if (this.pose !== 'ground' || this.cutInTaken || this.groundTime < GROUND_CHARGE) return false
     this.cutInTaken = true
@@ -1193,9 +1227,10 @@ export class HeroLayer {
       const sy = top + GROUND_POINT[1] * uy
       for (const fx of this.flurryFx) {
         const point: [number, number] = [sx + (fx.x - this.x) * zoom, sy - fx.height * uy]
-        const k = fx.age / 0.22
-        draw(FX.star as FxRect, point, 520 * (0.6 + 0.6 * grow(fx.age, 0.05)), 1 - k * k, fx.index % 2 === 1)
-        draw((fx.index % 2 ? FX.slash : FX.crescent) as FxRect, [point[0] - 60 * ux, point[1]], 560, (1 - k) * grow(fx.age, 0.03), fx.index % 3 === 0)
+        const size = fx.heavy ? 1.7 : 1
+        const k = fx.age / (fx.heavy ? 0.32 : 0.22)
+        draw(FX.star as FxRect, point, 520 * size * (0.6 + 0.6 * grow(fx.age, 0.05)), 1 - k * k, fx.index % 2 === 1)
+        draw((fx.index % 2 ? FX.slash : FX.crescent) as FxRect, [point[0] - 60 * ux, point[1]], 560 * size, (1 - k) * grow(fx.age, 0.03), fx.index % 3 === 0)
       }
     }
     if (palm >= 0 && front) {

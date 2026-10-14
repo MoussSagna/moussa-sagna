@@ -103,6 +103,8 @@ const KO_ANNOUNCE: [number, number] = [0, 1.7]
  * milieu de l'écran, pendant que le combat est figé. Durée, et temps d'ouverture et de fermeture de la bande.
  */
 export const CUT_IN_SECONDS = 1.05
+/** Mise au point du début de l'attaque spéciale : durée pendant laquelle le jeu est figé. */
+export const FOCUS_SECONDS = 0.8
 const CUT_IN = { file: 'cinematic/cutin.webp', open: 0.14, close: 0.16, height: 0.6, pan: 0.05 }
 const SHOTS_END = SHOTS[SHOTS.length - 1].end
 /** Instant à partir duquel le personnage peut jouer, et fin de la cinématique. */
@@ -144,6 +146,8 @@ export class CinematicLayer {
   private cutInTime = -1
   /** Temps écoulé depuis l'impact de la frappe au sol, ou -1 : un éclair blanc puis rouge sur tout l'écran. */
   private impactTime = -1
+  /** Temps écoulé depuis le début de la mise au point, ou -1 : traits de vitesse qui convergent vers le centre. */
+  private focusTime = -1
   private cutInImage: HTMLImageElement | null = null
   /** Traits de vitesse du plan de coupe : hauteur dans la bande, longueur, vitesse. */
   private streaks = Array.from({ length: 26 }, () => ({ y: Math.random(), length: 0.08 + Math.random() * 0.25, speed: 1.5 + Math.random() * 2.5, x: Math.random() }))
@@ -203,6 +207,11 @@ export class CinematicLayer {
     return this.time >= 0 && this.time < CINEMATIC_FIGHT_AT
   }
 
+  /** Mise au point du début de l'attaque spéciale. */
+  focus(): void {
+    this.focusTime = 0
+  }
+
   /** Éclair d'impact de la frappe au sol. */
   impactFlash(): void {
     this.impactTime = 0
@@ -219,6 +228,10 @@ export class CinematicLayer {
   }
 
   update(delta: number): void {
+    if (this.focusTime >= 0) {
+      this.focusTime += delta
+      if (this.focusTime >= FOCUS_SECONDS) this.focusTime = -1
+    }
     if (this.impactTime >= 0) {
       this.impactTime += delta
       if (this.impactTime >= 0.35) this.impactTime = -1
@@ -242,6 +255,7 @@ export class CinematicLayer {
     const { width: w, height: h } = frame
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, w, h)
+    if (this.focusTime >= 0) this.drawFocus(ctx, this.focusTime, frame, calm)
     if (this.impactTime >= 0) {
       // blanc d'abord, puis un voile rouge qui s'éteint
       const k = this.impactTime
@@ -562,6 +576,39 @@ export class CinematicLayer {
     ctx.restore()
     // éclair à l'ouverture
     if (t < 0.1) this.flash(ctx, w, h, (1 - t / 0.1) * (calm ? 0.25 : 0.7))
+  }
+
+  /**
+   * Mise au point, à la manière des jeux de combat : un éclair, un vignettage rouge et sombre sur les bords, et des
+   * traits qui filent vers le centre de l'écran, là où la caméra s'est resserrée sur le personnage.
+   */
+  private drawFocus(ctx: CanvasRenderingContext2D, t: number, frame: FrameInfo, calm: boolean): void {
+    const { width: w, height: h } = frame
+    const fade = Math.min(1, t / 0.08) * Math.min(1, (FOCUS_SECONDS - t) / 0.15)
+    const vignette = ctx.createRadialGradient(w / 2, h * 0.55, h * 0.25, w / 2, h * 0.55, Math.hypot(w, h) * 0.6)
+    vignette.addColorStop(0, 'rgba(0, 0, 0, 0)')
+    vignette.addColorStop(0.6, `rgba(60, 0, 6, ${0.45 * fade})`)
+    vignette.addColorStop(1, `rgba(0, 0, 0, ${0.85 * fade})`)
+    ctx.fillStyle = vignette
+    ctx.fillRect(0, 0, w, h)
+    if (!calm) {
+      // traits de vitesse : partent des bords, filent vers le centre, renouvelés à chaque image
+      ctx.save()
+      ctx.translate(w / 2, h * 0.55)
+      ctx.strokeStyle = `rgba(255, 220, 220, ${0.5 * fade})`
+      const reach = Math.hypot(w, h) * 0.6
+      for (let i = 0; i < 70; i++) {
+        const angle = (i / 70) * Math.PI * 2 + Math.sin(i * 12.9 + Math.floor(t * 30)) * 0.05
+        const inner = reach * (0.42 + 0.25 * Math.abs(Math.sin(i * 7.3 + Math.floor(t * 30) * 1.7)))
+        ctx.lineWidth = h * (0.002 + 0.004 * Math.abs(Math.sin(i * 3.1)))
+        ctx.beginPath()
+        ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner)
+        ctx.lineTo(Math.cos(angle) * reach, Math.sin(angle) * reach)
+        ctx.stroke()
+      }
+      ctx.restore()
+    }
+    if (t < 0.07) this.flash(ctx, w, h, (1 - t / 0.07) * (calm ? 0.25 : 0.75))
   }
 
   private flash(ctx: CanvasRenderingContext2D, w: number, h: number, alpha: number, rgb = '255, 255, 255'): void {
