@@ -2,7 +2,7 @@
 
 Usage (depuis lab/) : python3 tools/prepare_poses.py [--debug dossier]
 Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png, hero-dash-back.png,
-hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png les neuf hero-punch-*.png, les six hero-special-*.png, les deux hero-hurt*.png et les trois hero-kicks-*.png
+hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png les neuf hero-punch-*.png, les six hero-special-*.png, les deux hero-hurt*.png les trois hero-kicks-*.png et les quatre hero-exit-*.png
 (fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
@@ -25,6 +25,7 @@ WHITE = np.array([242, 238, 238], np.float32)
 
 # Logos de marque à effacer sur les baskets : dans chaque polygone, les pixels sombres deviennent blancs.
 LOGOS = dict(
+    exitLean=[[(693, 1338), (722, 1348), (752, 1354), (774, 1346), (779, 1366), (762, 1389), (738, 1385), (697, 1362)]],
     guard=[[(780, 1345), (822, 1345), (876, 1375), (876, 1403), (838, 1403), (780, 1368)]],
     walk=[[(108, 1293), (136, 1293), (216, 1335), (216, 1359), (180, 1359), (108, 1318)],
           [(765, 1400), (800, 1370), (848, 1370), (848, 1398), (820, 1426), (770, 1432)]],
@@ -77,7 +78,9 @@ SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=
               # coup encaissé : calé sur le pied avant
               hurt=524, hurtRecover=524,
               # rafale de coups de pied : calée sur le pied arrière de la garde, qui sert d'appui (dessins 1,17 fois plus petits)
-              kicksHigh=566, kicksMid=566, kicksLow=566)
+              kicksHigh=566, kicksMid=566, kicksLow=566,
+              # sortie de fin de round : calée sur le milieu des deux pieds, qui bougent d'un dessin à l'autre
+              exitLean=517, exitCrouch=541, exitGround=496, exitSpring=500)
 # Coups donnés depuis la garde : le haut du corps vient de l'illustration du coup, les jambes restent celles de la
 # garde, pour que les pieds ne bougent pas. Valeur : décalage qui amène la boucle de ceinture du coup sur celle de
 # la garde (557, 693).
@@ -148,6 +151,7 @@ FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png',
              specialIn1='hero-special-in-1.png', specialIn2='hero-special-in-2.png', specialIn3='hero-special-in-3.png',
              specialCharge='hero-special-charge.png', specialThrow='hero-special-throw.png', specialRecover='hero-special-recover.png',
              hurt='hero-hurt.png', hurtRecover='hero-hurt-recover.png',
+             exitLean='hero-exit-lean.png', exitCrouch='hero-exit-crouch.png', exitGround='hero-exit-ground.png', exitSpring='hero-exit-spring.png',
              kicksHigh='hero-kicks-high.png', kicksMid='hero-kicks-mid.png', kicksLow='hero-kicks-low.png',
              punchChain1='hero-punch-chain-1.png', punchChain2='hero-punch-chain-2.png', punchMidHit='hero-punch-mid-hit.png', punchMidRecover='hero-punch-mid-recover.png')
 

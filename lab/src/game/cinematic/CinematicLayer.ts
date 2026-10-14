@@ -130,6 +130,8 @@ export class CinematicLayer {
   private images: (HTMLImageElement | null)[] = []
   /** Temps écoulé depuis le début, ou -1 quand elle ne joue pas. */
   private time = -1
+  /** Numéro du round annoncé. */
+  private round = 1
   private drops = Array.from({ length: 220 }, () => ({ x: Math.random(), y: Math.random(), length: 0.03 + Math.random() * 0.05, speed: 1.6 + Math.random() * 1.2 }))
   private petals = Array.from({ length: 46 }, () => ({
     x: Math.random(),
@@ -159,6 +161,13 @@ export class CinematicLayer {
   /** (Re)lance la cinématique depuis le début. */
   start(): void {
     if (this.images.length && this.images.every(Boolean)) this.time = 0
+    this.round = 1
+  }
+
+  /** Annonce un nouveau round, sans les plans illustrés : « Round n » puis « Fight! ». */
+  startRound(round: number): void {
+    this.round = round
+    this.time = TIMELINE.round[0] - 0.05
   }
 
   /** Passe les plans illustrés : on arrive directement aux annonces. */
@@ -218,7 +227,7 @@ export class CinematicLayer {
     // retour au stage : un éclair blanc, puis les annonces
     if (t < SHOTS_END + TIMELINE.flash) this.flash(ctx, w, h, (1 - (t - SHOTS_END) / TIMELINE.flash) * (calm ? 0.35 : 1))
     this.announce(ctx, t, TIMELINE.destiny, 'FACE YOUR DESTINY', 0.11, '#fff', w, h, calm)
-    this.announce(ctx, t, TIMELINE.round, 'ROUND 1', 0.17, '#fff', w, h, calm)
+    this.announce(ctx, t, TIMELINE.round, `ROUND ${this.round}`, 0.17, '#fff', w, h, calm)
     this.announce(ctx, t, TIMELINE.fight, 'FIGHT!', 0.24, RED, w, h, calm)
   }
 

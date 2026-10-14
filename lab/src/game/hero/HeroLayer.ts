@@ -8,10 +8,11 @@ import { FIRE_FRAGMENT, SPARK_FRAGMENT, FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGME
 const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas', 'uAtlasSize', 'uBend', 'uAxis', 'uAlpha', 'uSmear'] as const
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 const FIRE_UNIFORMS = ['uRect', 'uT', 'uPower', 'uTail', 'uWobble'] as const
+const lerpRange = ([a, b]: [number, number], k: number) => a + (b - a) * k
 const SPARK_UNIFORMS = ['uRect', 'uK', 'uSeed', 'uPower', 'uTint', 'uGlow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'kicksHigh', 'kicksMid', 'kicksLow']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'kicksHigh', 'kicksMid', 'kicksLow', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 export const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -45,6 +46,10 @@ const FEET: Record<PoseName, [number, number]> = {
   specialThrow: POSES.specialThrow.anchor,
   specialRecover: POSES.specialRecover.anchor,
   hurt: POSES.hurt.anchor,
+  exitLean: POSES.exitLean.anchor,
+  exitCrouch: POSES.exitCrouch.anchor,
+  exitGround: POSES.exitGround.anchor,
+  exitSpring: POSES.exitSpring.anchor,
   kicksHigh: POSES.kicksHigh.anchor,
   kicksMid: POSES.kicksMid.anchor,
   kicksLow: POSES.kicksLow.anchor,
@@ -71,6 +76,8 @@ const POSE_SCALE: Record<PoseName, number> = {
   specialIn1: 1, specialIn2: 1, specialIn3: 1,
   hurt: 1, hurtRecover: 1,
   kicksHigh: 1.17, kicksMid: 1.17, kicksLow: 1.17,
+  // sortie de fin de round : mesuré sur la longueur de la basket avant
+  exitLean: 0.965, exitCrouch: 0.965, exitGround: 0.965, exitSpring: 0.965,
 }
 
 /** Durée de la pose intermédiaire entre la garde et la marche, en secondes. */
@@ -181,6 +188,65 @@ const KICKS = {
 const KICKS_TOTAL = KICKS.startup + KICKS.active + KICKS.recovery
 
 /**
+ * Sortie de fin de round : il se baisse en quatre dessins (`steps`, durées en secondes), puis bondit hors de
+ * l'écran par le haut en `leap` secondes, jusqu'à `height` pixels de la toile au-dessus du sol, avec le dessin du
+ * saut étiré (`stretch`) et deux images fantômes en dessous de lui (retard en secondes, opacité).
+ */
+const EXIT = {
+  steps: [
+    { pose: 'exitLean', seconds: 0.14 },
+    { pose: 'exitCrouch', seconds: 0.14 },
+    { pose: 'exitGround', seconds: 0.16 },
+    { pose: 'exitSpring', seconds: 0.09 },
+  ] as { pose: PoseName; seconds: number }[],
+  leap: 0.24,
+  height: 3400,
+  stretch: 0.35,
+  ghosts: [
+    [0.05, 0.22],
+    [0.025, 0.45],
+  ] as [number, number][],
+  /** Temps laissé à la fumée pour retomber après le bond, avant que la sortie soit terminée. */
+  settle: 1.5,
+}
+const EXIT_CROUCH = EXIT.steps.reduce((sum, step) => sum + step.seconds, 0)
+const EXIT_GONE = EXIT_CROUCH + EXIT.leap
+
+/**
+ * Fumée du bond : les bouffées dessinées (`tools/prepare_fx.py`), de la plus petite à la plus grande, avec leur
+ * taille en pixels de l'image. `puffs` : quelle bouffée, décalage horizontal depuis les pieds (pixels de la toile),
+ * retard, taille, retournée ou non (la traînée de chaque bouffée part vers l'extérieur). Une bouffée surgit en
+ * grossissant, s'éloigne et monte un peu, puis s'efface.
+ */
+const SMOKE = {
+  files: ['fx/smoke-1.webp', 'fx/smoke-2.webp', 'fx/smoke-3.webp', 'fx/smoke-4.webp'],
+  sizes: [
+    [347, 180],
+    [438, 277],
+    [548, 418],
+    [679, 552],
+  ] as [number, number][],
+  puffs: [
+    [3, 0, 0, 1.55, false],
+    [2, -420, 0.03, 1.4, true],
+    [2, 420, 0.05, 1.35, false],
+    [1, -780, 0.08, 1.35, true],
+    [1, 780, 0.1, 1.3, false],
+    [0, -1080, 0.14, 1.4, true],
+    [0, 1090, 0.16, 1.35, false],
+  ] as [number, number, number, number, boolean][],
+  grow: 0.28,
+  drift: 160,
+  rise: 90,
+  fade: [0.45, 1.35] as [number, number],
+}
+/** Unité de texture de la première bouffée ; les suivantes prennent les unités d'après. */
+const SMOKE_UNIT = 2
+
+/** Cailloux projetés au bond : nombre, vitesses (pixels de la toile par seconde), gravité, taille. */
+const PEBBLES = { count: 16, speed: [900, 1900] as [number, number], spread: 0.85, gravity: 4200, size: [10, 24] as [number, number] }
+
+/**
  * Impacts : étincelle d'un coup de poing, explosion de la boule de feu. Durée en secondes, rayon en pixels
  * de la toile pour un coup de pleine puissance.
  */
@@ -273,7 +339,7 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'kicksHigh' | 'kicksMid' | 'kicksLow'> | 'dash' | 'jump' | 'punch' | 'special' | 'kicks' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'kicksHigh' | 'kicksMid' | 'kicksLow' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring'> | 'dash' | 'jump' | 'punch' | 'special' | 'kicks' | 'exit' = 'guard'
   /** Temps écoulé depuis le début de l'attaque spéciale en cours. */
   private specialTime = 0
   /** Boule de feu en vol : position (fraction de la largeur du stage), hauteur au-dessus du sol (pixels de la toile), âge. */
@@ -292,6 +358,12 @@ export class HeroLayer {
   private hurtTime = 0
   /** Temps écoulé depuis le début de la rafale de coups de pied, et instant de son dernier coup qui a touché. */
   private kickTime = 0
+  /** Temps écoulé depuis le début de la sortie de fin de round. */
+  private exitTime = 0
+  /** Les bouffées de fumée, chargées avec les poses. */
+  private smoke: (WebGLTexture | null)[] = []
+  /** Cailloux projetés au bond : vitesse (pixels de la toile par seconde) et taille. */
+  private pebbles: { vx: number; vy: number; size: number }[] = []
   private lastKick = -Infinity
   /** Temps restant pendant lequel la parade est maintenue de force, après un coup paré. */
   private blockStun = 0
@@ -345,6 +417,8 @@ export class HeroLayer {
       this.images.set(POSE_NAMES[index], image)
     }
     this.atlas('guard')
+    const puffs = await Promise.all(SMOKE.files.map((file) => loadImage(asset(file))))
+    this.smoke = puffs.map((image, index) => (image ? uploadTexture(gl, SMOKE_UNIT + index, image, { alpha: true, premultiply: true }) : null))
 
     // texture hors écran du reflet, sur sa propre unité
     gl.activeTexture(gl.TEXTURE0 + REFLECTION_UNIT)
@@ -474,6 +548,8 @@ export class HeroLayer {
    * Retourne vrai si le coup est paré.
    */
   takeHit(strike: Strike, pixel: number): boolean {
+    // en pleine sortie de fin de round, il n'est plus là pour être touché
+    if (this.pose === 'exit') return false
     const guarded = this.pose === 'block' || this.pose === 'crouchBlock'
     const height = !guarded ? strike.height : this.pose === 'block' ? GUARD_HIT.height : GUARD_HIT.crouchHeight
     this.impacts.push({ x: this.front(pixel), height, age: 0, power: strike.power, blast: false, guard: guarded, seed: this.x * 50 + this.impacts.length })
@@ -520,6 +596,56 @@ export class HeroLayer {
     if (!free || this.fireball) return
     this.pose = 'special'
     this.specialTime = 0
+  }
+
+  /**
+   * Sortie de fin de round : il se baisse, puis disparaît d'un bond dans un nuage de fumée. Elle interrompt tout ;
+   * `exitDone` devient vrai quand la fumée est retombée, `reenter` le ramène en garde à sa place de départ.
+   */
+  exit(): void {
+    if (this.pose === 'exit') return
+    this.pose = 'exit'
+    this.exitTime = 0
+    this.slide = null
+    this.blockStun = 0
+    this.sincePunch = Infinity
+    // cailloux : toujours les mêmes, pour que la sortie soit identique d'une fois à l'autre
+    this.pebbles = Array.from({ length: PEBBLES.count }, (_, i) => {
+      const r = Math.abs((Math.sin(i * 12.9898) * 43758.5453) % 1)
+      const angle = (i / (PEBBLES.count - 1) - 0.5) * 2 * PEBBLES.spread + (r - 0.5) * 0.3
+      const speed = lerpRange(PEBBLES.speed, (r * 7.3) % 1)
+      return { vx: Math.sin(angle) * speed, vy: Math.cos(angle) * speed, size: lerpRange(PEBBLES.size, (r * 3.1) % 1) }
+    })
+  }
+
+  /** Vrai pendant la sortie de fin de round. */
+  get exiting(): boolean {
+    return this.pose === 'exit'
+  }
+
+  /** Vrai quand la sortie est finie : il a disparu et la fumée est retombée. */
+  get exitDone(): boolean {
+    return this.pose === 'exit' && this.exitTime >= EXIT_GONE + EXIT.settle
+  }
+
+  /** Ramène le personnage en garde à sa place de départ, pour le round suivant. */
+  reenter(): void {
+    this.pose = 'guard'
+    this.x = PLACEMENT.x
+    this.fireball = null
+    this.impacts = []
+  }
+
+  /** Dessin de la sortie, et hauteur des pieds pendant le bond (pixels de la toile). Null une fois disparu. */
+  private exitState(): { name: PoseName; lift: number; leap: number } | null {
+    let end = 0
+    for (const step of EXIT.steps) {
+      end += step.seconds
+      if (this.exitTime < end) return { name: step.pose, lift: 0, leap: 0 }
+    }
+    const k = (this.exitTime - EXIT_CROUCH) / EXIT.leap
+    if (k >= 1) return null
+    return { name: 'jumpRise', lift: EXIT.height * k * k, leap: k }
   }
 
   /** Lance la seconde attaque spéciale, la rafale de coups de pied. Possible depuis la garde ou la marche. */
@@ -624,6 +750,10 @@ export class HeroLayer {
    * ne se déplace pas.
    */
   update(frame: FrameInfo, direction: number, crouch: boolean, block: boolean): void {
+    if (this.pose === 'exit') {
+      this.exitTime += frame.delta
+      return
+    }
     // recul après un coup reçu ou paré : il part vite et freine
     if (this.slide) {
       const slide = this.slide
@@ -758,6 +888,52 @@ export class HeroLayer {
     this.x = Math.max(PLACEMENT.minX, Math.min(this.limit(), this.x + direction * WALK_SPEED * pixel * frame.delta))
   }
 
+  /**
+   * La fumée et les cailloux du bond, `t` secondes après le départ. `sx`, `sy` : les pieds à l'écran ; `ux`, `uy` :
+   * taille d'un pixel de la toile, en fraction de l'écran.
+   */
+  private drawSmoke(gl: WebGLRenderingContext, flat: Program<(typeof FLAT_UNIFORMS)[number]>, t: number, sx: number, sy: number, ux: number, uy: number, calm: boolean): void {
+    gl.useProgram(flat.program)
+    gl.enableVertexAttribArray(flat.attribute)
+    gl.vertexAttribPointer(flat.attribute, 2, gl.FLOAT, false, 0, 0)
+    // cailloux : de petits disques sombres projetés en l'air, qui retombent et disparaissent au sol
+    gl.uniform1f(flat.u.uShadow, 1)
+    gl.uniform1f(flat.u.uAlpha, 1)
+    if (!calm) {
+      for (const pebble of this.pebbles) {
+        const height = pebble.vy * t - (PEBBLES.gravity * t * t) / 2
+        if (height < 0) continue
+        const x = sx + pebble.vx * t * ux
+        const y = sy - height * uy
+        gl.uniform4f(flat.u.uRect, x * 2 - 1, 1 - y * 2, pebble.size * ux * 2, pebble.size * uy * 2)
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+      }
+    }
+    // bouffées : des petites, sur les côtés, à la grande, au centre, qui passe devant
+    gl.uniform1f(flat.u.uShadow, 0)
+    for (const [index, offset, delay, size, flip] of [...SMOKE.puffs].reverse()) {
+      const age = t - delay
+      const texture = this.smoke[index]
+      if (age <= 0 || !texture) continue
+      const [fadeStart, fadeEnd] = SMOKE.fade
+      const alpha = 1 - Math.max(0, Math.min(1, (age - fadeStart) / (fadeEnd - fadeStart)))
+      if (alpha <= 0) continue
+      const grow = 1 - (1 - Math.min(1, age / SMOKE.grow)) ** 3
+      const scale = size * (0.35 + 0.65 * grow) * (calm ? 0.8 : 1)
+      const [iw, ih] = SMOKE.sizes[index]
+      const away = Math.sign(offset) * SMOKE.drift * Math.min(1, age / 0.8)
+      const x = sx + (offset + away) * ux
+      // posée sur le sol, elle monte un peu en s'effaçant
+      const bottom = sy - SMOKE.rise * Math.min(1, age / 1.2) * uy
+      gl.uniform1i(flat.u.uTex, SMOKE_UNIT + index)
+      gl.uniform1f(flat.u.uAlpha, alpha)
+      // hauteur négative : l'image est envoyée tête en bas ; `flip` la retourne de gauche à droite
+      gl.uniform4f(flat.u.uRect, x * 2 - 1, 1 - (bottom - (ih * scale * uy) / 2) * 2, iw * scale * ux * (flip ? -1 : 1), -ih * scale * uy)
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    }
+    gl.uniform1i(flat.u.uTex, REFLECTION_UNIT)
+  }
+
   draw(frame: FrameInfo, camera: Camera, calm: boolean): void {
     const gl = this.gl
     const layer = this.layer
@@ -777,9 +953,14 @@ export class HeroLayer {
     const top = sy - (GROUND[1] / CANVAS[1]) * h
 
     const jump = this.pose === 'jump' ? this.jumpState() : null
-    const lift = jump ? jump.lift : 0
+    const leaving = this.pose === 'exit' ? this.exitState() : null
+    // une fois parti d'un bond, il n'est plus dessiné : il ne reste que la fumée
+    const hidden = this.pose === 'exit' && !leaving
+    const lift = jump ? jump.lift : leaving ? leaving.lift : 0
     const name: PoseName =
-      this.pose === 'jump'
+      leaving
+        ? leaving.name
+        : this.pose === 'jump'
         ? (jump?.name ?? 'guard')
         : this.pose === 'punch'
           ? this.punchPose()
@@ -795,7 +976,9 @@ export class HeroLayer {
           ? this.dashing.direction > 0
             ? 'dashForward'
             : 'dashBack'
-          : this.pose
+          : this.pose === 'exit'
+            ? 'guard'
+            : this.pose
     const amplitude = calm ? CALM_AMPLITUDE : 1
     const feet = FEET[name]
     const scale = POSE_SCALE[name]
@@ -808,6 +991,8 @@ export class HeroLayer {
             ? [heldMatrix(POSES[name].anchor, frame.time, amplitude)]
             : jump
               ? [scaleAbout(feet, 1 + (jump.sx - 1) * amplitude, 1 + (jump.sy - 1) * amplitude)]
+              : leaving && leaving.leap > 0
+                ? [scaleAbout(feet, 1 - EXIT.stretch * 0.5 * amplitude, 1 + EXIT.stretch * amplitude)]
               : this.pose === 'dash' && !calm
                 ? [this.dashMatrix(feet)]
                 : null
@@ -849,6 +1034,7 @@ export class HeroLayer {
       })
     }
 
+    if (!hidden) {
     // 1. le personnage entier, une fois, dans la texture du reflet
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.target)
     gl.viewport(0, 0, REFLECTION.width, REFLECTION.height)
@@ -864,7 +1050,7 @@ export class HeroLayer {
     const px = w / CANVAS[0]
     const py = (h / CANVAS[1]) * REFLECTION.squash
     // en l'air, le reflet s'éloigne des pieds et s'estompe, et l'ombre rétrécit
-    const air = lift / JUMP.height
+    const air = Math.min(1, lift / JUMP.height)
     const mirrorTop = sy + (GROUND[1] - VIEW.y - VIEW.height + lift) * py
     gl.uniform1f(flat.u.uShadow, 0)
     gl.uniform1f(flat.u.uAlpha, REFLECTION.alpha * (1 - 0.6 * air))
@@ -900,11 +1086,23 @@ export class HeroLayer {
       }
     }
 
+    // pendant le bond de sortie, des images fantômes restent en dessous de lui
+    if (leaving && leaving.leap > 0 && !calm) {
+      for (const [delay, alpha] of EXIT.ghosts) {
+        const k = Math.max(0, (this.exitTime - delay - EXIT_CROUCH) / EXIT.leap)
+        drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * left - 1, 1 - 2 * top, alpha, EXIT.height * k * k)
+      }
+    }
+
     // 4. le personnage, calque par calque, du fond vers le premier plan
     drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * left - 1, 1 - 2 * top, 1, lift)
+    }
 
     const unitX = (2 * w) / CANVAS[0]
     const unitY = (2 * h) / CANVAS[1]
+
+    // la fumée et les cailloux du bond de sortie, devant lui
+    if (this.pose === 'exit' && this.exitTime >= EXIT_CROUCH) this.drawSmoke(gl, flat, this.exitTime - EXIT_CROUCH, sx, sy, unitX / 2, unitY / 2, calm)
 
     // 5. la boule de feu : elle grossit dans les mains pendant la charge, puis vole devant le personnage
     const fire = this.fire

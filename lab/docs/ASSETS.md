@@ -23,7 +23,7 @@ Les scripts de `tools/` demandent Python 3 avec `pillow`, `numpy`, `opencv-pytho
 python3 tools/prepare_poses.py [--debug dossier]
 ```
 
-Le script lit `../art/hero-guard.png`, `hero-step.png`, `hero-walk.png`, `hero-dash-forward.png`, `hero-dash-back.png`, `hero-crouch-step.png`, `hero-crouch.png`, `hero-block-step.png`, `hero-block.png`, `hero-crouch-block.png`, les quatre `hero-jump-*.png` les neuf `hero-punch-*.png`, les six `hero-special-*.png` et les deux `hero-hurt*.png` et les trois `hero-kicks-*.png`. Pour chacune il retire le fond vert (dont il mesure la teinte dans un coin, parce qu'elle varie d'une image générée à l'autre), efface les logos des baskets (`LOGOS` pour les logos sombres, `FAINT_LOGOS` pour ceux en relief pâle), découpe le personnage d'après des polygones tracés à la main, rebouche les zones cachées par des aplats de la couleur du tissu, et écrit :
+Le script lit `../art/hero-guard.png`, `hero-step.png`, `hero-walk.png`, `hero-dash-forward.png`, `hero-dash-back.png`, `hero-crouch-step.png`, `hero-crouch.png`, `hero-block-step.png`, `hero-block.png`, `hero-crouch-block.png`, les quatre `hero-jump-*.png` les neuf `hero-punch-*.png`, les six `hero-special-*.png` et les deux `hero-hurt*.png`, les trois `hero-kicks-*.png` et les quatre `hero-exit-*.png`. Pour chacune il retire le fond vert (dont il mesure la teinte dans un coin, parce qu'elle varie d'une image générée à l'autre), efface les logos des baskets (`LOGOS` pour les logos sombres, `FAINT_LOGOS` pour ceux en relief pâle), découpe le personnage d'après des polygones tracés à la main, rebouche les zones cachées par des aplats de la couleur du tissu, et écrit :
 
 - `public/assets/hero/guard.webp`, `step.webp`, `walk.webp`, `dashForward.webp`, `dashBack.webp`, `crouchStep.webp`, `crouch.webp`, `blockStep.webp`, `block.webp`, `crouchBlock.webp`, `jumpStart.webp`, `jumpRise.webp`, `jumpPeak.webp`, `jumpLand.webp`, `punchStart.webp`, `punchHit.webp`, `punchChain1.webp`, `punchChain2.webp`, `punchHeavyStart.webp`, `punchHeavyHit.webp`, `punchHeavyRecover.webp`, `punchMidHit.webp`, `punchMidRecover.webp` : un atlas par pose, en WebP sans perte, de côtés en puissances de deux pour que le moteur puisse générer les mipmaps ;
 - `src/game/hero/poseData.ts` : pour chaque pose, ses calques (place dans l'atlas et dans la toile, parent, pivot), ses articulations et son point d'appui.
@@ -49,6 +49,14 @@ python3 tools/prepare_dummy.py
 ```
 
 Le script lit `../art/dummy-idle.png` (au repos) et `../art/dummy-hit.png` (coup reçu), retire le fond vert et écrit `public/assets/dummy/dummy.webp` : les deux dessins côte à côte, chacun sur sa toile de 1024 × 1536. Les deux illustrations doivent avoir le socle exactement au même endroit, et le mannequin tourné vers la gauche. Les rectangles du socle et du buste, le pivot du ressort et le point posé au sol sont dans `ATLAS`, en haut de `src/game/dummy/DummyLayer.ts` : à reprendre si l'illustration change.
+
+## Fumée : `tools/prepare_fx.py`
+
+```bash
+python3 tools/prepare_fx.py
+```
+
+Le script lit `../art/fx-smoke.png` (des bouffées côte à côte sur fond vert, de la plus petite à la plus grande), retire le fond vert, sépare les bouffées aux colonnes vides et écrit `public/assets/fx/smoke-1.webp` à `smoke-4.webp`. Leurs tailles, qu'il affiche, sont reprises dans `SMOKE` (`src/game/hero/HeroLayer.ts`).
 
 ## Cinématique : `tools/prepare_cinematic.py`
 
