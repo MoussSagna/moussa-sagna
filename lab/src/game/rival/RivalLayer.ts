@@ -39,12 +39,26 @@ const HIT = { stun: 0.26, recover: 0.16, lean: 0.05, frequency: 2.6, damping: 11
 /** Coup paré : il garde sa pose et penche seulement, de cette pente pour un coup de pleine puissance. */
 const GUARDED_LEAN = 0.035
 const REFLECTION = { alpha: 0.2, squash: 0.5 }
+/** Position de départ, en fraction de la largeur de l'écran. */
+const START_X = 0.66
+/**
+ * Déplacement quand le joueur le contrôle. Il n'a pas encore de dessin de marche : le dessin de la garde glisse
+ * en se soulevant à chaque pas et en penchant dans le sens de la marche. `speed` : largeurs d'écran par seconde ;
+ * `maxX` : bord droit ; `bob` : hauteur d'un pas, en pixels de la toile ; `stride` : durée d'un pas, en secondes ;
+ * `lean` : pente de l'inclinaison en marchant ; `ease` : vitesse de mise en route et d'arrêt.
+ */
+const MOVE = { speed: 0.16, maxX: 0.88, bob: 12, stride: 0.3, lean: 0.018, ease: 12 }
 /** « Réduire les mouvements » : part de la respiration et du recul conservée. */
 const CALM_AMPLITUDE = 0.35
 
-/** L'adversaire : pour l'instant immobile, en garde ou en parade, il encaisse ou pare les coups. */
+/** L'adversaire : en garde ou en parade, il encaisse ou pare les coups ; le joueur peut le déplacer. */
 export class RivalLayer implements Opponent {
-  readonly x = 0.66
+  /** Position sur le stage, en fraction de la largeur de l'écran. */
+  x = START_X
+  /** Déplacement demandé : -1 vers le personnage (il avance), 1 en s'éloignant (il recule), 0 à l'arrêt. */
+  walk = 0
+  /** Position la plus à gauche permise, pour ne pas traverser le personnage. Le moteur la tient à jour. */
+  minX = 0.5
   readonly surface = 220
   readonly gap = 660
   private gl: WebGLRenderingContext | null
@@ -61,6 +75,10 @@ export class RivalLayer implements Opponent {
   /** Inclinaison du corps après un coup (positive vers l'arrière) et sa vitesse. */
   private lean = 0
   private velocity = 0
+  /** Pas en cours (augmente de 1 par pas), part de la marche (0 à l'arrêt, 1 en marche) et sens de la dernière marche. */
+  private stride = 0
+  private moving = 0
+  private heading = -1
 
   constructor(canvas: HTMLCanvasElement) {
     this.gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: true })
@@ -95,6 +113,15 @@ export class RivalLayer implements Opponent {
     return guarded
   }
 
+  /** Le remet à sa place de départ, en garde : début d'un round. */
+  reset(): void {
+    this.x = START_X
+    this.pose = 'guard'
+    this.lean = 0
+    this.velocity = 0
+    this.moving = 0
+  }
+
   /** Il n'a pas encore d'attaque. */
   attack(): void {}
 
@@ -105,6 +132,17 @@ export class RivalLayer implements Opponent {
   land(): void {}
 
   update(frame: FrameInfo): void {
+    // marche : seulement depuis la garde, sans traverser le personnage ni sortir du stage
+    const direction = this.pose === 'guard' ? Math.sign(this.walk) : 0
+    const blocked = (direction < 0 && this.x <= this.minX) || (direction > 0 && this.x >= MOVE.maxX)
+    const walking = direction !== 0 && !blocked
+    if (walking) {
+      const next = this.x + direction * MOVE.speed * frame.delta
+      this.x = direction < 0 ? Math.max(Math.min(this.x, this.minX), next) : Math.min(MOVE.maxX, next)
+      this.stride += frame.delta / MOVE.stride
+      this.heading = direction
+    }
+    this.moving += ((walking ? 1 : 0) - this.moving) * Math.min(1, frame.delta * MOVE.ease)
     // coup encaissé : le dessin du coup reçu, celui du retour, puis la garde
     if (this.pose === 'hurt' || this.pose === 'hurtRecover') {
       this.hurtTime += frame.delta
@@ -148,8 +186,11 @@ export class RivalLayer implements Opponent {
     const [gx, gy] = pose.ground
     const scale = pose.scale
     // le point posé au sol reste en (gx, gy) dans la toile : l'agrandissement et l'inclinaison se font autour de lui
+    // en marchant, tout le corps se soulève un peu à chaque pas
+    const amplitude = calm ? CALM_AMPLITUDE : 1
+    const lift = MOVE.bob * this.moving * Math.abs(Math.sin(Math.PI * this.stride)) * amplitude
     const left = sx - gx * unitX
-    const top = sy - gy * unitY
+    const top = sy - (gy + lift) * unitY
 
     // ombre au sol
     gl.useProgram(flat.program)
@@ -172,9 +213,9 @@ export class RivalLayer implements Opponent {
     gl.uniform4f(u.uBox, 0, 0, CANVAS[0], CANVAS[1])
     gl.uniform2f(u.uAtlas, 0, 0)
     // il respire en s'étirant depuis le sol, et penche en arrière quand il encaisse ; ses semelles ne bougent pas
-    const amplitude = calm ? CALM_AMPLITUDE : 1
     const stretch = scale * (1 + BREATH.amplitude * amplitude * Math.sin((frame.time * 2 * Math.PI) / BREATH.period))
-    const lean = this.lean * amplitude * scale
+    // en marchant, il penche dans le sens de la marche (vers l'avant quand il avance vers le personnage)
+    const lean = (this.lean + MOVE.lean * this.moving * this.heading) * amplitude * scale
     gl.uniform3f(u.uMx, scale, -lean, gx - scale * gx + lean * gy)
     gl.uniform3f(u.uMy, 0, stretch, gy - stretch * gy)
 

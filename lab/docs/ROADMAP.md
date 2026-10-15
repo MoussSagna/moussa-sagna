@@ -2,6 +2,8 @@
 
 ## Fait
 
+- [x] Plus de boutons sous la scène : tout se joue au clavier.
+
 - [x] Projet initialisé (Vite, React, TypeScript, Tailwind).
 - [x] Stage Tokyo Underground : profondeur, ciel, écrans, lanternes, métro, brume, sol mouillé, pluie, pétales.
 - [x] Carton de titre et travelling d'ouverture.
@@ -17,7 +19,8 @@
 - [x] Adversaire original, en garde face au personnage : il encaisse les coups.
 - [x] Adversaire : parade, tenue par une case à cocher pour tester les coups parés.
 - [x] Adversaire : coup encaissé en deux dessins.
-- [ ] Adversaire : marche, coup, recul quand il encaisse, puis un comportement.
+- [x] Adversaire contrôlable par un second joueur (flèches) : il avance, recule et pare. Sans dessin de marche, la garde glisse en se soulevant à chaque pas.
+- [ ] Adversaire : dessins de marche et de coup, recul quand il encaisse, puis un comportement.
 - [x] Seconde attaque spéciale : mise au point figée sur le personnage, ruée, rafale de dix coups au hasard et trois coups lourds, un effet à chaque impact, puis frappe au sol, avec décor assombri, plan de coupe sur le gros plan de Moussa et effets dessinés (remplace la rafale de coups de pied) (à juger en mouvement).
 - [x] Cinématique d'entrée en six plans (temple, Moussa en pied, gros plan, puis l'adversaire en trois plans) avec transition par un pétale, puis « Face your destiny », « Round 1 », « Fight! » ; on peut la passer (à juger en mouvement).
 - [x] Fin de round : il se baisse et disparaît d'un bond dans la fumée, puis « Round 2 » (à juger en mouvement).

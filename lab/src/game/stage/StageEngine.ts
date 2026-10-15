@@ -44,6 +44,9 @@ export class StageEngine {
   crouch = false
   /** Vrai tant que le personnage doit parer. */
   block = false
+  /** Adversaire contrôlé par le joueur : déplacement demandé (-1 vers le personnage, 1 en s'éloignant) et parade. */
+  rivalWalk = 0
+  rivalBlock = false
   /** Appelée quand la cinématique commence (vrai) ou que ses plans illustrés se terminent (faux). */
   onCinematic?: (playing: boolean) => void
   private cinematic: CinematicLayer
@@ -144,6 +147,7 @@ export class StageEngine {
     this.introAt = performance.now()
     this.cinematic.start()
     this.round = 1
+    this.rival.reset()
     if (this.roundEnding) this.hero.reenter()
     this.roundEnding = false
   }
@@ -211,6 +215,8 @@ export class StageEngine {
     // largeur d'un pixel de la toile, en fraction de la largeur du stage
     const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)
     this.hero.wall = target.x - target.gap * pixel
+    // l'adversaire, s'il avance, s'arrête aussi à cette distance du personnage
+    this.rival.minX = this.hero.position + this.rival.gap * pixel
     const surface = target.x - target.surface * pixel
     /** Le coup atteint la cible : elle l'encaisse ou le pare. Retourne vrai s'il est paré. */
     const react = (strike: Strike): boolean => {
@@ -305,7 +311,8 @@ export class StageEngine {
     }
     const fight: FrameInfo = { ...info, time: time - this.frozen, delta: stopped ? 0 : delta }
     this.hero.update(fight, locked ? 0 : this.walk, locked ? false : this.crouch, locked ? false : this.block)
-    this.rival.blocking = this.options.rivalBlocks === true
+    this.rival.blocking = this.options.rivalBlocks === true || (!locked && this.rivalBlock)
+    this.rival.walk = locked ? 0 : this.rivalWalk
     const target = this.opponent()
     target.update(fight)
     this.hero.tick(delta)
@@ -339,12 +346,14 @@ export class StageEngine {
     if (this.hero.koDone) {
       this.round += 1
       this.hero.reenter()
+      this.rival.reset()
       this.cinematic.startRound(this.round)
     }
     if (this.roundEnding && this.hero.exitDone) {
       this.roundEnding = false
       this.round += 1
       this.hero.reenter()
+      this.rival.reset()
       this.cinematic.startRound(this.round)
     }
     if (!stopped) this.resolveHits(info, calm)
