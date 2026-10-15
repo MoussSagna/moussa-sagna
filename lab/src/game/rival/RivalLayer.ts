@@ -24,6 +24,8 @@ const POSES = {
   // `ground` est alors le point sous le ceinturon, à hauteur du bas de la botte la plus basse
   floatForward: { file: 'rival/float-forward.webp', ground: [480, 1426], scale: 1.1 },
   floatBack: { file: 'rival/float-back.webp', ground: [445, 1453], scale: 1.1 },
+  // pose de passage : droite, en l'air, entre la garde et le vol, et entre l'avance et le recul
+  floatStart: { file: 'rival/float-start.webp', ground: [450, 1474], scale: 1.1 },
   blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
   hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
@@ -36,15 +38,18 @@ const BLOCK_STEP_SECONDS = 0.06
 
 /**
  * Déplacement en lévitation : il ne marche pas, il glisse en rasant le sol. Un seul dessin par sens
- * (`floatForward` en avançant, `floatBack` en reculant), animé en continu : il monte, flotte et redescend.
+ * (`floatForward` en avançant, `floatBack` en reculant), animé en continu : il monte, flotte et redescend. Un dessin
+ * de passage (`floatStart`) s'affiche `bridge` secondes au décollage et au changement de sens, et pendant qu'il se repose.
  * `forward`, `back` : vitesse, en largeurs d'écran par seconde ; `accel` : vitesse de mise en route et de freinage ;
  * `height` : hauteur de vol, en pixels de la toile ; `bob` et `period` : flottement (pixels, secondes) ;
  * `rise`, `land` : vitesse de montée et de descente ; `ground` : part de la hauteur sous laquelle il reprend la
  * garde ; `lean` : inclinaison dans le sens du déplacement, à pleine vitesse ; `fade` : fondu entre deux dessins.
  */
-const FLOAT = { forward: 0.2, back: 0.17, accel: 7, height: 14, bob: 4, period: 1.5, rise: 9, land: 7, ground: 0.12, lean: 0.035, fade: 0.12 }
-type FloatPose = 'floatForward' | 'floatBack'
-const isFloatPose = (pose: RivalPose): pose is FloatPose => pose === 'floatForward' || pose === 'floatBack'
+const FLOAT = { forward: 0.2, back: 0.17, accel: 18, height: 14, bob: 4, period: 1.5, rise: 18, land: 16, ground: 0.12, lean: 0.035, fade: 0.06, bridge: 0.07 }
+type FloatPose = 'floatForward' | 'floatBack' | 'floatStart'
+const isFloatPose = (pose: RivalPose): pose is FloatPose => pose === 'floatForward' || pose === 'floatBack' || pose === 'floatStart'
+/** Les dessins du vol dans un sens. */
+const isFlightPose = (pose: RivalPose): boolean => pose === 'floatForward' || pose === 'floatBack'
 /**
  * Son comportement quand il se déplace seul : il garde Moussa à une distance comprise entre `near` et `far`
  * (en fraction de la largeur du stage, en plus de la distance minimale), et marche jusqu'au milieu de cet
@@ -99,6 +104,8 @@ export class RivalLayer implements Opponent {
   /** Dessin précédent et temps écoulé depuis le changement, pour le fondu entre les deux. */
   private previous: RivalPose = 'guard'
   private fadeTime = Infinity
+  /** Temps restant sur le dessin de passage, au décollage ou au changement de sens. */
+  private bridgeLeft = 0
   private pose: RivalPose = 'guard'
   /** Temps restant sur le dessin de passage. */
   private stepLeft = 0
@@ -244,11 +251,20 @@ export class RivalLayer implements Opponent {
     const k = flying ? FLOAT.rise : FLOAT.land
     this.hover += ((flying ? 1 : 0) - this.hover) * Math.min(1, frame.delta * k)
     this.floatTime = this.pose === 'guard' && !flying ? 0 : this.floatTime + frame.delta
-    // le dessin : celui du sens du déplacement en vol, la garde une fois reposé
+    // le dessin : celui du sens du déplacement en vol, le dessin de passage pendant qu'il se repose, puis la garde
     const direction = wish !== 0 ? wish : Math.sign(this.speed)
-    let next: RivalPose = this.pose
-    if (flying && direction !== 0) next = direction < 0 ? 'floatForward' : 'floatBack'
-    else if (!flying && this.hover < FLOAT.ground) next = 'guard'
+    const want: RivalPose = flying && direction !== 0 ? (direction < 0 ? 'floatForward' : 'floatBack') : this.hover < FLOAT.ground ? 'guard' : 'floatStart'
+    this.bridgeLeft -= frame.delta
+    let next = want
+    if (isFlightPose(want)) {
+      // au décollage et au changement de sens, il passe un instant par le dessin de passage
+      if (this.pose === 'guard' || (isFlightPose(this.pose) && this.pose !== want)) {
+        next = 'floatStart'
+        this.bridgeLeft = FLOAT.bridge
+      } else if (this.pose === 'floatStart' && this.bridgeLeft > 0) {
+        next = 'floatStart'
+      }
+    }
     if (next !== this.pose) {
       this.previous = this.pose
       this.fadeTime = 0
