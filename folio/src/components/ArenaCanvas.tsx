@@ -70,7 +70,7 @@ export default function ArenaCanvas({ walk, crouch, block, jump, attack, skipCin
       ref={parentRef}
       className="arena-canvas"
       role="img"
-      aria-label="Arène Tokyo Underground, précédée d'une cinématique d'entrée : cour de temple sous la pluie, lune rouge, cerisier en fleurs et ville au néon. Moussa s'y tient en garde ; il peut marcher, dasher, s'accroupir, parer, sauter et donner des coups de poing."
+      aria-label="Arène Tokyo Underground, précédée d'une cinématique d'entrée : cour de temple sous la pluie, lune rouge, cerisier en fleurs et ville au néon. Moussa s'y tient en garde ; il peut marcher, dasher, s'accroupir, parer, sauter et enchaîner coups de poing et coup de pied."
     />
   );
 }

@@ -51,6 +51,13 @@ export const JUMP = {
   /** Déformation du dessin : tassement à l'impulsion et à la réception, étirement à pleine vitesse. */
   squash: 0.09,
   stretch: 0.07,
+  /**
+   * Sauts avant et arrière : distance parcourue en vol, en fraction de la largeur de l'écran. Le saut
+   * arrière va moins loin. (Le lab incline aussi le corps dans le sens du saut ; `HeroRig.show` ne gère
+   * pas encore le cisaillement, donc le folio ne reprend pas cette inclinaison.)
+   */
+  forward: 0.17,
+  back: 0.13,
 };
 
 interface Punch {
@@ -70,7 +77,7 @@ interface Punch {
  * seconde (démarrage, actif, récupération). Le léger réutilise son dessin de démarrage pour la
  * récupération. Le moyen ne s'obtient qu'en enchaînant après le léger : son démarrage est fait des deux
  * dessins de transition entre le jab et le direct. Le fort, un uppercut du bras avant, ne s'obtient qu'en
- * enchaînant après le moyen.
+ * enchaînant après le moyen, et le coup de pied haut, quatrième et dernier coup, après le fort.
  */
 export const PUNCHES = {
   light: {
@@ -100,6 +107,15 @@ export const PUNCHES = {
     hit: 'punchHeavyHit',
     recover: 'punchHeavyRecover',
   },
+  kick: {
+    startup: 6 / 60,
+    active: 4 / 60,
+    recovery: 11 / 60,
+    reach: 700,
+    start: ['kickStart'],
+    hit: 'kickHit',
+    recover: 'kickStart',
+  },
 } satisfies Record<string, Punch>;
 export type PunchStrength = keyof typeof PUNCHES;
 
@@ -107,7 +123,7 @@ export type PunchStrength = keyof typeof PUNCHES;
  * Enchaînement : une seule touche d'attaque. Un nouvel appui pendant un coup met le suivant en attente ;
  * il part dès la fin des images actives, sans attendre la récupération.
  */
-const CHAIN: Partial<Record<PunchStrength, PunchStrength>> = { light: 'medium', medium: 'heavy' };
+const CHAIN: Partial<Record<PunchStrength, PunchStrength>> = { light: 'medium', medium: 'heavy', heavy: 'kick' };
 /**
  * Délai de grâce, en secondes : après la fin d'un coup, un appui pendant ce délai lance encore le coup
  * suivant au lieu de recommencer au premier. Sans lui, il faudrait appuyer pendant le quart de seconde du coup.
@@ -162,6 +178,8 @@ export class HeroState {
   private sincePunch = Number.POSITIVE_INFINITY;
   /** Temps écoulé depuis le début du saut en cours. */
   private jumpTime = 0;
+  /** Saut en cours : sens (1 avant, -1 arrière, 0 vertical) et position au décollage. */
+  jumping = { direction: 0, from: PLACEMENT.x };
   /** Temps restant dans la pose de passage. */
   private stepLeft = 0;
 
@@ -202,13 +220,22 @@ export class HeroState {
     return Math.max(PLACEMENT.minX, Math.min(PLACEMENT.maxX, x));
   }
 
-  /** Lance un saut vertical. Possible seulement depuis la garde ou la marche. */
-  jump(): void {
+  /**
+   * Lance un saut : vertical, ou vers l'avant (1) ou l'arrière (-1) si une direction est tenue.
+   * Possible seulement depuis la garde ou la marche.
+   */
+  jump(direction = 0): void {
     if (!this.free) {
       return;
     }
     this.pose = 'jump';
     this.jumpTime = 0;
+    this.jumping = { direction: Math.sign(direction), from: this.x };
+  }
+
+  /** Avancée du vol, de 0 au décollage à 1 à l'atterrissage : le corps garde une vitesse horizontale constante. */
+  private jumpFlight(): number {
+    return Math.max(0, Math.min(1, (this.jumpTime - JUMP.start) / (JUMP.rise + JUMP.fall)));
   }
 
   /**
@@ -315,6 +342,12 @@ export class HeroState {
     }
     if (this.pose === 'jump') {
       this.jumpTime += delta;
+      // saut avant ou arrière : le corps avance pendant tout le vol, sans sortir du stage
+      const { direction: jumpDirection, from } = this.jumping;
+      if (jumpDirection !== 0) {
+        const distance = jumpDirection > 0 ? JUMP.forward : JUMP.back;
+        this.x = Math.max(PLACEMENT.minX, Math.min(PLACEMENT.maxX, from + jumpDirection * distance * this.jumpFlight()));
+      }
       if (this.jumpTime < JUMP.start + JUMP.rise + JUMP.fall + JUMP.land) {
         return;
       }

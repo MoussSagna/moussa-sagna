@@ -49,13 +49,16 @@
 - [ ] Accroupi : animer séparément la tête et les rubans.
 - [ ] Alléger le chargement : environ 17 Mo d'atlas sont téléchargés au démarrage.
 - [ ] Parade : la déclencher en reculant au moment d'un coup, quand il y aura un adversaire.
+- [ ] Adversaire : de nouvelles illustrations aux proportions de Moussa (sa tête est trop petite).
+- [ ] K.O. : une animation pour se relever.
+- [ ] Rafale de l'attaque spéciale : le corps saute un peu d'un coup à l'autre (points d'appui différents).
 - [ ] Dashs : animer les rubans, ajouter un élan et une réception, et ne plus amorcer la marche au premier des deux appuis.
 
 ## Ensuite
 
 1. **Structure du portfolio** : écran titre, menu principal, puis les sections (projets, parcours, à propos, contact) en HTML par-dessus ou à côté de la scène. Ajouter **Zustand** à ce moment-là pour l'écran courant.
 2. **Transitions entre écrans** : séquences chorégraphiées avec **GSAP**.
-3. **Autres animations du personnage** : sauts avant et arrière, autres coups (fort, pied, accroupi, sauté), touché, et une pose d'élan et de réception pour les dashs. Une illustration par état, toujours dans la même vue, découpée par `tools/prepare_poses.py`.
+3. **Autres animations du personnage** : coups accroupis et sautés, relevé après le K.O., et une pose d'élan et de réception pour les dashs. Une illustration par état, toujours dans la même vue, découpée par `tools/prepare_poses.py`.
 4. **Sprites et moteur de combat** : à partir de plusieurs personnages et de nombreuses frames, passer le rendu des sprites sur **PixiJS**. Le décor en shader peut rester tel quel.
 5. **Adversaire** : compléter ses poses et lui donner un comportement.
 6. **Mobile** : cadrage adapté, commandes tactiles, effets allégés.

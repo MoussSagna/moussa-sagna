@@ -68,7 +68,7 @@ const ACTION_POSES = {
   crouch: ['crouchStep', 'crouch'],
   block: ['blockStep', 'block', 'crouchBlock'],
   jump: ['jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand'],
-  punch: ['punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover'],
+  punch: ['punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'kickStart', 'kickHit'],
 } satisfies Record<string, PoseName[]>;
 type Action = keyof typeof ACTION_POSES;
 
@@ -362,7 +362,8 @@ export class ArenaScene extends Phaser.Scene {
 
   private jump(): void {
     if (this.can('jump')) {
-      this.hero?.state.jump();
+      // une direction tenue au moment de l'appui donne un saut avant ou arrière
+      this.hero?.state.jump(this.walkDirection());
     }
   }
 

@@ -30,7 +30,7 @@ Il n'y a pas de script de lint.
 
 ## Vérifier un changement de rendu
 
-Lancer `npm run build && npm run preview` (ou `npm run dev`), ouvrir la page et regarder réellement l'écran. Pour l'arène, essayer la marche dans les deux sens et un dash. Dire clairement ce qui a été vérifié à l'œil et ce qui ne l'a pas été.
+Lancer `npm run build && npm run preview` (ou `npm run dev`), ouvrir la page et regarder réellement l'écran. Dans le navigateur de test sans carte graphique, le jeu est très lent : piloter l'horloge de Playwright (voir « Vérifier à l'écran » dans `../docs/ETAT-DU-PROJET.md`). Pour l'arène, essayer la marche dans les deux sens et un dash. Dire clairement ce qui a été vérifié à l'œil et ce qui ne l'a pas été.
 
 ## Pièges connus
 
@@ -42,6 +42,7 @@ Lancer `npm run build && npm run preview` (ou `npm run dev`), ouvrir la page et 
 - **Cinématique d'entrée** : `src/game/cinematic/cinematic.ts` est repris du lab ; un réglage (durées, cadrages, transitions) se change dans le lab d'abord, puis se reporte. Elle se dessine dans une `CanvasTexture` mise à jour à chaque image : ne pas lui ajouter de canvas ni de boucle à côté de Phaser.
 - **Nouvelle action** : ses poses doivent être déclarées dans `ACTION_POSES` (`ArenaScene.ts`), sinon l'action peut partir avant que ses images soient arrivées.
 - **Touches de l'arène** : `src/game/input.ts` annule l'effet habituel des touches qu'il utilise (les flèches et Espace ne font plus défiler la page), sauf en saisie de texte et sauf Espace sur un bouton qui a le focus. À garder en tête avant d'ajouter une touche.
+- **Saut avant et arrière** : le lab penche le corps par un cisaillement ; le folio ne le reprend pas tant que `HeroRig.show` ne sait pas l'afficher.
 - **Échelle des poses** : `POSE_SCALE`, dans `src/game/hero/HeroRig.ts`, ramène chaque pose à la taille de tête de la garde. À reporter pour chaque nouvelle pose.
 - **Transformations du rig** : `HeroRig.show` suppose des rotations et des mises à l'échelle sans cisaillement, ce qui est vrai des matrices actuelles de `poseRig.ts`. Une transformation avec cisaillement ne s'afficherait pas correctement.
 - **Carte `depth.png`** : chaque canal porte une information. Ne pas la recompresser ni la redimensionner.

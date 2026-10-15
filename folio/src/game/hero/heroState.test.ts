@@ -168,6 +168,31 @@ describe('saut', () => {
     expect(hero.x).toBe(PLACEMENT.x);
   });
 
+  it('avance pendant un saut avant, recule moins loin pendant un saut arrière', () => {
+    const forward = new HeroState();
+    forward.jump(1);
+    run(forward, JUMP.start + JUMP.rise / 2, 0);
+    const midway = forward.x;
+    expect(midway).toBeGreaterThan(PLACEMENT.x);
+    expect(midway).toBeLessThan(PLACEMENT.x + JUMP.forward);
+    run(forward, JUMP.rise + JUMP.fall + JUMP.land, 0);
+    expect(forward.pose).toBe('guard');
+    expect(forward.x).toBeCloseTo(PLACEMENT.x + JUMP.forward, 6);
+
+    const back = new HeroState();
+    back.jump(-1);
+    run(back, JUMP.start + JUMP.rise + JUMP.fall + JUMP.land + FRAME, 0);
+    expect(back.x).toBeCloseTo(PLACEMENT.x - JUMP.back, 6);
+  });
+
+  it('ne sort pas du stage en sautant', () => {
+    const hero = new HeroState();
+    hero.x = PLACEMENT.maxX - 0.02;
+    hero.jump(1);
+    run(hero, JUMP.start + JUMP.rise + JUMP.fall + JUMP.land + FRAME, 0);
+    expect(hero.x).toBe(PLACEMENT.maxX);
+  });
+
   it('reste au sol pendant l’impulsion et la réception', () => {
     const hero = new HeroState();
     hero.jump();
@@ -193,6 +218,7 @@ describe('coups de poing', () => {
   const light = PUNCHES.light;
   const medium = PUNCHES.medium;
   const heavy = PUNCHES.heavy;
+  const kick = PUNCHES.kick;
 
   it('joue le coup léger seul : démarrage, bras tendu, retour, puis garde', () => {
     const hero = new HeroState();
@@ -230,7 +256,7 @@ describe('coups de poing', () => {
     expect(hero.pose).toBe('guard');
   });
 
-  it('enchaîne le coup fort sur un troisième appui, puis s’arrête', () => {
+  it('enchaîne le coup fort sur un troisième appui, puis le coup de pied sur un quatrième, et s’arrête', () => {
     const hero = new HeroState();
     hero.attack();
     hero.update(FRAME, 0, ASPECT);
@@ -242,7 +268,14 @@ describe('coups de poing', () => {
     expect(hero.punchStrength).toBe('heavy');
     expect(hero.illustration).toBe('punchHeavyStart');
     hero.attack();
-    run(hero, heavy.startup + heavy.active + heavy.recovery + FRAME, 0);
+    run(hero, heavy.startup + heavy.active + FRAME, 0);
+    expect(hero.punchStrength).toBe('kick');
+    expect(hero.illustration).toBe('kickStart');
+    run(hero, kick.startup, 0);
+    expect(hero.illustration).toBe('kickHit');
+    // rien ne suit le coup de pied : un nouvel appui ne relance rien
+    hero.attack();
+    run(hero, kick.active + kick.recovery + FRAME, 0);
     expect(hero.pose).toBe('guard');
   });
 
