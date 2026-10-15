@@ -52,6 +52,9 @@ function App() {
   const [rivalControl, setRivalControl] = useState(false)
   const [rivalWalk, setRivalWalk] = useState(0)
   const [rivalBlock, setRivalBlock] = useState(false)
+  const [rivalDash, setRivalDash] = useState(0)
+  /** Dernier appui sur ← pour l'adversaire : deux appuis rapprochés le téléportent. */
+  const rivalTap = useRef(0)
   const lastTap = useRef({ direction: 0, at: 0 })
   const [note, setNote] = useState('Bouge la souris sur le décor pour sentir la profondeur.')
 
@@ -105,6 +108,15 @@ function App() {
         if ((target instanceof HTMLInputElement && target.type !== 'checkbox') || target instanceof HTMLTextAreaElement) return
         event.preventDefault()
         if (key === 'arrowup') return
+        // deux appuis rapides sur ← : dash avant, il se téléporte vers Moussa
+        if (key === 'arrowleft' && !event.repeat) {
+          if (event.timeStamp - rivalTap.current < DOUBLE_TAP_MS) {
+            setRivalDash((count) => count + 1)
+            rivalTap.current = 0
+          } else {
+            rivalTap.current = event.timeStamp
+          }
+        }
         rivalHeld.add(key)
         syncRival()
         return
@@ -164,7 +176,7 @@ function App() {
   return (
     <main className="mx-auto flex max-w-[1500px] flex-col gap-3.5 px-4 pt-4 pb-8">
       <h1 className="sr-only">Moussa Sagna, développeur frontend</h1>
-      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} block={block} rivalWalk={rivalWalk} rivalBlock={rivalBlock} dash={dash} jump={jump} attack={attack} special={special} special2={special2} endRound={endRound} knockOut={knockOut} dummyAttack={dummyAttack} onUnavailable={onUnavailable} />
+      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} block={block} rivalWalk={rivalWalk} rivalBlock={rivalBlock} rivalDash={rivalDash} dash={dash} jump={jump} attack={attack} special={special} special2={special2} endRound={endRound} knockOut={knockOut} dummyAttack={dummyAttack} onUnavailable={onUnavailable} />
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-muted">
         <button
@@ -219,7 +231,7 @@ function App() {
       </p>
       {rivalControl && (
         <p className="m-0 text-[15px] text-line">
-          Tu contrôles l'adversaire avec les flèches : maintiens <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">←</kbd> pour avancer vers Moussa, 
+          Tu contrôles l'adversaire avec les flèches : maintiens <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">←</kbd> pour avancer vers Moussa (deux appuis rapides : il se téléporte),{' '}
           <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">→</kbd> pour reculer et <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↓</kbd> pour parer. Il n'a pas encore
           d'attaque. Moussa se joue alors avec <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Q</kbd> <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">S</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Z</kbd>, 
           <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Espace</kbd> et les touches d'attaque.

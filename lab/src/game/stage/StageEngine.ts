@@ -131,6 +131,11 @@ export class StageEngine {
     return this.options.opponent === 'rival' ? this.rival : this.dummy
   }
 
+  /** Dash avant de l'adversaire contrôlé par le joueur : il se téléporte vers le personnage. */
+  rivalDash(): void {
+    if (!this.cinematic.locked && this.options.rivalControl === true) this.rival.teleport()
+  }
+
   /** Lance la seconde attaque spéciale du personnage, la frappe au sol. */
   groundSpecial(): void {
     if (!this.cinematic.locked) this.hero.groundSpecial()

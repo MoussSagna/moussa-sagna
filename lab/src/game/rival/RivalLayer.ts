@@ -26,6 +26,10 @@ const POSES = {
   floatBack: { file: 'rival/float-back.webp', ground: [445, 1453], scale: 1.1 },
   // pose de passage : droite, en l'air, entre la garde et le vol, et entre l'avance et le recul
   floatStart: { file: 'rival/float-start.webp', ground: [450, 1474], scale: 1.1 },
+  // téléportation : baissé, effacé dans un trait de vitesse, puis relevé
+  teleportCrouch: { file: 'rival/teleport-crouch.webp', ground: [565, 1256], scale: 1.1 },
+  teleportStreak: { file: 'rival/teleport-streak.webp', ground: [565, 1221], scale: 1.1 },
+  teleportRise: { file: 'rival/teleport-rise.webp', ground: [545, 1434], scale: 1.1 },
   blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
   hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
@@ -46,6 +50,30 @@ const BLOCK_STEP_SECONDS = 0.06
  * garde ; `lean` : inclinaison dans le sens du déplacement, à pleine vitesse.
  */
 const FLOAT = { forward: 0.2, back: 0.17, accel: 18, height: 14, bob: 4, period: 1.5, rise: 18, land: 16, ground: 0.12, lean: 0.035, bridge: 0.07 }
+/**
+ * Dash avant en téléportation, à la manière de Doom : il se baisse, s'efface dans un trait de vitesse, disparaît
+ * un instant et réapparaît `distance` plus loin (fraction de la largeur de l'écran, sans traverser Moussa), baissé,
+ * puis se relève. Les étapes dans l'ordre, avec leur durée en secondes ; `pose: null` : invisible, c'est là qu'il
+ * change de place. `ghost` : durée de l'image rémanente laissée au départ ; `min` : distance en dessous de laquelle
+ * il ne se téléporte pas (il est déjà contre Moussa).
+ */
+const TELEPORT = {
+  steps: [
+    { pose: 'teleportCrouch', seconds: 0.06 },
+    { pose: 'teleportStreak', seconds: 0.05 },
+    { pose: null, seconds: 0.06 },
+    { pose: 'teleportStreak', seconds: 0.05 },
+    { pose: 'teleportCrouch', seconds: 0.08 },
+    { pose: 'teleportRise', seconds: 0.1 },
+  ] as { pose: RivalPose | null; seconds: number }[],
+  distance: 0.22,
+  ghost: 0.25,
+  min: 0.02,
+  /** Marge gardée devant Moussa à l'arrivée : baissé, sa main dépasse en avant de sa garde. */
+  margin: 0.05,
+}
+const TELEPORT_VANISH = TELEPORT.steps[0].seconds + TELEPORT.steps[1].seconds
+const TELEPORT_TOTAL = TELEPORT.steps.reduce((sum, step) => sum + step.seconds, 0)
 type FloatPose = 'floatForward' | 'floatBack' | 'floatStart'
 const isFloatPose = (pose: RivalPose): pose is FloatPose => pose === 'floatForward' || pose === 'floatBack' || pose === 'floatStart'
 /** Les dessins du vol dans un sens. */
@@ -101,6 +129,11 @@ export class RivalLayer implements Opponent {
   private hover = 0
   /** Temps passé en l'air, pour le flottement. */
   private floatTime = 0
+  /** Temps écoulé depuis le début de la téléportation en cours, ou -1. */
+  private teleportTime = -1
+  /** Image rémanente laissée au départ de la téléportation : position et temps écoulé. */
+  private ghostX = 0
+  private ghostTime = Infinity
   /** Temps restant sur le dessin de passage, au décollage ou au changement de sens. */
   private bridgeLeft = 0
   private pose: RivalPose = 'guard'
@@ -146,6 +179,7 @@ export class RivalLayer implements Opponent {
     if (!guarded) {
       this.pose = 'hurt'
       this.hurtTime = 0
+      this.teleportTime = -1
       this.settle()
     }
     return guarded
@@ -155,6 +189,8 @@ export class RivalLayer implements Opponent {
   reset(): void {
     this.x = RivalLayer.START_X
     this.pose = 'guard'
+    this.teleportTime = -1
+    this.ghostTime = Infinity
     this.settle()
   }
 
@@ -174,9 +210,53 @@ export class RivalLayer implements Opponent {
 
   land(): void {}
 
+  /** Dash avant : il se téléporte vers Moussa. Possible seulement en garde ou en lévitation. */
+  teleport(): void {
+    if (this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    this.settle()
+    this.teleportTime = 0
+    this.pose = 'teleportCrouch'
+  }
+
+  /** Vrai pendant la téléportation, quand il n'est plus visible. */
+  private get vanished(): boolean {
+    return this.teleportTime >= 0 && this.teleportStep() === null
+  }
+
+  /** Le dessin de l'étape en cours de la téléportation, ou `null` quand il est invisible. */
+  private teleportStep(): RivalPose | null {
+    let end = 0
+    for (const step of TELEPORT.steps) {
+      end += step.seconds
+      if (this.teleportTime < end) return step.pose
+    }
+    return 'teleportRise'
+  }
+
   update(frame: FrameInfo): void {
+    this.ghostTime += frame.delta
+    if (this.teleportTime >= 0) {
+      const before = this.teleportTime
+      this.teleportTime += frame.delta
+      // il disparaît : il laisse une image rémanente et change de place
+      if (before < TELEPORT_VANISH && this.teleportTime >= TELEPORT_VANISH) {
+        this.ghostX = this.x
+        this.ghostTime = 0
+        const [min] = this.bounds(this.pixel(frame))
+        const stop = min + TELEPORT.margin
+        if (this.x - stop > TELEPORT.min) this.x = Math.max(stop, this.x - TELEPORT.distance)
+      }
+      if (this.teleportTime >= TELEPORT_TOTAL) {
+        this.teleportTime = -1
+        this.pose = 'guard'
+      } else {
+        this.pose = this.teleportStep() ?? this.pose
+      }
+    }
     // coup encaissé : le dessin du coup reçu, celui du retour, puis la garde
-    if (this.pose === 'hurt' || this.pose === 'hurtRecover') {
+    if (this.teleportTime >= 0) {
+      // rien d'autre pendant la téléportation
+    } else if (this.pose === 'hurt' || this.pose === 'hurtRecover') {
       this.hurtTime += frame.delta
       this.pose = this.hurtTime < HIT.stun ? 'hurt' : 'hurtRecover'
       if (this.hurtTime >= HIT.stun + HIT.recover) this.pose = 'guard'
@@ -298,7 +378,7 @@ export class RivalLayer implements Opponent {
     gl.vertexAttribPointer(flat.attribute, 2, gl.FLOAT, false, 0, 0)
     gl.uniform1f(flat.u.uShadow, 1)
     gl.uniform4f(flat.u.uRect, sx * 2 - 1, 1 - (sy - h * 0.006) * 2, h * 0.34 * shadow * (frame.height / frame.width), h * 0.033 * shadow)
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    if (!this.vanished) gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
     gl.useProgram(layer.program)
     gl.enableVertexAttribArray(layer.attribute)
@@ -315,13 +395,13 @@ export class RivalLayer implements Opponent {
     gl.uniform2f(u.uAtlas, 0, 0)
 
     /** Dessine une pose avec son reflet, à l'opacité `alpha`. */
-    const drawPose = (name: RivalPose, alpha: number) => {
+    const drawPose = (name: RivalPose, alpha: number, at = sx, stretchX = 1) => {
       const pose = POSES[name]
       const [gx, gy] = pose.ground
       const scale = pose.scale
       const lift = this.lift(name, amplitude)
       // le point posé au sol reste en (gx, gy) dans la toile : l'agrandissement et l'inclinaison se font autour de lui
-      const left = sx - gx * unitX
+      const left = at - gx * unitX * stretchX
       const top = sy - (gy + lift) * unitY
       gl.bindTexture(gl.TEXTURE_2D, this.textures[name] ?? null)
       // il respire en s'étirant depuis le sol, penche en arrière quand il encaisse et, en vol, dans le sens du déplacement
@@ -333,13 +413,19 @@ export class RivalLayer implements Opponent {
       // reflet sur le sol mouillé : le même dessin, retourné et écrasé sous ses pieds, plus pâle quand il vole
       const mirror = unitY * REFLECTION.squash
       gl.uniform1f(u.uAlpha, REFLECTION.alpha * alpha * (1 - 0.4 * (lift / FLOAT.height)))
-      gl.uniform4f(u.uView, 2 * unitX, 2 * mirror, 2 * left - 1, 1 - 2 * sy - 2 * (gy + lift) * mirror)
+      gl.uniform4f(u.uView, 2 * unitX * stretchX, 2 * mirror, 2 * left - 1, 1 - 2 * sy - 2 * (gy + lift) * mirror)
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
       gl.uniform1f(u.uAlpha, alpha)
-      gl.uniform4f(u.uView, 2 * unitX, -2 * unitY, 2 * left - 1, 1 - 2 * top)
+      gl.uniform4f(u.uView, 2 * unitX * stretchX, -2 * unitY, 2 * left - 1, 1 - 2 * top)
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     }
 
-    drawPose(this.pose, 1)
+    // image rémanente de la téléportation : le trait de vitesse, qui s'étire vers l'arrière et s'efface
+    const ghost = this.ghostTime / TELEPORT.ghost
+    if (ghost < 1 && !calm) {
+      const at = (this.ghostX + PLACEMENT.depth * camera.ox - 0.5) * camera.zoom + 0.5
+      drawPose('teleportStreak', 0.7 * (1 - ghost) ** 2, at, 1 + 0.5 * ghost)
+    }
+    if (!this.vanished) drawPose(this.pose, 1)
   }
 }
