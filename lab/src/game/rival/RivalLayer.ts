@@ -17,7 +17,7 @@ const IMAGE_SIZE: [number, number] = [1024, 2048]
  * que la tête garde la taille de celle de la garde (les illustrations ne sont pas à la même échelle).
  */
 const POSES = {
-  guard: { file: 'rival/guard.webp', ground: [510, 1500], scale: 1 },
+  guard: { file: 'rival/guard.webp', ground: [525, 1455], scale: 1.1 },
   blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
   hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
@@ -45,8 +45,8 @@ const CALM_AMPLITUDE = 0.35
 /** L'adversaire : pour l'instant immobile, en garde ou en parade, il encaisse ou pare les coups. */
 export class RivalLayer implements Opponent {
   readonly x = 0.66
-  readonly surface = 220
-  readonly gap = 660
+  readonly surface = 310
+  readonly gap = 760
   private gl: WebGLRenderingContext | null
   private layer: { program: WebGLProgram; attribute: number; u: Record<(typeof LAYER_UNIFORMS)[number], WebGLUniformLocation | null> } | null = null
   private flat: { program: WebGLProgram; attribute: number; u: Record<(typeof FLAT_UNIFORMS)[number], WebGLUniformLocation | null> } | null = null
