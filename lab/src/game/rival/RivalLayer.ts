@@ -35,14 +35,14 @@ const POSE_NAMES = Object.keys(POSES) as RivalPose[]
 const BLOCK_STEP_SECONDS = 0.06
 
 /**
- * Déplacement en lévitation : il ne marche pas, il s'élève légèrement et glisse. Un seul dessin par sens
+ * Déplacement en lévitation : il ne marche pas, il glisse en rasant le sol. Un seul dessin par sens
  * (`floatForward` en avançant, `floatBack` en reculant), animé en continu : il monte, flotte et redescend.
  * `forward`, `back` : vitesse, en largeurs d'écran par seconde ; `accel` : vitesse de mise en route et de freinage ;
  * `height` : hauteur de vol, en pixels de la toile ; `bob` et `period` : flottement (pixels, secondes) ;
  * `rise`, `land` : vitesse de montée et de descente ; `ground` : part de la hauteur sous laquelle il reprend la
  * garde ; `lean` : inclinaison dans le sens du déplacement, à pleine vitesse ; `fade` : fondu entre deux dessins.
  */
-const FLOAT = { forward: 0.2, back: 0.17, accel: 7, height: 70, bob: 12, period: 1.5, rise: 9, land: 7, ground: 0.12, lean: 0.035, fade: 0.12 }
+const FLOAT = { forward: 0.2, back: 0.17, accel: 7, height: 14, bob: 4, period: 1.5, rise: 9, land: 7, ground: 0.12, lean: 0.035, fade: 0.12 }
 type FloatPose = 'floatForward' | 'floatBack'
 const isFloatPose = (pose: RivalPose): pose is FloatPose => pose === 'floatForward' || pose === 'floatBack'
 /**
