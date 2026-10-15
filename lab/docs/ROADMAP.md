@@ -17,7 +17,9 @@
 - [x] Adversaire original, en garde face au personnage : il encaisse les coups.
 - [x] Adversaire : parade, tenue par une case à cocher pour tester les coups parés.
 - [x] Adversaire : coup encaissé en deux dessins.
-- [ ] Adversaire : marche, coup, recul quand il encaisse, puis un comportement.
+- [x] Adversaire : nouvelle garde aux proportions de Moussa.
+- [x] Adversaire : marche en pas chassés, avant et arrière, et un premier comportement (il garde ses distances).
+- [ ] Adversaire : dashs, coup, recul quand il encaisse ; parade et coup encaissé à refaire au nouveau modèle.
 - [x] Seconde attaque spéciale : mise au point figée sur le personnage, ruée, rafale de dix coups au hasard et trois coups lourds, un effet à chaque impact, puis frappe au sol, avec décor assombri, plan de coupe sur le gros plan de Moussa et effets dessinés (remplace la rafale de coups de pied) (à juger en mouvement).
 - [x] Cinématique d'entrée en six plans (temple, Moussa en pied, gros plan, puis l'adversaire en trois plans) avec transition par un pétale, puis « Face your destiny », « Round 1 », « Fight! » ; on peut la passer (à juger en mouvement).
 - [x] Fin de round : il se baisse et disparaît d'un bond dans la fumée, puis « Round 2 » (à juger en mouvement).
@@ -49,7 +51,7 @@
 - [ ] Accroupi : animer séparément la tête et les rubans.
 - [ ] Alléger le chargement : environ 17 Mo d'atlas sont téléchargés au démarrage.
 - [ ] Parade : la déclencher en reculant au moment d'un coup, quand il y aura un adversaire.
-- [ ] Adversaire : de nouvelles illustrations aux proportions de Moussa (sa tête est trop petite).
+- [ ] Adversaire : refaire la parade et le coup encaissé au nouveau modèle.
 - [ ] K.O. : une animation pour se relever.
 - [ ] Rafale de l'attaque spéciale : le corps saute un peu d'un coup à l'autre (points d'appui différents).
 - [ ] Dashs : animer les rubans, ajouter un élan et une réception, et ne plus amorcer la marche au premier des deux appuis.

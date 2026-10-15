@@ -145,6 +145,7 @@ export class StageEngine {
     this.cinematic.start()
     this.round = 1
     if (this.roundEnding) this.hero.reenter()
+    this.rival.reset()
     this.roundEnding = false
   }
 
@@ -306,6 +307,9 @@ export class StageEngine {
     const fight: FrameInfo = { ...info, time: time - this.frozen, delta: stopped ? 0 : delta }
     this.hero.update(fight, locked ? 0 : this.walk, locked ? false : this.crouch, locked ? false : this.block)
     this.rival.blocking = this.options.rivalBlocks === true
+    // il ne se déplace pas avant le « Fight », ni pendant la mise au point de la frappe au sol
+    this.rival.moves = this.options.rivalMoves !== false && !locked
+    this.rival.heroX = this.hero.position
     const target = this.opponent()
     target.update(fight)
     this.hero.tick(delta)
@@ -339,12 +343,14 @@ export class StageEngine {
     if (this.hero.koDone) {
       this.round += 1
       this.hero.reenter()
+      this.rival.reset()
       this.cinematic.startRound(this.round)
     }
     if (this.roundEnding && this.hero.exitDone) {
       this.roundEnding = false
       this.round += 1
       this.hero.reenter()
+      this.rival.reset()
       this.cinematic.startRound(this.round)
     }
     if (!stopped) this.resolveHits(info, calm)

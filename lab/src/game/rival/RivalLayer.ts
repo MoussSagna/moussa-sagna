@@ -1,4 +1,4 @@
-import { asset, createProgram, loadTexture, uniforms } from '../gl'
+import { asset, createProgram, loadImage, uploadTexture, uniforms } from '../gl'
 import { PLACEMENT } from '../hero/HeroLayer'
 import type { Strike } from '../hero/HeroLayer'
 import { CANVAS } from '../hero/poseData'
@@ -11,22 +11,60 @@ const FLAT_UNIFORMS = ['uRect', 'uAlpha', 'uShadow'] as const
 
 /** Taille des images préparées par `tools/prepare_rival.py` : le dessin occupe le haut (1024 × 1536). */
 const IMAGE_SIZE: [number, number] = [1024, 2048]
+/** Un point du dessin, en pixels de la toile. */
+type Point = [number, number]
+/**
+ * Pointe des deux bottes, pour la garde et la marche : le pied qui reste au sol garde sa place d'un dessin à
+ * l'autre. Le point posé au sol de ces poses est pris à la même distance de la pointe du pied avant que dans la garde.
+ */
+const WALK_FEET = {
+  guard: { front: [152, 1412], back: [740, 1486] },
+  walkIn: { front: [48, 1430], back: [640, 1365] },
+  walkGather: { front: [165, 1412], back: [495, 1385] },
+  walkStride1: { front: [45, 1427], back: [585, 1335] },
+  walkStride2: { front: [48, 1428], back: [755, 1385] },
+} satisfies Record<string, { front: Point; back: Point }>
+type WalkPose = keyof typeof WALK_FEET
+/** Point posé au sol d'une pose de marche : décalé de la pointe du pied avant comme dans la garde. */
+const onFrontFoot = (pose: WalkPose): Point => {
+  const [x, y] = WALK_FEET[pose].front
+  return [x + 373, y + 43]
+}
+
 /**
  * Ses poses, un dessin chacune. `ground` : point du dessin posé sur le sol, en pixels de la toile ; les
  * poses sont calées sur le pied arrière de la garde. `scale` : agrandissement autour de ce point, pour
  * que la tête garde la taille de celle de la garde (les illustrations ne sont pas à la même échelle).
  */
 const POSES = {
-  guard: { file: 'rival/guard.webp', ground: [525, 1455], scale: 1.1 },
+  guard: { file: 'rival/guard.webp', ground: onFrontFoot('guard'), scale: 1.1 },
+  walkIn: { file: 'rival/walk-in.webp', ground: onFrontFoot('walkIn'), scale: 1.1 },
+  walkGather: { file: 'rival/walk-gather.webp', ground: onFrontFoot('walkGather'), scale: 1.1 },
+  walkStride1: { file: 'rival/walk-stride-1.webp', ground: onFrontFoot('walkStride1'), scale: 1.1 },
+  walkStride2: { file: 'rival/walk-stride-2.webp', ground: onFrontFoot('walkStride2'), scale: 1.1 },
   blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
   hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
   hurtRecover: { file: 'rival/hurt-recover.webp', ground: [564, 1472], scale: 0.9 },
-} satisfies Record<string, { file: string; ground: [number, number]; scale: number }>
+} satisfies Record<string, { file: string; ground: Point; scale: number }>
 type RivalPose = keyof typeof POSES
 const POSE_NAMES = Object.keys(POSES) as RivalPose[]
 /** Durée du dessin de passage entre la garde et la parade, en secondes. */
 const BLOCK_STEP_SECONDS = 0.06
+
+/**
+ * Marche en pas chassés : un premier pas main ouverte (`walkIn`), puis le pied arrière rejoint le pied avant
+ * (`walkGather`) et le pied avant repart (`walkStride1`, puis `walkStride2`). Durée de chaque dessin, en secondes.
+ * En reculant, les mêmes dessins, le pied arrière part le premier.
+ */
+const WALK = { in: 0.14, gather: 0.17, stride: 0.21 }
+const WALK_CYCLE: WalkPose[] = ['walkGather', 'walkStride1', 'walkGather', 'walkStride2']
+/**
+ * Son comportement quand il se déplace seul : il garde Moussa à une distance comprise entre `near` et `far`
+ * (en fraction de la largeur du stage, en plus de la distance minimale), et marche jusqu'au milieu de cet
+ * intervalle quand il en sort. `maxX` : sa position la plus reculée.
+ */
+const RANGE = { near: 0.04, far: 0.14, maxX: 0.86 }
 
 /** Respiration de la garde : amplitude de l'étirement vertical et durée d'un cycle, en secondes. */
 const BREATH = { amplitude: 0.007, period: 3.6 }
@@ -42,9 +80,13 @@ const REFLECTION = { alpha: 0.2, squash: 0.5 }
 /** « Réduire les mouvements » : part de la respiration et du recul conservée. */
 const CALM_AMPLITUDE = 0.35
 
-/** L'adversaire : pour l'instant immobile, en garde ou en parade, il encaisse ou pare les coups. */
+const isWalkPose = (pose: RivalPose): pose is WalkPose => pose in WALK_FEET && pose !== 'guard'
+
+/** L'adversaire : en garde ou en parade, il marche pour garder ses distances, encaisse ou pare les coups. */
 export class RivalLayer implements Opponent {
-  readonly x = 0.66
+  /** Position de départ sur le stage, en fraction de la largeur de l'écran. */
+  static readonly START_X = 0.66
+  x = RivalLayer.START_X
   readonly surface = 310
   readonly gap = 760
   private gl: WebGLRenderingContext | null
@@ -53,6 +95,18 @@ export class RivalLayer implements Opponent {
   private ready = false
   /** Vrai tant qu'il doit parer. */
   blocking = false
+  /** Vrai s'il se déplace seul pour garder ses distances. */
+  moves = true
+  /** Position de Moussa, transmise par le moteur à chaque image. */
+  heroX = 0.33
+  /** Textures de ses poses, liées tour à tour à l'unité 0 pour le dessin. */
+  private textures: Partial<Record<RivalPose, WebGLTexture>> = {}
+  /** Marche en cours : sens (-1 vers Moussa, 1 en reculant), dessin suivant du cycle, temps restant sur le dessin. */
+  private walkDirection = 0
+  private cycle = 0
+  private walkLeft = 0
+  /** Vrai pendant le dernier pas, avant le retour en garde. */
+  private stopping = false
   private pose: RivalPose = 'guard'
   /** Temps restant sur le dessin de passage. */
   private stepLeft = 0
@@ -78,9 +132,14 @@ export class RivalLayer implements Opponent {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW)
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-    // une unité de texture par pose
-    const loaded = await Promise.all(POSE_NAMES.map((name, unit) => loadTexture(gl, unit, asset(POSES[name].file), { alpha: true, premultiply: true, mipmap: true })))
-    this.ready = loaded.every(Boolean)
+    // les textures sont liées à l'unité 0 au moment du dessin : plus de poses que d'unités garanties par WebGL
+    const images = await Promise.all(POSE_NAMES.map((name) => loadImage(asset(POSES[name].file))))
+    POSE_NAMES.forEach((name, index) => {
+      const image = images[index]
+      const texture = image && uploadTexture(gl, 0, image, { alpha: true, premultiply: true, mipmap: true })
+      if (texture) this.textures[name] = texture
+    })
+    this.ready = POSE_NAMES.every((name) => this.textures[name])
     return this.ready
   }
 
@@ -91,8 +150,16 @@ export class RivalLayer implements Opponent {
     if (!guarded) {
       this.pose = 'hurt'
       this.hurtTime = 0
+      this.walkDirection = 0
     }
     return guarded
+  }
+
+  /** Revient à sa place de départ, en garde, pour un nouveau round. */
+  reset(): void {
+    this.x = RivalLayer.START_X
+    this.pose = 'guard'
+    this.walkDirection = 0
   }
 
   /** Il n'a pas encore d'attaque. */
@@ -116,6 +183,9 @@ export class RivalLayer implements Opponent {
     } else if ((this.pose === 'block') !== this.blocking) {
       this.pose = 'blockStep'
       this.stepLeft = BLOCK_STEP_SECONDS
+      this.walkDirection = 0
+    } else {
+      this.walk(frame)
     }
     // ressort amorti, en petits pas pour rester stable quand une image dure longtemps
     const stiffness = (2 * Math.PI * HIT.frequency) ** 2
@@ -124,6 +194,95 @@ export class RivalLayer implements Opponent {
     for (let i = 0; i < steps; i++) {
       this.velocity += (-stiffness * this.lean - HIT.damping * this.velocity) * dt
       this.lean += this.velocity * dt
+    }
+  }
+
+  /** Largeur d'un pixel de la toile, en fraction de la largeur du stage. */
+  private pixel(frame: FrameInfo): number {
+    return (PLACEMENT.scale / CANVAS[1]) * (frame.height / frame.width)
+  }
+
+  /** Le sens dans lequel il veut marcher : -1 vers Moussa, 1 en reculant, 0 pour rester en garde. */
+  private wish(pixel: number): number {
+    if (!this.moves || this.blocking) return 0
+    const distance = this.x - this.heroX - this.gap * pixel
+    const middle = (RANGE.near + RANGE.far) / 2
+    // il va jusqu'au milieu de l'intervalle avant de s'arrêter
+    if (this.walkDirection < 0) return distance > middle ? -1 : 0
+    if (this.walkDirection > 0) return distance < middle && this.x < RANGE.maxX - 0.005 ? 1 : 0
+    if (distance > RANGE.far) return -1
+    if (distance < RANGE.near && this.x < RANGE.maxX - 0.005) return 1
+    return 0
+  }
+
+  /** Les bornes de sa position : pas plus près de Moussa que la distance minimale, pas au-delà de `RANGE.maxX`. */
+  private bounds(pixel: number): [number, number] {
+    return [this.heroX + this.gap * pixel, RANGE.maxX]
+  }
+
+  /**
+   * Déplacement de son point posé au sol, en pixels de la toile, quand il passe au dessin `next` en gardant
+   * au sol le pied qui ne bouge pas. En avançant, quand les pieds s'écartent, c'est le pied avant qui part :
+   * le pied arrière reste ; quand ils se rapprochent, l'inverse. En reculant, tout s'inverse.
+   */
+  private shiftTo(next: WalkPose, direction: number): number {
+    const from = this.pose as WalkPose
+    const a = WALK_FEET[from]
+    const b = WALK_FEET[next]
+    const spreads = b.back[0] - b.front[0] > a.back[0] - a.front[0]
+    const anchor = (direction < 0) === spreads ? 'back' : 'front'
+    return (a[anchor][0] - POSES[from].ground[0]) * POSES[from].scale - (b[anchor][0] - POSES[next].ground[0]) * POSES[next].scale
+  }
+
+  /**
+   * Vrai si le pas vers le dessin `next` le laisse entre ses bornes. Quand il se déplace seul, il ne fait pas
+   * non plus de pas qui l'amènerait plus près de Moussa que `RANGE.near` (une grande foulée peut dépasser le milieu).
+   */
+  private fits(next: WalkPose, direction: number, pixel: number): boolean {
+    const [min, max] = this.bounds(pixel)
+    const x = this.x + this.shiftTo(next, direction) * pixel
+    const near = this.moves && direction < 0 ? RANGE.near : 0
+    return x >= min + near && x <= max
+  }
+
+  private stepTo(next: WalkPose, direction: number, pixel: number): void {
+    const [min, max] = this.bounds(pixel)
+    this.x = Math.min(max, Math.max(min, this.x + this.shiftTo(next, direction) * pixel))
+    this.pose = next
+  }
+
+  /** Marche : un dessin après l'autre, en commençant et en finissant par le premier pas, main ouverte. */
+  private walk(frame: FrameInfo): void {
+    if (this.pose !== 'guard' && !isWalkPose(this.pose)) return
+    const pixel = this.pixel(frame)
+    const wish = this.wish(pixel)
+    if (this.pose === 'guard') {
+      if (wish === 0 || !this.fits('walkIn', wish, pixel)) return
+      this.walkDirection = wish
+      this.cycle = 0
+      this.stopping = false
+      this.stepTo('walkIn', wish, pixel)
+      this.walkLeft = WALK.in
+      return
+    }
+    this.walkLeft -= frame.delta
+    if (this.walkLeft > 0) return
+    const direction = this.walkDirection
+    const next = WALK_CYCLE[this.cycle % WALK_CYCLE.length]
+    const going = !this.stopping && wish === direction && this.fits(next, direction, pixel)
+    if (going) {
+      this.cycle++
+      this.stepTo(next, direction, pixel)
+      this.walkLeft = next === 'walkGather' ? WALK.gather : WALK.stride
+    } else if (this.pose === 'walkIn') {
+      // dernier pas : retour en garde
+      this.stepTo('guard', direction, pixel)
+      this.walkDirection = 0
+    } else {
+      // il s'arrête en repassant par le premier pas
+      this.stopping = true
+      this.stepTo('walkIn', direction, pixel)
+      this.walkLeft = WALK.in
     }
   }
 
@@ -163,7 +322,9 @@ export class RivalLayer implements Opponent {
     gl.enableVertexAttribArray(layer.attribute)
     gl.vertexAttribPointer(layer.attribute, 2, gl.FLOAT, false, 0, 0)
     const u = layer.u
-    gl.uniform1i(u.uTex, POSE_NAMES.indexOf(this.pose))
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, this.textures[this.pose] ?? null)
+    gl.uniform1i(u.uTex, 0)
     gl.uniform2f(u.uAtlasSize, IMAGE_SIZE[0], IMAGE_SIZE[1])
     gl.uniform4f(u.uBend, 0, 1, 0, 0)
     gl.uniform4f(u.uAxis, 1, 0, 0, 0)

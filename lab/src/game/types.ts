@@ -14,6 +14,8 @@ export interface StageOptions {
   opponent?: 'dummy' | 'rival'
   /** Vrai tant que l'adversaire doit parer, pour tester les coups parés. */
   rivalBlocks?: boolean
+  /** Faux pour garder l'adversaire immobile ; sinon il marche pour garder ses distances. */
+  rivalMoves?: boolean
 }
 
 export interface FrameInfo {
