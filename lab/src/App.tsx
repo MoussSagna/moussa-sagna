@@ -52,9 +52,9 @@ function App() {
   const [rivalControl, setRivalControl] = useState(false)
   const [rivalWalk, setRivalWalk] = useState(0)
   const [rivalBlock, setRivalBlock] = useState(false)
-  const [rivalDash, setRivalDash] = useState(0)
-  /** Dernier appui sur ← pour l'adversaire : deux appuis rapprochés le téléportent. */
-  const rivalTap = useRef(0)
+  const [rivalDash, setRivalDash] = useState({ id: 0, direction: -1 })
+  /** Dernier appui sur une flèche pour l'adversaire : deux appuis rapprochés dans le même sens font un dash. */
+  const rivalTap = useRef({ direction: 0, at: 0 })
   const lastTap = useRef({ direction: 0, at: 0 })
   const [note, setNote] = useState('Bouge la souris sur le décor pour sentir la profondeur.')
 
@@ -108,13 +108,15 @@ function App() {
         if ((target instanceof HTMLInputElement && target.type !== 'checkbox') || target instanceof HTMLTextAreaElement) return
         event.preventDefault()
         if (key === 'arrowup') return
-        // deux appuis rapides sur ← : dash avant, il se téléporte vers Moussa
-        if (key === 'arrowleft' && !event.repeat) {
-          if (event.timeStamp - rivalTap.current < DOUBLE_TAP_MS) {
-            setRivalDash((count) => count + 1)
-            rivalTap.current = 0
+        // deux appuis rapides dans le même sens : dash ; vers Moussa, il se téléporte
+        const tapped = RIVAL_KEYS[key]
+        if (tapped && !event.repeat) {
+          const last = rivalTap.current
+          if (last.direction === tapped && event.timeStamp - last.at < DOUBLE_TAP_MS) {
+            setRivalDash((current) => ({ id: current.id + 1, direction: tapped }))
+            rivalTap.current = { direction: 0, at: 0 }
           } else {
-            rivalTap.current = event.timeStamp
+            rivalTap.current = { direction: tapped, at: event.timeStamp }
           }
         }
         rivalHeld.add(key)
@@ -231,7 +233,7 @@ function App() {
       </p>
       {rivalControl && (
         <p className="m-0 text-[15px] text-line">
-          Tu contrôles l'adversaire avec les flèches : maintiens <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">←</kbd> pour avancer vers Moussa (deux appuis rapides : il se téléporte),{' '}
+          Tu contrôles l'adversaire avec les flèches : maintiens <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">←</kbd> pour avancer vers Moussa (deux appuis rapides : il se téléporte, dans son dos s'il est au contact),{' '}
           <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">→</kbd> pour reculer et <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↓</kbd> pour parer. Il n'a pas encore
           d'attaque. Moussa se joue alors avec <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Q</kbd> <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">S</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Z</kbd>, 
           <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Espace</kbd> et les touches d'attaque.

@@ -20,8 +20,8 @@ interface Props {
   /** Adversaire contrôlé par le joueur : déplacement (-1 vers Moussa, 1 en s'éloignant, 0 à l'arrêt) et parade. */
   rivalWalk: number
   rivalBlock: boolean
-  /** Change de valeur à chaque dash avant demandé pour l'adversaire contrôlé (il se téléporte). */
-  rivalDash: number
+  /** Dash demandé pour l'adversaire contrôlé : `id` change à chaque demande, `direction` (1 ou -1, à l'écran). Vers le personnage, il se téléporte. */
+  rivalDash: { id: number; direction: number }
   /** Dash demandé : `id` change à chaque demande, `direction` vaut 1 ou -1. */
   dash: { id: number; direction: number }
   /** Change de valeur à chaque saut demandé. */
@@ -105,7 +105,7 @@ export function StageScreen({ options, introKey, walk, crouch, block, rivalWalk,
   }, [rivalBlock])
 
   useEffect(() => {
-    if (rivalDash > 0) engine.current?.rivalDash()
+    if (rivalDash.id > 0) engine.current?.rivalDash(rivalDash.direction)
   }, [rivalDash])
 
   useEffect(() => {

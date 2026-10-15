@@ -20,7 +20,8 @@
 - [x] Adversaire : nouvelle garde aux proportions de Moussa.
 - [x] Adversaire : déplacement en lévitation, avant et arrière (un dessin par sens, animé en continu), et un premier comportement (il garde ses distances). Remplace la marche en pas chassés, trop saccadée.
 - [x] Adversaire contrôlable par un second joueur, aux flèches : il se déplace en lévitation et pare.
-- [x] Adversaire : dash avant en téléportation (deux appuis rapides sur ←), à la manière de Doom.
+- [x] Adversaire : dash avant en téléportation (deux appuis rapides vers Moussa), à la manière de Doom ; au corps à corps, il passe dans le dos de Moussa et les combattants changent de côté, toujours face à face.
+- [ ] Changement de côté : le reporter dans le folio ; décider si Moussa peut aussi passer de l'autre côté (saut par-dessus).
 - [x] Plus de boutons sous la scène : tout se joue au clavier.
 - [ ] Adversaire : dashs, coup, recul quand il encaisse ; parade et coup encaissé à refaire au nouveau modèle.
 - [x] Seconde attaque spéciale : mise au point figée sur le personnage, ruée, rafale de dix coups au hasard et trois coups lourds, un effet à chaque impact, puis frappe au sol, avec décor assombri, plan de coupe sur le gros plan de Moussa et effets dessinés (remplace la rafale de coups de pied) (à juger en mouvement).

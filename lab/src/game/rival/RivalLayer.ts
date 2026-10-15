@@ -53,7 +53,7 @@ const FLOAT = { forward: 0.2, back: 0.17, accel: 18, height: 14, bob: 4, period:
 /**
  * Dash avant en téléportation, à la manière de Doom : il se baisse, s'efface dans un trait de vitesse, disparaît
  * un instant et réapparaît `distance` plus loin (fraction de la largeur de l'écran, sans traverser Moussa), baissé,
- * puis se relève. Les étapes dans l'ordre, avec leur durée en secondes ; `pose: null` : invisible, c'est là qu'il
+ * puis se relève ; au corps à corps, il réapparaît dans le dos de Moussa. Les étapes dans l'ordre, avec leur durée en secondes ; `pose: null` : invisible, c'est là qu'il
  * change de place. `ghost` : durée de l'image rémanente laissée au départ ; `min` : distance en dessous de laquelle
  * il ne se téléporte pas (il est déjà contre Moussa).
  */
@@ -61,14 +61,19 @@ const TELEPORT = {
   steps: [
     { pose: 'teleportCrouch', seconds: 0.06 },
     { pose: 'teleportStreak', seconds: 0.05 },
-    { pose: null, seconds: 0.06 },
+    { pose: null, seconds: 0.1 },
     { pose: 'teleportStreak', seconds: 0.05 },
     { pose: 'teleportCrouch', seconds: 0.08 },
     { pose: 'teleportRise', seconds: 0.1 },
   ] as { pose: RivalPose | null; seconds: number }[],
   distance: 0.22,
-  ghost: 0.25,
+  ghost: 0.16,
   min: 0.02,
+  /**
+   * Au corps à corps (moins de `cross` entre lui et sa place la plus proche de Moussa), il passe dans le dos de
+   * Moussa : les combattants changent de côté. Il réapparaît derrière lui, à la distance minimale plus `margin`.
+   */
+  cross: 0.1,
   /** Marge gardée devant Moussa à l'arrivée : baissé, sa main dépasse en avant de sa garde. */
   margin: 0.05,
 }
@@ -134,6 +139,8 @@ export class RivalLayer implements Opponent {
   /** Image rémanente laissée au départ de la téléportation : position et temps écoulé. */
   private ghostX = 0
   private ghostTime = Infinity
+  /** Vrai quand il vient de disparaître au corps à corps : le moteur fait changer les combattants de côté. */
+  private crossing = false
   /** Temps restant sur le dessin de passage, au décollage ou au changement de sens. */
   private bridgeLeft = 0
   private pose: RivalPose = 'guard'
@@ -191,6 +198,7 @@ export class RivalLayer implements Opponent {
     this.pose = 'guard'
     this.teleportTime = -1
     this.ghostTime = Infinity
+    this.crossing = false
     this.settle()
   }
 
@@ -216,6 +224,27 @@ export class RivalLayer implements Opponent {
     this.settle()
     this.teleportTime = 0
     this.pose = 'teleportCrouch'
+  }
+
+  /** Vrai une seule fois, quand il vient de disparaître pour passer dans le dos de Moussa. */
+  takeCross(): boolean {
+    const crossing = this.crossing
+    this.crossing = false
+    return crossing
+  }
+
+  /**
+   * Les combattants viennent de changer de côté (le moteur a retourné l'affichage et la position de Moussa) :
+   * il se place derrière Moussa, à la distance minimale plus la marge. S'il n'y a pas la place (Moussa près du
+   * bord), il se pose au bord et retourne la position où Moussa doit être poussé ; sinon, celle de Moussa.
+   * Son image rémanente reste où elle était à l'écran.
+   */
+  landBehind(heroX: number, pixel: number): number {
+    const distance = this.gap * pixel + TELEPORT.margin
+    this.x = Math.min(RANGE.maxX, heroX + distance)
+    this.heroX = Math.min(heroX, this.x - distance)
+    this.ghostX = 1 - this.ghostX
+    return this.heroX
   }
 
   /** Vrai pendant la téléportation, quand il n'est plus visible. */
@@ -244,7 +273,9 @@ export class RivalLayer implements Opponent {
         this.ghostTime = 0
         const [min] = this.bounds(this.pixel(frame))
         const stop = min + TELEPORT.margin
-        if (this.x - stop > TELEPORT.min) this.x = Math.max(stop, this.x - TELEPORT.distance)
+        // au corps à corps, il passe dans le dos de Moussa
+        if (this.x - stop < TELEPORT.cross) this.crossing = true
+        else if (this.x - stop > TELEPORT.min) this.x = Math.max(stop, this.x - TELEPORT.distance)
       }
       if (this.teleportTime >= TELEPORT_TOTAL) {
         this.teleportTime = -1
@@ -424,7 +455,7 @@ export class RivalLayer implements Opponent {
     const ghost = this.ghostTime / TELEPORT.ghost
     if (ghost < 1 && !calm) {
       const at = (this.ghostX + PLACEMENT.depth * camera.ox - 0.5) * camera.zoom + 0.5
-      drawPose('teleportStreak', 0.7 * (1 - ghost) ** 2, at, 1 + 0.5 * ghost)
+      drawPose('teleportStreak', 0.45 * (1 - ghost) ** 2, at, 1 + 0.5 * ghost)
     }
     if (!this.vanished) drawPose(this.pose, 1)
   }
