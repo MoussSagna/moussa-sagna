@@ -43,9 +43,9 @@ const BLOCK_STEP_SECONDS = 0.06
  * `forward`, `back` : vitesse, en largeurs d'écran par seconde ; `accel` : vitesse de mise en route et de freinage ;
  * `height` : hauteur de vol, en pixels de la toile ; `bob` et `period` : flottement (pixels, secondes) ;
  * `rise`, `land` : vitesse de montée et de descente ; `ground` : part de la hauteur sous laquelle il reprend la
- * garde ; `lean` : inclinaison dans le sens du déplacement, à pleine vitesse ; `fade` : fondu entre deux dessins.
+ * garde ; `lean` : inclinaison dans le sens du déplacement, à pleine vitesse.
  */
-const FLOAT = { forward: 0.2, back: 0.17, accel: 18, height: 14, bob: 4, period: 1.5, rise: 18, land: 16, ground: 0.12, lean: 0.035, fade: 0.06, bridge: 0.07 }
+const FLOAT = { forward: 0.2, back: 0.17, accel: 18, height: 14, bob: 4, period: 1.5, rise: 18, land: 16, ground: 0.12, lean: 0.035, bridge: 0.07 }
 type FloatPose = 'floatForward' | 'floatBack' | 'floatStart'
 const isFloatPose = (pose: RivalPose): pose is FloatPose => pose === 'floatForward' || pose === 'floatBack' || pose === 'floatStart'
 /** Les dessins du vol dans un sens. */
@@ -101,9 +101,6 @@ export class RivalLayer implements Opponent {
   private hover = 0
   /** Temps passé en l'air, pour le flottement. */
   private floatTime = 0
-  /** Dessin précédent et temps écoulé depuis le changement, pour le fondu entre les deux. */
-  private previous: RivalPose = 'guard'
-  private fadeTime = Infinity
   /** Temps restant sur le dessin de passage, au décollage ou au changement de sens. */
   private bridgeLeft = 0
   private pose: RivalPose = 'guard'
@@ -166,7 +163,6 @@ export class RivalLayer implements Opponent {
     this.walkDirection = 0
     this.speed = 0
     this.hover = 0
-    this.fadeTime = Infinity
   }
 
   /** Il n'a pas encore d'attaque. */
@@ -194,7 +190,6 @@ export class RivalLayer implements Opponent {
     } else if (this.pose !== 'block') {
       this.float(frame)
     }
-    this.fadeTime += frame.delta
     // ressort amorti, en petits pas pour rester stable quand une image dure longtemps
     const stiffness = (2 * Math.PI * HIT.frequency) ** 2
     const steps = 4
@@ -265,11 +260,8 @@ export class RivalLayer implements Opponent {
         next = 'floatStart'
       }
     }
-    if (next !== this.pose) {
-      this.previous = this.pose
-      this.fadeTime = 0
-      this.pose = next
-    }
+    // les dessins s'enchaînent sans fondu : un fondu rendrait le personnage transparent un instant
+    this.pose = next
   }
 
   /** Hauteur de vol du dessin `pose` à cet instant, en pixels de la toile : montée, puis flottement. */
@@ -348,13 +340,6 @@ export class RivalLayer implements Opponent {
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     }
 
-    // au changement de dessin, un court fondu entre l'ancien et le nouveau
-    const fade = this.fadeTime / FLOAT.fade
-    if (fade < 1 && !calm) {
-      drawPose(this.previous, 1 - fade)
-      drawPose(this.pose, fade)
-    } else {
-      drawPose(this.pose, 1)
-    }
+    drawPose(this.pose, 1)
   }
 }
