@@ -142,8 +142,8 @@ export class StageEngine {
 
   /** Dash avant de l'adversaire contrôlé par le joueur : il se téléporte vers le personnage. */
   rivalDash(direction: number): void {
-    // seulement vers le personnage : à gauche à l'écran, à droite quand ils ont changé de côté
-    if (!this.cinematic.locked && this.options.rivalControl === true && direction * this.side < 0) this.rival.teleport()
+    // vers le personnage (à gauche à l'écran, à droite quand ils ont changé de côté) : dash avant ; sinon, dash arrière
+    if (!this.cinematic.locked && this.options.rivalControl === true) this.rival.teleport(direction * this.side)
   }
 
   /** 1 quand Moussa est à gauche, -1 quand les combattants ont changé de côté : convertit un sens à l'écran. */

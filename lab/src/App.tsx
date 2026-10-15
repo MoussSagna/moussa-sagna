@@ -234,7 +234,7 @@ function App() {
       {rivalControl && (
         <p className="m-0 text-[15px] text-line">
           Tu contrôles l'adversaire avec les flèches : maintiens <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">←</kbd> pour avancer vers Moussa (deux appuis rapides : il se téléporte, dans son dos s'il est au contact),{' '}
-          <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">→</kbd> pour reculer et <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↓</kbd> pour parer. Il n'a pas encore
+          <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">→</kbd> pour reculer (deux appuis rapides : il se téléporte en arrière) et <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↓</kbd> pour parer. Il n'a pas encore
           d'attaque. Moussa se joue alors avec <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Q</kbd> <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">S</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Z</kbd>, 
           <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Espace</kbd> et les touches d'attaque.
         </p>

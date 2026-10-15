@@ -139,6 +139,8 @@ export class RivalLayer implements Opponent {
   /** Image rémanente laissée au départ de la téléportation : position et temps écoulé. */
   private ghostX = 0
   private ghostTime = Infinity
+  /** Sens de la téléportation en cours : -1 vers Moussa, 1 en s'éloignant. */
+  private teleportDirection = -1
   /** Vrai quand il vient de disparaître au corps à corps : le moteur fait changer les combattants de côté. */
   private crossing = false
   /** Temps restant sur le dessin de passage, au décollage ou au changement de sens. */
@@ -218,11 +220,15 @@ export class RivalLayer implements Opponent {
 
   land(): void {}
 
-  /** Dash avant : il se téléporte vers Moussa. Possible seulement en garde ou en lévitation. */
-  teleport(): void {
+  /**
+   * Dash : il se téléporte, vers Moussa (`direction` -1, dash avant) ou en s'éloignant (1, dash arrière), avec les
+   * mêmes dessins. Possible seulement en garde ou en lévitation.
+   */
+  teleport(direction = -1): void {
     if (this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
     this.settle()
     this.teleportTime = 0
+    this.teleportDirection = Math.sign(direction) || -1
     this.pose = 'teleportCrouch'
   }
 
@@ -273,8 +279,10 @@ export class RivalLayer implements Opponent {
         this.ghostTime = 0
         const [min] = this.bounds(this.pixel(frame))
         const stop = min + TELEPORT.margin
+        // dash arrière : il recule d'autant, sans sortir du stage
+        if (this.teleportDirection > 0) this.x = Math.min(RANGE.maxX, this.x + TELEPORT.distance)
         // au corps à corps, il passe dans le dos de Moussa
-        if (this.x - stop < TELEPORT.cross) this.crossing = true
+        else if (this.x - stop < TELEPORT.cross) this.crossing = true
         else if (this.x - stop > TELEPORT.min) this.x = Math.max(stop, this.x - TELEPORT.distance)
       }
       if (this.teleportTime >= TELEPORT_TOTAL) {

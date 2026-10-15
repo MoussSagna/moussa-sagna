@@ -36,7 +36,7 @@ Toute nouvelle pose demande aussi une échelle dans `POSE_SCALE` (`lab/src/game/
 
 ## Ce que fait le lab aujourd'hui
 
-Touches : flèches ou ZQSD, J attaque, L boule de feu, I attaque spéciale au sol, O K.O., P fin de round, K le mannequin attaque, Échap passe l'intro. Plus de boutons sous la scène. La case « Contrôler l'adversaire » donne les flèches à l'adversaire (← avance, deux appuis rapides vers Moussa le téléportent, dans son dos au corps à corps, → recule, ↓ pare) ; Moussa se joue alors avec Q D, S, Z, Espace et les touches d'attaque.
+Touches : flèches ou ZQSD, J attaque, L boule de feu, I attaque spéciale au sol, O K.O., P fin de round, K le mannequin attaque, Échap passe l'intro. Plus de boutons sous la scène. La case « Contrôler l'adversaire » donne les flèches à l'adversaire (← avance, deux appuis rapides vers Moussa le téléportent, dans son dos au corps à corps, → recule (deux appuis rapides : téléportation en arrière), ↓ pare) ; Moussa se joue alors avec Q D, S, Z, Espace et les touches d'attaque.
 
 - Stage Tokyo Underground animé (pluie, pétales, néons, reflets).
 - Cinématique d'entrée en six plans (Moussa puis l'adversaire), « Face your destiny », « Round 1 », « Fight! ».

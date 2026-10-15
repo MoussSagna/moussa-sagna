@@ -20,7 +20,7 @@ interface Props {
   /** Adversaire contrôlé par le joueur : déplacement (-1 vers Moussa, 1 en s'éloignant, 0 à l'arrêt) et parade. */
   rivalWalk: number
   rivalBlock: boolean
-  /** Dash demandé pour l'adversaire contrôlé : `id` change à chaque demande, `direction` (1 ou -1, à l'écran). Vers le personnage, il se téléporte. */
+  /** Dash demandé pour l'adversaire contrôlé : `id` change à chaque demande, `direction` (1 ou -1, à l'écran). Il se téléporte vers le personnage ou en s'éloignant. */
   rivalDash: { id: number; direction: number }
   /** Dash demandé : `id` change à chaque demande, `direction` vaut 1 ou -1. */
   dash: { id: number; direction: number }
