@@ -24,7 +24,7 @@ Il n'y a pas encore de tests automatisés.
 
 ## Vérifier un changement de rendu
 
-Lancer `npm run build && npm run preview`, ouvrir la page et regarder réellement l'écran. Un build qui passe ne prouve pas que le rendu est bon. Dire clairement ce qui a été vérifié à l'œil et ce qui ne l'a pas été.
+Lancer `npm run build && npm run preview`, ouvrir la page et regarder réellement l'écran. Dans le navigateur de test sans carte graphique, le jeu est très lent : piloter l'horloge de Playwright (voir « Vérifier à l'écran » dans `../docs/ETAT-DU-PROJET.md`). Un build qui passe ne prouve pas que le rendu est bon. Dire clairement ce qui a été vérifié à l'œil et ce qui ne l'a pas été.
 
 ## Pièges connus
 

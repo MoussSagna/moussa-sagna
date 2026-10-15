@@ -25,7 +25,7 @@ Les fichiers sont à la taille d'origine de la planche, sans agrandissement.
 
 Pour l'arène (`/entrainement`), le personnage jouable utilise d'autres fichiers, repris de
 `lab/` : les vingt fichiers de `poses/` (`guard.webp`, `walk.webp`, `crouch.webp`, `punchHit.webp`…). Ce
-sont des atlas de calques tirés de vingt illustrations en pied, pas des découpes de la planche. Voir « Personnage jouable » dans
+sont des atlas de calques tirés de vingt-cinq illustrations en pied, pas des découpes de la planche. Voir « Personnage jouable » dans
 `03-ARCHITECTURE-TECHNIQUE.md`.
 
 ### Comment ils ont été découpés

@@ -128,11 +128,11 @@ Pluie / Pétales / Réduire les mouvements.
 
 ## Personnage jouable
 
-Moussa vient lui aussi de `lab/`. Il n'y a ni planche de frames ni animation pré-rendue : vingt illustrations
+Moussa vient lui aussi de `lab/`. Il n'y a ni planche de frames ni animation pré-rendue : vingt-cinq illustrations
 dans la même vue (trois quarts, tourné vers la droite) sont découpées en calques et animées en direct.
 
-Il se tient en garde, marche, dashe, s'accroupit, pare debout ou accroupi, saute sur place et enchaîne deux
-coups de poing. Il n'a pas d'adversaire : les coups et la parade ne touchent rien.
+Il se tient en garde, marche, dashe, s'accroupit, pare debout ou accroupi, saute sur place, en avant ou en
+arrière, et enchaîne trois coups de poing et un coup de pied. Il n'a pas d'adversaire : les coups et la parade ne touchent rien.
 
 | Fichier | Rôle |
 |---|---|
@@ -153,8 +153,8 @@ coups de poing. Il n'a pas d'adversaire : les coups et la parade ne touchent rie
 | Dasher | deux appuis sur la même direction en moins de 260 ms | deux appuis sur le même bouton |
 | S'accroupir | maintenir ↓ ou S | maintenir « S'accroupir » |
 | Parer | maintenir Espace | maintenir « Parer » |
-| Sauter | ↑ ou Z (W en QWERTY) | « Sauter » |
-| Attaquer | J : un appui pour le coup léger, un second pendant le coup pour enchaîner le moyen | « Attaquer » |
+| Sauter | ↑ ou Z (W en QWERTY) ; avec ← ou → maintenu, saut arrière ou avant | « Sauter », avec « Reculer » ou « Avancer » maintenu |
+| Attaquer | J : un appui pour le coup léger, puis un nouvel appui pendant chaque coup pour enchaîner le moyen, le fort et le coup de pied | « Attaquer » |
 
 Le clavier est lu par la scène (`ArenaKeyboard`) ; les boutons passent par le registre du jeu. Tant que l'arène
 est affichée, les touches de l'arène n'ont plus leur effet dans la page : les flèches haut et bas et Espace ne
@@ -169,12 +169,16 @@ la font pas défiler. Deux exceptions : une saisie de texte, et Espace sur un bo
 - **Accroupi et parade** : maintenus. Une pose de passage s'affiche un instant entre la garde et l'accroupi, et
   entre la garde et la parade debout ; la parade accroupie se prend et se quitte sans passage. Accroupi ou en
   parade, le personnage ne se déplace pas. Ces poses tenues respirent d'un bloc.
-- **Saut** : vertical, depuis la garde ou la marche. Quatre dessins (impulsion, montée, corps regroupé,
+- **Saut** : depuis la garde ou la marche ; vertical, ou vers l'avant ou l'arrière si une direction est tenue
+  au moment de l'appui (`JUMP.forward`, `JUMP.back` : le corps avance à vitesse constante pendant le vol, sans
+  sortir du stage). Le lab penche aussi le corps dans le sens du saut ; le folio ne reprend pas cette
+  inclinaison, parce que `HeroRig.show` ne sait pas afficher un cisaillement. Quatre dessins (impulsion, montée, corps regroupé,
   réception) ; la hauteur est calculée (`JUMP`) et le dessin est déformé en continu autour des pieds. Pendant le
   vol, l'ombre rétrécit et le reflet s'éloigne des pieds en s'estompant.
 - **Coups de poing** : une seule touche. `PUNCHES` donne le minutage de chaque coup, repris d'un jeu de combat
   à 60 images par seconde, et un dessin par phase. Un nouvel appui pendant le coup léger met le coup moyen en
-  attente, puis pendant le coup moyen le coup fort (un uppercut) : chacun part à la fin des images actives, à la
+  attente, puis pendant le coup moyen le coup fort (un uppercut), puis pendant le fort le coup de pied haut, dernier
+  coup de l'enchaînement : chacun part à la fin des images actives, à la
   place de la récupération. Un appui dans les `CHAIN_GRACE` secondes qui suivent le retour en garde poursuit
   aussi l'enchaînement. Sans adversaire dans l'arène, l'enchaînement ne dépend pas de toucher, contrairement
   au lab.

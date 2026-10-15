@@ -11,6 +11,8 @@ Portfolio de Moussa Sagna, développeur frontend, sous forme de jeu de combat 2D
 | `art/` | Illustrations sources du personnage, une par pose. Communes aux deux projets. |
 | `docs/` | Documentation commune (direction artistique). |
 
+**Pour reprendre le travail** (nouvelle conversation) : lire `docs/ETAT-DU-PROJET.md`, qui dit où en est le projet, comment on travaille avec Moussa (illustrations générées par lui, lab d'abord, aperçu publié, fusion, report dans le folio) et ce qui reste à faire. Le tenir à jour à chaque fusion dans `main`.
+
 Chaque projet a son propre `package.json` : les commandes se lancent depuis `lab/` ou depuis `folio/`, jamais depuis la racine. Chaque projet a aussi son propre `CLAUDE.md`, qui complète celui-ci.
 
 ## Règles communes

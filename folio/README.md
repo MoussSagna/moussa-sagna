@@ -1,6 +1,6 @@
 # Tokyo Underground — le portfolio Phaser
 
-Le site de Moussa Sagna qui sera mis en ligne : un portfolio présenté comme un jeu de combat 2D. Les pages sont en React ; l'arène, sur `/entrainement`, est une scène Phaser où Moussa se tient en garde, marche, dashe, s'accroupit, pare, saute et donne des coups de poing.
+Le site de Moussa Sagna qui sera mis en ligne : un portfolio présenté comme un jeu de combat 2D. Les pages sont en React ; l'arène, sur `/entrainement`, est une scène Phaser où Moussa se tient en garde, marche, dashe, s'accroupit, pare, saute (sur place, en avant ou en arrière) et enchaîne coups de poing et coup de pied.
 
 Ce dossier est l'un des deux projets du dépôt. Le décor et les animations du personnage sont mis au point dans [`../lab/`](../lab/README.md), puis reportés ici (voir « Reporter une nouveauté du lab »).
 
@@ -43,8 +43,8 @@ Dans l'arène :
 | Dasher | deux appuis rapides sur la même direction |
 | S'accroupir | maintenir ↓ ou S |
 | Parer, debout ou accroupi | maintenir Espace |
-| Sauter | ↑ ou Z |
-| Attaquer | J, puis J à nouveau pour enchaîner le coup moyen, puis le coup fort |
+| Sauter | ↑ ou Z ; avec ← ou → maintenu, saut arrière ou avant |
+| Attaquer | J, puis J à nouveau pour enchaîner le coup moyen, le coup fort, puis le coup de pied |
 
 Les boutons sous l'arène font la même chose à la souris et au doigt.
 
@@ -91,7 +91,7 @@ Les deux moteurs sont différents : rien ne se copie tout seul. Pour une nouvell
 3. Reporter à la main ce qui a changé dans `../lab/src/game/hero/HeroLayer.ts` : l'état et ses réglages dans `heroState.ts`, l'échelle des poses dans `HeroRig.ts`, le dessin dans `scenes/ArenaScene.ts`. Une nouvelle action s'ajoute aussi à `ACTION_POSES` (ses images), à `input.ts` (sa touche) et à `controls.ts` (son bouton).
 4. Lancer le site, regarder l'arène, et noter dans le message de commit le commit du lab qui a été repris.
 
-Dernier état repris : `lab/` au commit `257d2d1` (cinématique d’entrée, avec l’adversaire). Pas encore repris : l’attaque spéciale, la rafale de coups de pied, l’effet de vitesse des dashs, les impacts, le mannequin, les coups reçus, l’adversaire en combat et la fin de round.
+Dernier état repris : `lab/` au commit `8456faf` (sauts avant et arrière, sans l’inclinaison du corps ; coup de pied en quatrième coup de l’enchaînement). Pas encore repris : la boule de feu, l’attaque spéciale au sol (mise au point, ruée, rafale, coups lourds, plan de coupe, frappe de la paume), l’effet de vitesse des dashs, les impacts, le mannequin, les coups reçus, l’adversaire en combat, la sortie de fin de round et le K.O. Tout cela demande du travail de rendu dans Phaser, pas seulement de la logique.
 
 ## Ce qui n'est pas dans le dépôt
 

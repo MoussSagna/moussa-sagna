@@ -48,7 +48,7 @@ export function Training() {
         <PageHead
           eyebrow="Arène · Mode entraînement"
           title="Premiers pas dans l’arène"
-          lead="Une cinématique présente Moussa et son adversaire, puis Moussa se tient en garde dans l’arène, rendue en temps réel ci-dessous. Il marche, dashe, s’accroupit, pare, saute et enchaîne trois coups de poing. Il n’a pas encore d’adversaire : les coups ne touchent rien."
+          lead="Une cinématique présente Moussa et son adversaire, puis Moussa se tient en garde dans l’arène, rendue en temps réel ci-dessous. Il marche, dashe, s’accroupit, pare, saute sur place, en avant ou en arrière, et enchaîne trois coups de poing et un coup de pied. Il n’a pas encore d’adversaire : les coups ne touchent rien."
         />
 
         <figure className="arena-frame rise" style={{ animationDelay: '240ms' }}>
@@ -81,8 +81,9 @@ export function Training() {
             <p className="arena-controls__hint">
               Maintiens <kbd>←</kbd> <kbd>→</kbd> ou <kbd>Q</kbd> <kbd>D</kbd> pour marcher, appuie deux fois vite pour
               un dash. Maintiens <kbd>↓</kbd> ou <kbd>S</kbd> pour t’accroupir, <kbd>Espace</kbd> pour parer.{' '}
-              <kbd>↑</kbd> ou <kbd>Z</kbd> pour sauter, <kbd>J</kbd> pour attaquer : un appui pour le coup léger, un
-              second pour enchaîner le coup moyen, un troisième pour le coup fort. <kbd>Échap</kbd> passe l’intro.
+              <kbd>↑</kbd> ou <kbd>Z</kbd> pour sauter (avec <kbd>←</kbd> ou <kbd>→</kbd> maintenu : saut arrière ou
+              avant), <kbd>J</kbd> pour attaquer : un appui pour le coup léger, puis un par coup pour enchaîner le
+              moyen, le fort et le coup de pied. <kbd>Échap</kbd> passe l’intro.
             </p>
           </div>
         </figure>

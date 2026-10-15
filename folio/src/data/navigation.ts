@@ -51,7 +51,7 @@ export const TRAINING_MODULES: TrainingModule[] = [
   {
     id: 'esquives',
     label: 'Esquives',
-    description: 'Dash avant et arrière au double appui, et saut vertical.',
+    description: 'Dash avant et arrière au double appui, et saut sur place, avant ou arrière.',
     available: true,
   },
   {
