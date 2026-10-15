@@ -16,6 +16,8 @@ export interface StageOptions {
   rivalBlocks?: boolean
   /** Faux pour garder l'adversaire immobile ; sinon il marche pour garder ses distances. */
   rivalMoves?: boolean
+  /** Vrai quand le joueur contrôle l'adversaire avec les flèches. */
+  rivalControl?: boolean
 }
 
 export interface FrameInfo {

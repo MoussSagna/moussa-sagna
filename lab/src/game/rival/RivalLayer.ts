@@ -97,6 +97,10 @@ export class RivalLayer implements Opponent {
   blocking = false
   /** Vrai s'il se déplace seul pour garder ses distances. */
   moves = true
+  /** Vrai quand le joueur le contrôle : il marche dans le sens demandé par `request`, au lieu de garder ses distances. */
+  controlled = false
+  /** Sens demandé par le joueur : -1 vers Moussa, 1 en reculant, 0 à l'arrêt. */
+  request = 0
   /** Position de Moussa, transmise par le moteur à chaque image. */
   heroX = 0.33
   /** Textures de ses poses, liées tour à tour à l'unité 0 pour le dessin. */
@@ -204,7 +208,9 @@ export class RivalLayer implements Opponent {
 
   /** Le sens dans lequel il veut marcher : -1 vers Moussa, 1 en reculant, 0 pour rester en garde. */
   private wish(pixel: number): number {
-    if (!this.moves || this.blocking) return 0
+    if (this.blocking) return 0
+    if (this.controlled) return Math.sign(this.request)
+    if (!this.moves) return 0
     const distance = this.x - this.heroX - this.gap * pixel
     const middle = (RANGE.near + RANGE.far) / 2
     // il va jusqu'au milieu de l'intervalle avant de s'arrêter
@@ -241,7 +247,7 @@ export class RivalLayer implements Opponent {
   private fits(next: WalkPose, direction: number, pixel: number): boolean {
     const [min, max] = this.bounds(pixel)
     const x = this.x + this.shiftTo(next, direction) * pixel
-    const near = this.moves && direction < 0 ? RANGE.near : 0
+    const near = this.moves && !this.controlled && direction < 0 ? RANGE.near : 0
     return x >= min + near && x <= max
   }
 

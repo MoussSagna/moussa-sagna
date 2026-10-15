@@ -44,6 +44,9 @@ export class StageEngine {
   crouch = false
   /** Vrai tant que le personnage doit parer. */
   block = false
+  /** Adversaire contrôlé par le joueur : déplacement demandé (-1 vers le personnage, 1 en s'éloignant) et parade. */
+  rivalWalk = 0
+  rivalBlock = false
   /** Appelée quand la cinématique commence (vrai) ou que ses plans illustrés se terminent (faux). */
   onCinematic?: (playing: boolean) => void
   private cinematic: CinematicLayer
@@ -306,9 +309,13 @@ export class StageEngine {
     }
     const fight: FrameInfo = { ...info, time: time - this.frozen, delta: stopped ? 0 : delta }
     this.hero.update(fight, locked ? 0 : this.walk, locked ? false : this.crouch, locked ? false : this.block)
-    this.rival.blocking = this.options.rivalBlocks === true
+    // contrôlé par le joueur, il marche et pare à la demande ; sinon il pare selon l'option et garde ses distances
+    const controlled = this.options.rivalControl === true
+    this.rival.controlled = controlled && !locked
+    this.rival.request = this.rivalWalk
+    this.rival.blocking = this.options.rivalBlocks === true || (controlled && !locked && this.rivalBlock)
     // il ne se déplace pas avant le « Fight », ni pendant la mise au point de la frappe au sol
-    this.rival.moves = this.options.rivalMoves !== false && !locked
+    this.rival.moves = this.options.rivalMoves !== false && !locked && !controlled
     this.rival.heroX = this.hero.position
     const target = this.opponent()
     target.update(fight)
