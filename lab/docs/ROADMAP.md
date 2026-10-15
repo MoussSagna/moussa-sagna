@@ -18,10 +18,9 @@
 - [x] Adversaire : parade, tenue par une case à cocher pour tester les coups parés.
 - [x] Adversaire : coup encaissé en deux dessins.
 - [x] Adversaire : nouvelle garde aux proportions de Moussa.
-- [x] Adversaire : marche en pas chassés, avant et arrière, et un premier comportement (il garde ses distances).
-- [x] Adversaire contrôlable par un second joueur, aux flèches : il marche avec ses pas chassés et pare.
+- [x] Adversaire : déplacement en lévitation, avant et arrière (un dessin par sens, animé en continu), et un premier comportement (il garde ses distances). Remplace la marche en pas chassés, trop saccadée.
+- [x] Adversaire contrôlable par un second joueur, aux flèches : il se déplace en lévitation et pare.
 - [x] Plus de boutons sous la scène : tout se joue au clavier.
-- [ ] Adversaire : marche plus fluide (les quatre dessins qui alternent saccadent).
 - [ ] Adversaire : dashs, coup, recul quand il encaisse ; parade et coup encaissé à refaire au nouveau modèle.
 - [x] Seconde attaque spéciale : mise au point figée sur le personnage, ruée, rafale de dix coups au hasard et trois coups lourds, un effet à chaque impact, puis frappe au sol, avec décor assombri, plan de coupe sur le gros plan de Moussa et effets dessinés (remplace la rafale de coups de pied) (à juger en mouvement).
 - [x] Cinématique d'entrée en six plans (temple, Moussa en pied, gros plan, puis l'adversaire en trois plans) avec transition par un pétale, puis « Face your destiny », « Round 1 », « Fight! » ; on peut la passer (à juger en mouvement).

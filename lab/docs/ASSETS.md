@@ -74,7 +74,7 @@ python3 tools/prepare_rival.py
 
 Le script lit tous les `../art/rival-*.png` (personnage tourné vers la gauche, mêmes contraintes que les poses du personnage), retire le fond vert et écrit une image par pose dans `public/assets/rival/`. Il affiche aussi l'étendue des appuis et le bord avant du corps, qui servent à régler le point posé au sol, `surface` et `gap` dans `src/game/rival/RivalLayer.ts`.
 
-Pour la garde et la marche, il faut aussi relever la pointe des deux bottes de chaque dessin dans `WALK_FEET` (le pied qui reste au sol garde sa place d'un dessin à l'autre). Les dessins de la marche : `rival-walk-in.png` (premier pas, main ouverte), `rival-walk-gather.png` (pieds rassemblés), `rival-walk-stride-1.png` et `rival-walk-stride-2.png` (grande foulée).
+Pour la lévitation, `rival-float-forward.png` (penché vers l'avant, pour avancer) et `rival-float-back.png` (droit, pour reculer) : leur point `ground` dans `POSES` est pris sous le ceinturon, à la même place que dans la garde, et à hauteur du bas de la botte la plus basse.
 
 ## Décor : `tools/prepare_stage.py`
 

@@ -56,7 +56,7 @@ Pas encore repris (demande du travail de rendu dans Phaser) : boule de feu, atta
 
 ## Limites connues et prochaines pistes
 
-- **Adversaire** : ses dessins n'ont pas les mêmes proportions que Moussa (tête trop petite). Pas réglable dans le moteur : il faut de nouvelles illustrations. Il lui manque aussi marche, coups et comportement.
+- **Adversaire** : nouvelle garde aux proportions de Moussa et déplacement en lévitation (un dessin par sens), mais sa parade et son coup encaissé sont encore dessinés sur l'ancien modèle. Il lui manque des coups et un vrai comportement.
 - **K.O.** : pas d'animation pour se relever ; il réapparaît en garde.
 - **Rafale de l'attaque spéciale** : le corps saute un peu d'un coup à l'autre, les dessins n'ont pas le même point d'appui.
 - **Logos des baskets** : effacés sur les nouvelles poses, mais quelques zones floues restent visibles de près ; pas encore effacé sur `hero-step.png`. À revoir avant la mise en ligne.
