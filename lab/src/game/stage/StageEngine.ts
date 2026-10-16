@@ -132,7 +132,7 @@ export class StageEngine {
 
   /** Fait attaquer celui qui fait face au personnage, pour tester les coups reçus et parés. */
   dummyAttack(): void {
-    this.opponent().attack()
+    if (!this.cinematic.locked) this.opponent().attack()
   }
 
   /** Celui qui fait face au personnage, selon l'option choisie. */

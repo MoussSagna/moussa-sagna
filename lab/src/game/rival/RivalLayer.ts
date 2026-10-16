@@ -30,6 +30,12 @@ const POSES = {
   teleportCrouch: { file: 'rival/teleport-crouch.webp', ground: [565, 1256], scale: 1.1 },
   teleportStreak: { file: 'rival/teleport-streak.webp', ground: [565, 1221], scale: 1.1 },
   teleportRise: { file: 'rival/teleport-rise.webp', ground: [545, 1434], scale: 1.1 },
+  // coup de poing : calé sur son pied arrière, qui reste planté pendant que le corps part en avant ; l'échelle
+  // ramène la tête à la taille de celle de la garde
+  punchReady: { file: 'rival/punch-ready.webp', ground: [560, 1403], scale: 1 },
+  punchWindup: { file: 'rival/punch-windup.webp', ground: [594, 1365], scale: 0.95 },
+  punchReach: { file: 'rival/punch-reach.webp', ground: [633, 1170], scale: 1.1 },
+  punchHit: { file: 'rival/punch-hit.webp', ground: [384, 1243], scale: 1.1 },
   blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
   hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
@@ -79,6 +85,29 @@ const TELEPORT = {
 }
 const TELEPORT_VANISH = TELEPORT.steps[0].seconds + TELEPORT.steps[1].seconds
 const TELEPORT_TOTAL = TELEPORT.steps.reduce((sum, step) => sum + step.seconds, 0)
+/**
+ * Son premier coup, le début de son enchaînement : mise en place, bras armé, le bras part, poing tendu, puis retour.
+ * Les étapes dans l'ordre, avec leur durée en secondes ; `active` : le coup peut toucher pendant cette étape. Il
+ * avance de `advance` (fraction de la largeur de l'écran) entre le début de l'armé et le poing tendu, sans
+ * traverser Moussa. `reach` et `height` : bout du poing devant lui et hauteur, en pixels de la toile.
+ */
+const PUNCH = {
+  steps: [
+    { pose: 'punchReady', seconds: 0.05 },
+    { pose: 'punchWindup', seconds: 0.09 },
+    { pose: 'punchReach', seconds: 0.04 },
+    { pose: 'punchHit', seconds: 0.11, active: true },
+    { pose: 'punchReach', seconds: 0.07 },
+    { pose: 'punchReady', seconds: 0.07 },
+  ] as { pose: RivalPose; seconds: number; active?: boolean }[],
+  advance: 0.025,
+  reach: 580,
+  height: 1000,
+  power: 0.7,
+  stop: 0.12,
+}
+const PUNCH_ADVANCE = [PUNCH.steps[0].seconds, PUNCH.steps[0].seconds + PUNCH.steps[1].seconds + PUNCH.steps[2].seconds]
+const PUNCH_TOTAL = PUNCH.steps.reduce((sum, step) => sum + step.seconds, 0)
 type FloatPose = 'floatForward' | 'floatBack' | 'floatStart'
 const isFloatPose = (pose: RivalPose): pose is FloatPose => pose === 'floatForward' || pose === 'floatBack' || pose === 'floatStart'
 /** Les dessins du vol dans un sens. */
@@ -139,6 +168,10 @@ export class RivalLayer implements Opponent {
   /** Image rémanente laissée au départ de la téléportation : position et temps écoulé. */
   private ghostX = 0
   private ghostTime = Infinity
+  /** Temps écoulé depuis le début du coup de poing en cours (ou -1), position au départ, et vrai s'il a déjà touché. */
+  private attackTime = -1
+  private attackFrom = 0
+  private attackLanded = false
   /** Sens de la téléportation en cours : -1 vers Moussa, 1 en s'éloignant. */
   private teleportDirection = -1
   /** Vrai quand il vient de disparaître au corps à corps : le moteur fait changer les combattants de côté. */
@@ -189,6 +222,7 @@ export class RivalLayer implements Opponent {
       this.pose = 'hurt'
       this.hurtTime = 0
       this.teleportTime = -1
+      this.attackTime = -1
       this.settle()
     }
     return guarded
@@ -199,6 +233,7 @@ export class RivalLayer implements Opponent {
     this.x = RivalLayer.START_X
     this.pose = 'guard'
     this.teleportTime = -1
+    this.attackTime = -1
     this.ghostTime = Infinity
     this.crossing = false
     this.settle()
@@ -211,21 +246,43 @@ export class RivalLayer implements Opponent {
     this.hover = 0
   }
 
-  /** Il n'a pas encore d'attaque. */
-  attack(): void {}
-
-  strike(): Strike | null {
-    return null
+  /** Coup de poing, le premier de son enchaînement. Possible seulement en garde ou en lévitation. */
+  attack(): void {
+    if (this.attackTime >= 0 || this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    this.settle()
+    this.attackTime = 0
+    this.attackFrom = this.x
+    this.attackLanded = false
+    this.pose = 'punchReady'
   }
 
-  land(): void {}
+  /** L'étape en cours du coup de poing. */
+  private punchStep(): { pose: RivalPose; seconds: number; active?: boolean } {
+    let end = 0
+    for (const step of PUNCH.steps) {
+      end += step.seconds
+      if (this.attackTime < end) return step
+    }
+    return PUNCH.steps[PUNCH.steps.length - 1]
+  }
+
+  /** Son coup, s'il peut toucher à cet instant : il frappe vers Moussa, donc vers la gauche. */
+  strike(pixel: number): Strike | null {
+    if (this.attackTime < 0 || this.attackLanded || !this.punchStep().active) return null
+    return { x: this.x - PUNCH.reach * pixel, height: PUNCH.height, power: PUNCH.power, stop: PUNCH.stop }
+  }
+
+  /** Son coup a touché ou a été paré : il ne touchera plus. */
+  land(): void {
+    this.attackLanded = true
+  }
 
   /**
    * Dash : il se téléporte, vers Moussa (`direction` -1, dash avant) ou en s'éloignant (1, dash arrière), avec les
    * mêmes dessins. Possible seulement en garde ou en lévitation.
    */
   teleport(direction = -1): void {
-    if (this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    if (this.teleportTime >= 0 || this.attackTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
     this.settle()
     this.teleportTime = 0
     this.teleportDirection = Math.sign(direction) || -1
@@ -292,8 +349,22 @@ export class RivalLayer implements Opponent {
         this.pose = this.teleportStep() ?? this.pose
       }
     }
+    if (this.attackTime >= 0) {
+      this.attackTime += frame.delta
+      // il avance très légèrement pendant le coup, sans traverser Moussa
+      const k = Math.max(0, Math.min(1, (this.attackTime - PUNCH_ADVANCE[0]) / (PUNCH_ADVANCE[1] - PUNCH_ADVANCE[0])))
+      const [min] = this.bounds(this.pixel(frame))
+      const target = this.attackFrom - PUNCH.advance * (1 - (1 - k) ** 2)
+      this.x = Math.max(Math.min(this.x, min), target)
+      if (this.attackTime >= PUNCH_TOTAL) {
+        this.attackTime = -1
+        this.pose = 'guard'
+      } else {
+        this.pose = this.punchStep().pose
+      }
+    }
     // coup encaissé : le dessin du coup reçu, celui du retour, puis la garde
-    if (this.teleportTime >= 0) {
+    if (this.attackTime >= 0 || this.teleportTime >= 0) {
       // rien d'autre pendant la téléportation
     } else if (this.pose === 'hurt' || this.pose === 'hurtRecover') {
       this.hurtTime += frame.delta

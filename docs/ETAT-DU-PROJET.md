@@ -38,7 +38,7 @@ Toute nouvelle pose demande aussi une échelle dans `POSE_SCALE` (`lab/src/game/
 
 ## Ce que fait le lab aujourd'hui
 
-Touches : flèches ou ZQSD, J attaque, L boule de feu, I attaque spéciale au sol, O K.O., P fin de round, K le mannequin attaque, Échap passe l'intro. Plus de boutons sous la scène. La case « Contrôler l'adversaire » donne les flèches à l'adversaire (← avance, deux appuis rapides vers Moussa le téléportent, dans son dos au corps à corps, → recule (deux appuis rapides : téléportation en arrière), ↓ pare) ; Moussa se joue alors avec Q D, S, Z, Espace et les touches d'attaque.
+Touches : flèches ou ZQSD, J attaque, L boule de feu, I attaque spéciale au sol, O K.O., P fin de round, K le mannequin attaque, Échap passe l'intro. Plus de boutons sous la scène. La case « Contrôler l'adversaire » donne les flèches à l'adversaire (← avance, deux appuis rapides vers Moussa le téléportent, dans son dos au corps à corps, → recule (deux appuis rapides : téléportation en arrière), ↓ pare, Entrée frappe) ; Moussa se joue alors avec Q D, S, Z, Espace et les touches d'attaque.
 
 - Stage Tokyo Underground animé (pluie, pétales, néons, reflets).
 - Cinématique d'entrée en six plans (Moussa puis l'adversaire), « Face your destiny », « Round 1 », « Fight! ».
@@ -61,7 +61,7 @@ Les fusions du 16 octobre ne touchent que l'adversaire, absent de l'arène du fo
 
 ## Limites connues et prochaines pistes
 
-- **Adversaire** : sa parade et son coup encaissé sont encore dessinés sur l'ancien modèle (ils détonnent à côté de la nouvelle garde). Il lui manque des coups, et il ne se téléporte que si un joueur le contrôle. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié).
+- **Adversaire** : sa parade et son coup encaissé sont encore dessinés sur l'ancien modèle (ils détonnent à côté de la nouvelle garde). Il a un premier coup de poing (début de son enchaînement), il lui manque la suite ; il ne se téléporte que si un joueur le contrôle. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié).
 - **Changement de côté** : seul l'adversaire peut passer dans le dos de Moussa ; Moussa se retourne d'un coup, sans animation de demi-tour.
 - **Prochaine grosse étape possible** : faire entrer l'adversaire dans l'arène du folio (affichage, lévitation, téléportations, changement de côté), puis les coups qui touchent.
 - **K.O.** : pas d'animation pour se relever ; il réapparaît en garde.

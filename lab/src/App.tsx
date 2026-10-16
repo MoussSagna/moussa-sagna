@@ -102,12 +102,17 @@ function App() {
     const down = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase()
       // adversaire contrôlé : les flèches sont à lui (↑ ne fait rien, il ne saute pas)
-      if (rivalControl && ARROWS.has(key)) {
+      if (rivalControl && (ARROWS.has(key) || key === 'enter')) {
         if (event.ctrlKey || event.metaKey || event.altKey) return
         const target = event.target
         if ((target instanceof HTMLInputElement && target.type !== 'checkbox') || target instanceof HTMLTextAreaElement) return
         event.preventDefault()
         if (key === 'arrowup') return
+        // Entrée : son coup de poing
+        if (key === 'enter') {
+          if (!event.repeat) setDummyAttack((count) => count + 1)
+          return
+        }
         // deux appuis rapides dans le même sens : dash ; vers Moussa, il se téléporte
         const tapped = RIVAL_KEYS[key]
         if (tapped && !event.repeat) {
@@ -229,13 +234,12 @@ function App() {
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">I</kbd> pour la frappe au sol,{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">P</kbd> pour finir le round,{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">O</kbd> pour perdre par K.O. ;{' '}
-        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">K</kbd> pour que le mannequin t'attaque. {note}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">K</kbd> pour que le mannequin ou l'adversaire t'attaque. {note}
       </p>
       {rivalControl && (
         <p className="m-0 text-[15px] text-line">
           Tu contrôles l'adversaire avec les flèches : maintiens <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">←</kbd> pour avancer vers Moussa (deux appuis rapides : il se téléporte, dans son dos s'il est au contact),{' '}
-          <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">→</kbd> pour reculer (deux appuis rapides : il se téléporte en arrière) et <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↓</kbd> pour parer. Il n'a pas encore
-          d'attaque. Moussa se joue alors avec <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Q</kbd> <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">S</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Z</kbd>, 
+          <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">→</kbd> pour reculer (deux appuis rapides : il se téléporte en arrière) et <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↓</kbd> pour parer, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Entrée</kbd> pour frapper. Moussa se joue alors avec <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Q</kbd> <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">S</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Z</kbd>, 
           <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Espace</kbd> et les touches d'attaque.
         </p>
       )}

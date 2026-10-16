@@ -23,7 +23,8 @@
 - [x] Adversaire : dash avant et dash arrière en téléportation (deux appuis rapides vers Moussa), à la manière de Doom ; au corps à corps, il passe dans le dos de Moussa et les combattants changent de côté, toujours face à face.
 - [ ] Changement de côté : le reporter dans le folio ; décider si Moussa peut aussi passer de l'autre côté (saut par-dessus).
 - [x] Plus de boutons sous la scène : tout se joue au clavier.
-- [ ] Adversaire : dashs, coup, recul quand il encaisse ; parade et coup encaissé à refaire au nouveau modèle.
+- [x] Adversaire : premier coup de poing (début de son enchaînement), en quatre dessins, avec une légère avancée ; il touche Moussa.
+- [ ] Adversaire : la suite de son enchaînement ; dashs, coup, recul quand il encaisse ; parade et coup encaissé à refaire au nouveau modèle.
 - [x] Seconde attaque spéciale : mise au point figée sur le personnage, ruée, rafale de dix coups au hasard et trois coups lourds, un effet à chaque impact, puis frappe au sol, avec décor assombri, plan de coupe sur le gros plan de Moussa et effets dessinés (remplace la rafale de coups de pied) (à juger en mouvement).
 - [x] Cinématique d'entrée en six plans (temple, Moussa en pied, gros plan, puis l'adversaire en trois plans) avec transition par un pétale, puis « Face your destiny », « Round 1 », « Fight! » ; on peut la passer (à juger en mouvement).
 - [x] Fin de round : il se baisse et disparaît d'un bond dans la fumée, puis « Round 2 » (à juger en mouvement).
