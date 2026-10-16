@@ -11,6 +11,8 @@ from PIL import Image
 from prepare_poses import ART, H, ROOT, W, key_green
 
 OUT = ROOT / 'public' / 'assets' / 'rival'
+# largeur, en pixels, de l'estompage d'un dessin coupé par le bord droit de l'illustration
+EDGE_FADE = 140
 
 
 def main() -> None:
@@ -19,6 +21,12 @@ def main() -> None:
         rgb = np.asarray(Image.open(path).convert('RGB')).copy()
         assert rgb.shape[:2] == (H, W), path.name
         art = key_green(rgb)
+        # dessin coupé par le bord droit de l'illustration (traits de vitesse, pan du manteau) : on l'estompe
+        # sur les dernières colonnes, pour qu'il ne s'arrête pas sur une ligne droite
+        if (art[:, -1, 3] > 128).sum() > 20:
+            ramp = np.clip(np.arange(W)[::-1] / EDGE_FADE, 0, 1) ** 1.5
+            art[..., 3] = (art[..., 3] * ramp[None, :]).astype(np.uint8)
+            art[..., :3] = (art[..., :3] * ramp[None, :, None]).astype(np.uint8)
         art[art[..., 3] == 0] = 0
         # côtés en puissances de deux, pour les mipmaps
         atlas = np.zeros((2048, W, 4), np.uint8)
@@ -30,7 +38,9 @@ def main() -> None:
         low = np.where(solid[ys.max() - 150:].any(axis=0))[0]
         print(f'{name} : x {xs.min()}-{xs.max()}, y {ys.min()}-{ys.max()}, appuis x {low.min()}-{low.max()}')
         for y in range(300, 1300, 100):
-            print(f'    y {y} : bord gauche {np.where(solid[y])[0].min()}')
+            # une pose baissée n'a rien sur les premières lignes
+            if solid[y].any():
+                print(f'    y {y} : bord gauche {np.where(solid[y])[0].min()}')
 
 
 if __name__ == '__main__':

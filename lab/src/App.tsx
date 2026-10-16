@@ -24,6 +24,13 @@ const END_ROUND_KEYS = new Set(['p'])
 const KO_KEYS = new Set(['o'])
 /** Touche qui fait attaquer le mannequin, pour tester les coups reçus et parés. */
 const DUMMY_KEYS = new Set(['k'])
+/**
+ * Touches de l'adversaire, quand le joueur le contrôle : les flèches. Il regarde vers la gauche, donc ← le fait
+ * avancer vers Moussa. ↓ le fait parer tant qu'elle est maintenue. Moussa garde alors Q D, S, Z et Espace.
+ */
+const RIVAL_KEYS: Record<string, number> = { arrowleft: -1, arrowright: 1 }
+const RIVAL_BLOCK_KEYS = new Set(['arrowdown'])
+const ARROWS = new Set(['arrowleft', 'arrowright', 'arrowup', 'arrowdown'])
 /** Deux appuis sur la même direction en moins de ce délai (millisecondes) déclenchent un dash. */
 const DOUBLE_TAP_MS = 260
 
@@ -41,6 +48,13 @@ function App() {
   const [knockOut, setKnockOut] = useState(0)
   const [dummyAttack, setDummyAttack] = useState(0)
   const [dash, setDash] = useState({ id: 0, direction: 1 })
+  /** Vrai quand le joueur contrôle aussi l'adversaire, avec les flèches. */
+  const [rivalControl, setRivalControl] = useState(false)
+  const [rivalWalk, setRivalWalk] = useState(0)
+  const [rivalBlock, setRivalBlock] = useState(false)
+  const [rivalDash, setRivalDash] = useState({ id: 0, direction: -1 })
+  /** Dernier appui sur une flèche pour l'adversaire : deux appuis rapprochés dans le même sens font un dash. */
+  const rivalTap = useRef({ direction: 0, at: 0 })
   const lastTap = useRef({ direction: 0, at: 0 })
   const [note, setNote] = useState('Bouge la souris sur le décor pour sentir la profondeur.')
 
@@ -57,14 +71,21 @@ function App() {
       lastTap.current = { direction, at: now }
     }
   }, [])
-  const hold = (direction: number, held: boolean) => {
-    if (held) tap(direction)
-    setWalk(held ? direction : 0)
-  }
   const toggle = (key: 'rain' | 'petals' | 'calm') => setOptions((current) => ({ ...current, [key]: !current[key] }))
 
   useEffect(() => {
     const held = new Set<string>()
+    const rivalHeld = new Set<string>()
+    const syncRival = () => {
+      let direction = 0
+      let guard = false
+      for (const key of rivalHeld) {
+        if (RIVAL_BLOCK_KEYS.has(key)) guard = true
+        else direction = RIVAL_KEYS[key] ?? direction
+      }
+      setRivalWalk(direction)
+      setRivalBlock(guard)
+    }
     const sync = () => {
       let direction = 0
       let down = false
@@ -80,6 +101,28 @@ function App() {
     }
     const down = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase()
+      // adversaire contrôlé : les flèches sont à lui (↑ ne fait rien, il ne saute pas)
+      if (rivalControl && ARROWS.has(key)) {
+        if (event.ctrlKey || event.metaKey || event.altKey) return
+        const target = event.target
+        if ((target instanceof HTMLInputElement && target.type !== 'checkbox') || target instanceof HTMLTextAreaElement) return
+        event.preventDefault()
+        if (key === 'arrowup') return
+        // deux appuis rapides dans le même sens : dash ; vers Moussa, il se téléporte
+        const tapped = RIVAL_KEYS[key]
+        if (tapped && !event.repeat) {
+          const last = rivalTap.current
+          if (last.direction === tapped && event.timeStamp - last.at < DOUBLE_TAP_MS) {
+            setRivalDash((current) => ({ id: current.id + 1, direction: tapped }))
+            rivalTap.current = { direction: 0, at: 0 }
+          } else {
+            rivalTap.current = { direction: tapped, at: event.timeStamp }
+          }
+        }
+        rivalHeld.add(key)
+        syncRival()
+        return
+      }
       const posture = CROUCH_KEYS.has(key) || BLOCK_KEYS.has(key)
       const jumping = JUMP_KEYS.has(key)
       const punching = ATTACK_KEYS.has(key) || SPECIAL_KEYS.has(key) || SPECIAL2_KEYS.has(key) || END_ROUND_KEYS.has(key) || KO_KEYS.has(key) || DUMMY_KEYS.has(key)
@@ -108,12 +151,17 @@ function App() {
       sync()
     }
     const up = (event: KeyboardEvent) => {
-      held.delete(event.key.toLowerCase())
+      const key = event.key.toLowerCase()
+      held.delete(key)
+      rivalHeld.delete(key)
       sync()
+      syncRival()
     }
     const release = () => {
       held.clear()
+      rivalHeld.clear()
       sync()
+      syncRival()
     }
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
@@ -122,28 +170,17 @@ function App() {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
       window.removeEventListener('blur', release)
+      // en changeant de mode, plus rien n'est tenu
+      release()
     }
-  }, [tap])
+  }, [tap, rivalControl])
 
   return (
     <main className="mx-auto flex max-w-[1500px] flex-col gap-3.5 px-4 pt-4 pb-8">
       <h1 className="sr-only">Moussa Sagna, développeur frontend</h1>
-      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} block={block} dash={dash} jump={jump} attack={attack} special={special} special2={special2} endRound={endRound} knockOut={knockOut} dummyAttack={dummyAttack} onUnavailable={onUnavailable} />
+      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} block={block} rivalWalk={rivalWalk} rivalBlock={rivalBlock} rivalDash={rivalDash} dash={dash} jump={jump} attack={attack} special={special} special2={special2} endRound={endRound} knockOut={knockOut} dummyAttack={dummyAttack} onUnavailable={onUnavailable} />
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-muted">
-        <div className="flex gap-2">
-          <HoldButton label="Reculer" onHold={(held) => hold(-1, held)} />
-          <HoldButton label="Avancer" onHold={(held) => hold(1, held)} />
-          <HoldButton label="S'accroupir" onHold={setCrouch} />
-          <HoldButton label="Parer" onHold={setBlock} />
-          <HoldButton label="Sauter" onHold={(held) => held && setJump((count) => count + 1)} />
-          <HoldButton label="Attaquer" onHold={(held) => held && setAttack((count) => count + 1)} />
-          <HoldButton label="Spécial" onHold={(held) => held && setSpecial((count) => count + 1)} />
-          <HoldButton label="Spécial 2" onHold={(held) => held && setSpecial2((count) => count + 1)} />
-          <HoldButton label="K.O." onHold={(held) => held && setKnockOut((count) => count + 1)} />
-          <HoldButton label="Fin du round" onHold={(held) => held && setEndRound((count) => count + 1)} />
-          <HoldButton label="Le mannequin attaque" onHold={(held) => held && setDummyAttack((count) => count + 1)} />
-        </div>
         <button
           type="button"
           onClick={() => setIntroKey((key) => key + 1)}
@@ -156,9 +193,24 @@ function App() {
         <Toggle
           label="Mannequin d'entraînement"
           checked={options.opponent !== 'rival'}
-          onChange={() => setOptions((current) => ({ ...current, opponent: current.opponent === 'rival' ? 'dummy' : 'rival' }))}
+          onChange={() => {
+            // le mannequin ne se contrôle pas : choisir le mannequin rend la main sur l'adversaire
+            const dummy = options.opponent === 'rival'
+            if (dummy) setRivalControl(false)
+            setOptions((current) => ({ ...current, opponent: dummy ? 'dummy' : 'rival', rivalControl: dummy ? false : current.rivalControl }))
+          }}
+        />
+        <Toggle
+          label="Contrôler l'adversaire"
+          checked={rivalControl}
+          onChange={() => {
+            // contrôler l'adversaire le fait apparaître à la place du mannequin
+            setOptions((current) => ({ ...current, opponent: rivalControl ? current.opponent : 'rival', rivalControl: !rivalControl }))
+            setRivalControl(!rivalControl)
+          }}
         />
         <Toggle label="L'adversaire pare" checked={options.rivalBlocks === true} onChange={() => setOptions((current) => ({ ...current, rivalBlocks: !current.rivalBlocks }))} />
+        <Toggle label="L'adversaire se déplace" checked={options.rivalMoves !== false} onChange={() => setOptions((current) => ({ ...current, rivalMoves: current.rivalMoves === false }))} />
         <Toggle label="Réduire les mouvements" checked={options.calm} onChange={() => toggle('calm')} />
       </div>
       <p className="m-0 text-[15px] text-muted">
@@ -179,30 +231,15 @@ function App() {
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">O</kbd> pour perdre par K.O. ;{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">K</kbd> pour que le mannequin t'attaque. {note}
       </p>
+      {rivalControl && (
+        <p className="m-0 text-[15px] text-line">
+          Tu contrôles l'adversaire avec les flèches : maintiens <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">←</kbd> pour avancer vers Moussa (deux appuis rapides : il se téléporte, dans son dos s'il est au contact),{' '}
+          <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">→</kbd> pour reculer (deux appuis rapides : il se téléporte en arrière) et <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↓</kbd> pour parer. Il n'a pas encore
+          d'attaque. Moussa se joue alors avec <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Q</kbd> <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">S</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Z</kbd>, 
+          <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Espace</kbd> et les touches d'attaque.
+        </p>
+      )}
     </main>
-  )
-}
-
-/** Bouton à maintenir : la marche dure tant que le doigt ou la souris reste appuyé. */
-function HoldButton({ label, onHold }: { label: string; onHold: (held: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      onPointerDown={(event) => {
-        event.currentTarget.setPointerCapture(event.pointerId)
-        onHold(true)
-      }}
-      onPointerUp={() => onHold(false)}
-      onPointerCancel={() => onHold(false)}
-      onKeyDown={(event) => {
-        if (event.key === ' ' || event.key === 'Enter') onHold(true)
-      }}
-      onKeyUp={() => onHold(false)}
-      onBlur={() => onHold(false)}
-      className="min-h-11 -skew-x-[10deg] cursor-pointer touch-none border-2 border-[#3a3145] bg-panel px-4 font-display text-[17px] tracking-wide text-line uppercase italic select-none hover:border-line"
-    >
-      {label}
-    </button>
   )
 }
 

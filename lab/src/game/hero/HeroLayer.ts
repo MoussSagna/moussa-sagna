@@ -886,6 +886,34 @@ export class HeroLayer {
   }
 
   /** Position du personnage, en fraction de la largeur de l'écran. */
+  /**
+   * Les combattants changent de côté : le moteur retourne leur affichage en miroir. Toutes les positions sont
+   * retournées (x devient 1 - x) pour qu'il reste à la même place à l'écran, et les déplacements en cours gardent
+   * leur sens à l'écran. Une boule de feu en vol disparaît.
+   */
+  mirror(): void {
+    const flip = (x: number) => 1 - x
+    this.x = flip(this.x)
+    this.dashing = { ...this.dashing, direction: -this.dashing.direction, from: flip(this.dashing.from) }
+    this.jumping = { direction: -this.jumping.direction, from: flip(this.jumping.from) }
+    this.groundFrom = flip(this.groundFrom)
+    this.koFrom = flip(this.koFrom)
+    if (this.slide) this.slide = { ...this.slide, from: flip(this.slide.from), distance: -this.slide.distance }
+    this.rushTrail = this.rushTrail.map(flip)
+    this.impacts = this.impacts.map((impact) => ({ ...impact, x: flip(impact.x) }))
+    this.flurryFx = this.flurryFx.map((fx) => ({ ...fx, x: flip(fx.x) }))
+    this.fireball = null
+  }
+
+  /** Le place ailleurs sur le stage, poussé par l'adversaire qui passe dans son dos près du bord. */
+  placeAt(x: number): void {
+    const shift = x - this.x
+    this.x = x
+    this.dashing = { ...this.dashing, from: this.dashing.from + shift }
+    this.jumping = { ...this.jumping, from: this.jumping.from + shift }
+    this.groundFrom += shift
+  }
+
   get position(): number {
     return this.x
   }

@@ -44,6 +44,17 @@ export class StageEngine {
   crouch = false
   /** Vrai tant que le personnage doit parer. */
   block = false
+  /**
+   * Vrai quand les combattants ont changé de côté (Moussa à droite, l'adversaire à gauche). Le combat se calcule
+   * toujours comme si Moussa était à gauche ; seuls l'affichage des combattants (retourné en miroir) et le sens des
+   * commandes changent.
+   */
+  private mirrored = false
+  /** Plans des combattants, retournés en miroir quand ils ont changé de côté. */
+  private fighters: HTMLCanvasElement[]
+  /** Adversaire contrôlé par le joueur : déplacement demandé (-1 vers le personnage, 1 en s'éloignant) et parade. */
+  rivalWalk = 0
+  rivalBlock = false
   /** Appelée quand la cinématique commence (vrai) ou que ses plans illustrés se terminent (faux). */
   onCinematic?: (playing: boolean) => void
   private cinematic: CinematicLayer
@@ -88,6 +99,7 @@ export class StageEngine {
     this.hero = new HeroLayer(canvases.hero)
     this.weather = new WeatherLayer(canvases.weather)
     this.cinematic = new CinematicLayer(canvases.cinematic)
+    this.fighters = [canvases.dummy, canvases.rival, canvases.hero]
     this.dimmed = [canvases.backdrop, canvases.dummy, canvases.rival, canvases.weather]
     for (const canvas of this.dimmed) canvas.style.transition = 'filter 0.15s'
     this.canvases = [canvases.backdrop, canvases.dummy, canvases.rival, canvases.hero, canvases.weather, canvases.cinematic]
@@ -105,7 +117,7 @@ export class StageEngine {
 
   /** Lance un dash du personnage : 1 vers l'avant, -1 vers l'arrière. */
   dash(direction: number): void {
-    if (!this.cinematic.locked) this.hero.dash(direction)
+    if (!this.cinematic.locked) this.hero.dash(direction * this.side)
   }
 
   /** Touche d'attaque : lance un coup de poing ou enchaîne sur le suivant. */
@@ -128,6 +140,23 @@ export class StageEngine {
     return this.options.opponent === 'rival' ? this.rival : this.dummy
   }
 
+  /** Dash avant de l'adversaire contrôlé par le joueur : il se téléporte vers le personnage. */
+  rivalDash(direction: number): void {
+    // vers le personnage (à gauche à l'écran, à droite quand ils ont changé de côté) : dash avant ; sinon, dash arrière
+    if (!this.cinematic.locked && this.options.rivalControl === true) this.rival.teleport(direction * this.side)
+  }
+
+  /** 1 quand Moussa est à gauche, -1 quand les combattants ont changé de côté : convertit un sens à l'écran. */
+  private get side(): number {
+    return this.mirrored ? -1 : 1
+  }
+
+  /** Retourne ou remet à l'endroit l'affichage des combattants. */
+  private setMirrored(mirrored: boolean): void {
+    this.mirrored = mirrored
+    for (const canvas of this.fighters) canvas.style.transform = mirrored ? 'scaleX(-1)' : ''
+  }
+
   /** Lance la seconde attaque spéciale du personnage, la frappe au sol. */
   groundSpecial(): void {
     if (!this.cinematic.locked) this.hero.groundSpecial()
@@ -136,7 +165,7 @@ export class StageEngine {
   /** Lance un saut vertical du personnage. */
   jump(): void {
     // une direction tenue au moment du saut en fait un saut avant ou arrière
-    if (!this.cinematic.locked) this.hero.jump(this.walk)
+    if (!this.cinematic.locked) this.hero.jump(this.walk * this.side)
   }
 
   /** Rejoue la cinématique d'entrée, puis le travelling d'ouverture du stage. */
@@ -144,7 +173,10 @@ export class StageEngine {
     this.introAt = performance.now()
     this.cinematic.start()
     this.round = 1
-    if (this.roundEnding) this.hero.reenter()
+    // Moussa revient à sa place s'il était sorti ou s'il avait changé de côté
+    if (this.roundEnding || this.mirrored) this.hero.reenter()
+    this.rival.reset()
+    this.setMirrored(false)
     this.roundEnding = false
   }
 
@@ -268,7 +300,9 @@ export class StageEngine {
       const e = k * k * (3 - 2 * k)
       const zoom = camera.zoom + FOCUS.zoom * e
       const depth = PLACEMENT.depth
-      const ox = (0.5 - this.hero.position) / depth
+      // position du personnage à l'écran, retournée quand les combattants ont changé de côté
+      const screen = this.mirrored ? 1 - this.hero.position : this.hero.position
+      const ox = (0.5 - screen) / depth
       const oy = (0.5 + 0.05 / zoom - FOCUS.height) / depth
       camera.zoom = zoom
       camera.ox += (ox - camera.ox) * FOCUS.pull * e
@@ -304,10 +338,25 @@ export class StageEngine {
       this.frozen += delta
     }
     const fight: FrameInfo = { ...info, time: time - this.frozen, delta: stopped ? 0 : delta }
-    this.hero.update(fight, locked ? 0 : this.walk, locked ? false : this.crouch, locked ? false : this.block)
-    this.rival.blocking = this.options.rivalBlocks === true
+    this.hero.update(fight, locked ? 0 : this.walk * this.side, locked ? false : this.crouch, locked ? false : this.block)
+    // contrôlé par le joueur, il marche et pare à la demande ; sinon il pare selon l'option et garde ses distances
+    const controlled = this.options.rivalControl === true
+    this.rival.controlled = controlled && !locked
+    this.rival.request = this.rivalWalk * this.side
+    this.rival.blocking = this.options.rivalBlocks === true || (controlled && !locked && this.rivalBlock)
+    // il ne se déplace pas avant le « Fight », ni pendant la mise au point de la frappe au sol
+    this.rival.moves = this.options.rivalMoves !== false && !locked && !controlled
+    this.rival.heroX = this.hero.position
     const target = this.opponent()
     target.update(fight)
+    // l'adversaire disparaît au corps à corps : les combattants changent de côté et il réapparaît dans le dos de Moussa
+    if (this.rival.takeCross()) {
+      const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)
+      this.setMirrored(!this.mirrored)
+      this.hero.mirror()
+      const heroX = this.rival.landBehind(this.hero.position, pixel)
+      if (heroX !== this.hero.position) this.hero.placeAt(heroX)
+    }
     this.hero.tick(delta)
     // frappe au sol : quand la charge commence, le combat se fige le temps du plan de coupe
     if (this.hero.takeFocus()) {
@@ -339,20 +388,26 @@ export class StageEngine {
     if (this.hero.koDone) {
       this.round += 1
       this.hero.reenter()
+      this.rival.reset()
+      this.setMirrored(false)
       this.cinematic.startRound(this.round)
     }
     if (this.roundEnding && this.hero.exitDone) {
       this.roundEnding = false
       this.round += 1
       this.hero.reenter()
+      this.rival.reset()
+      this.setMirrored(false)
       this.cinematic.startRound(this.round)
     }
     if (!stopped) this.resolveHits(info, calm)
     // un seul des deux est affiché
     this.opponentCanvases.dummy.style.visibility = target === this.dummy ? 'visible' : 'hidden'
     this.opponentCanvases.rival.style.visibility = target === this.rival ? 'visible' : 'hidden'
-    target.draw(fight, camera, calm)
-    this.hero.draw(fight, camera, calm)
+    // plans retournés en miroir : la parallaxe horizontale s'inverse aussi, pour rester calée sur le décor
+    const view = this.mirrored ? { ...camera, ox: -camera.ox } : camera
+    target.draw(fight, view, calm)
+    this.hero.draw(fight, view, calm)
     this.weather.draw(info, -camera.ox * 0.5, this.options)
   }
 }
