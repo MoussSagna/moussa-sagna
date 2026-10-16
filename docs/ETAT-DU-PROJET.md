@@ -61,7 +61,7 @@ Les fusions du 16 octobre ne touchent que l'adversaire, absent de l'arène du fo
 
 ## Limites connues et prochaines pistes
 
-- **Adversaire** : sa parade et son coup encaissé sont encore dessinés sur l'ancien modèle (ils détonnent à côté de la nouvelle garde). Il a un premier coup de poing (début de son enchaînement), il lui manque la suite ; il ne se téléporte que si un joueur le contrôle. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié).
+- **Adversaire** : sa parade et son coup encaissé sont encore dessinés sur l'ancien modèle (ils détonnent à côté de la nouvelle garde). Son enchaînement a deux coups (coup de poing, puis coup de pied haut sur un nouvel appui), il lui manque la suite ; il ne se téléporte que si un joueur le contrôle. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié).
 - **Changement de côté** : seul l'adversaire peut passer dans le dos de Moussa ; Moussa se retourne d'un coup, sans animation de demi-tour.
 - **Prochaine grosse étape possible** : faire entrer l'adversaire dans l'arène du folio (affichage, lévitation, téléportations, changement de côté), puis les coups qui touchent.
 - **K.O.** : pas d'animation pour se relever ; il réapparaît en garde.

@@ -30,12 +30,16 @@ const POSES = {
   teleportCrouch: { file: 'rival/teleport-crouch.webp', ground: [565, 1256], scale: 1.1 },
   teleportStreak: { file: 'rival/teleport-streak.webp', ground: [565, 1221], scale: 1.1 },
   teleportRise: { file: 'rival/teleport-rise.webp', ground: [545, 1434], scale: 1.1 },
-  // coup de poing : calé sur son pied arrière, qui reste planté pendant que le corps part en avant ; l'échelle
-  // ramène la tête à la taille de celle de la garde
-  punchReady: { file: 'rival/punch-ready.webp', ground: [560, 1403], scale: 1 },
-  punchWindup: { file: 'rival/punch-windup.webp', ground: [594, 1365], scale: 0.95 },
-  punchReach: { file: 'rival/punch-reach.webp', ground: [633, 1170], scale: 1.1 },
-  punchHit: { file: 'rival/punch-hit.webp', ground: [384, 1243], scale: 1.1 },
+  // coup de poing : calé sur le centre de sa botte arrière, qui reste plantée pendant que le corps part en avant ;
+  // l'échelle ramène la longueur des bottes à celle de la garde
+  punchReady: { file: 'rival/punch-ready.webp', ground: [559, 1400], scale: 1.13 },
+  punchWindup: { file: 'rival/punch-windup.webp', ground: [625, 1362], scale: 1.063 },
+  punchReach: { file: 'rival/punch-reach.webp', ground: [615, 1167], scale: 1.063 },
+  punchHit: { file: 'rival/punch-hit.webp', ground: [638, 1237], scale: 1.1 },
+  // coup de pied : calé sur la botte d'appui, qui reste au sol
+  kickChamber: { file: 'rival/kick-chamber.webp', ground: [516, 1401], scale: 1.07 },
+  kickRaise: { file: 'rival/kick-raise.webp', ground: [531, 1419], scale: 1.1 },
+  kickHit: { file: 'rival/kick-hit.webp', ground: [627, 1335], scale: 1.1 },
   blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
   hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
@@ -85,29 +89,74 @@ const TELEPORT = {
 }
 const TELEPORT_VANISH = TELEPORT.steps[0].seconds + TELEPORT.steps[1].seconds
 const TELEPORT_TOTAL = TELEPORT.steps.reduce((sum, step) => sum + step.seconds, 0)
-/**
- * Son premier coup, le début de son enchaînement : mise en place, bras armé, le bras part, poing tendu, puis retour.
- * Les étapes dans l'ordre, avec leur durée en secondes ; `active` : le coup peut toucher pendant cette étape. Il
- * avance de `advance` (fraction de la largeur de l'écran) entre le début de l'armé et le poing tendu, sans
- * traverser Moussa. `reach` et `height` : bout du poing devant lui et hauteur, en pixels de la toile.
- */
-const PUNCH = {
-  steps: [
-    { pose: 'punchReady', seconds: 0.05 },
-    { pose: 'punchWindup', seconds: 0.09 },
-    { pose: 'punchReach', seconds: 0.04 },
-    { pose: 'punchHit', seconds: 0.11, active: true },
-    { pose: 'punchReach', seconds: 0.07 },
-    { pose: 'punchReady', seconds: 0.07 },
-  ] as { pose: RivalPose; seconds: number; active?: boolean }[],
-  advance: 0.025,
-  reach: 580,
-  height: 1000,
-  power: 0.7,
-  stop: 0.12,
+/** Un coup de son enchaînement. */
+interface Move {
+  /** Les étapes dans l'ordre, avec leur durée en secondes ; `active` : le coup peut toucher pendant cette étape. */
+  steps: { pose: RivalPose; seconds: number; active?: boolean }[]
+  /** Avancée (fraction de la largeur de l'écran) entre `advanceFrom` et `advanceTo` secondes, sans traverser Moussa. */
+  advance: number
+  advanceFrom: number
+  advanceTo: number
+  /** Bout du coup devant lui et hauteur, en pixels de la toile. */
+  reach: number
+  height: number
+  power: number
+  stop: number
+  /** Le coup suivant de l'enchaînement, lancé par un nouvel appui pendant celui-ci. */
+  next?: MoveName
 }
-const PUNCH_ADVANCE = [PUNCH.steps[0].seconds, PUNCH.steps[0].seconds + PUNCH.steps[1].seconds + PUNCH.steps[2].seconds]
-const PUNCH_TOTAL = PUNCH.steps.reduce((sum, step) => sum + step.seconds, 0)
+type MoveName = 'punch' | 'kick'
+/**
+ * Son enchaînement. Le coup de poing : mise en place, bras armé, le bras part, poing tendu, puis retour ; il avance
+ * très légèrement pendant l'armé. Un nouvel appui pendant le coup de poing enchaîne le coup de pied haut : genou
+ * monté, plus haut, jambe tendue, puis retour. Le coup suivant part à la fin des images actives, à la place du retour.
+ */
+const MOVES: Record<MoveName, Move> = {
+  punch: {
+    steps: [
+      { pose: 'punchReady', seconds: 0.05 },
+      { pose: 'punchWindup', seconds: 0.09 },
+      { pose: 'punchReach', seconds: 0.04 },
+      { pose: 'punchHit', seconds: 0.11, active: true },
+      { pose: 'punchReach', seconds: 0.07 },
+      { pose: 'punchReady', seconds: 0.07 },
+  ],
+    advance: 0.025,
+    advanceFrom: 0.05,
+    advanceTo: 0.18,
+    reach: 580,
+    height: 1000,
+    power: 0.7,
+    stop: 0.12,
+    next: 'kick',
+  },
+  kick: {
+    steps: [
+      { pose: 'kickChamber', seconds: 0.06 },
+      { pose: 'kickRaise', seconds: 0.07 },
+      { pose: 'kickHit', seconds: 0.13, active: true },
+      { pose: 'kickRaise', seconds: 0.08 },
+      { pose: 'kickChamber', seconds: 0.07 },
+    ],
+    advance: 0.015,
+    advanceFrom: 0,
+    advanceTo: 0.13,
+    reach: 650,
+    height: 1200,
+    power: 0.9,
+    stop: 0.14,
+  },
+}
+const moveTotal = (move: Move) => move.steps.reduce((sum, step) => sum + step.seconds, 0)
+/** Fin des images actives d'un coup : c'est là que part le coup suivant de l'enchaînement. */
+const moveActiveEnd = (move: Move) => {
+  let end = 0
+  for (const step of move.steps) {
+    end += step.seconds
+    if (step.active) return end
+  }
+  return end
+}
 type FloatPose = 'floatForward' | 'floatBack' | 'floatStart'
 const isFloatPose = (pose: RivalPose): pose is FloatPose => pose === 'floatForward' || pose === 'floatBack' || pose === 'floatStart'
 /** Les dessins du vol dans un sens. */
@@ -172,6 +221,9 @@ export class RivalLayer implements Opponent {
   private attackTime = -1
   private attackFrom = 0
   private attackLanded = false
+  /** Coup en cours de l'enchaînement, et vrai si le joueur a demandé le suivant. */
+  private move: MoveName = 'punch'
+  private queued = false
   /** Sens de la téléportation en cours : -1 vers Moussa, 1 en s'éloignant. */
   private teleportDirection = -1
   /** Vrai quand il vient de disparaître au corps à corps : le moteur fait changer les combattants de côté. */
@@ -246,30 +298,45 @@ export class RivalLayer implements Opponent {
     this.hover = 0
   }
 
-  /** Coup de poing, le premier de son enchaînement. Possible seulement en garde ou en lévitation. */
+  /**
+   * Touche d'attaque. Depuis la garde ou la lévitation, lance le coup de poing ; pendant un coup, met en attente le
+   * coup suivant de l'enchaînement.
+   */
   attack(): void {
-    if (this.attackTime >= 0 || this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    if (this.attackTime >= 0) {
+      if (MOVES[this.move].next) this.queued = true
+      return
+    }
+    if (this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
     this.settle()
+    this.startMove('punch')
+  }
+
+  private startMove(move: MoveName): void {
+    this.move = move
     this.attackTime = 0
     this.attackFrom = this.x
     this.attackLanded = false
-    this.pose = 'punchReady'
+    this.queued = false
+    this.pose = MOVES[move].steps[0].pose
   }
 
-  /** L'étape en cours du coup de poing. */
-  private punchStep(): { pose: RivalPose; seconds: number; active?: boolean } {
+  /** L'étape en cours du coup. */
+  private moveStep(): { pose: RivalPose; seconds: number; active?: boolean } {
+    const steps = MOVES[this.move].steps
     let end = 0
-    for (const step of PUNCH.steps) {
+    for (const step of steps) {
       end += step.seconds
       if (this.attackTime < end) return step
     }
-    return PUNCH.steps[PUNCH.steps.length - 1]
+    return steps[steps.length - 1]
   }
 
   /** Son coup, s'il peut toucher à cet instant : il frappe vers Moussa, donc vers la gauche. */
   strike(pixel: number): Strike | null {
-    if (this.attackTime < 0 || this.attackLanded || !this.punchStep().active) return null
-    return { x: this.x - PUNCH.reach * pixel, height: PUNCH.height, power: PUNCH.power, stop: PUNCH.stop }
+    if (this.attackTime < 0 || this.attackLanded || !this.moveStep().active) return null
+    const move = MOVES[this.move]
+    return { x: this.x - move.reach * pixel, height: move.height, power: move.power, stop: move.stop }
   }
 
   /** Son coup a touché ou a été paré : il ne touchera plus. */
@@ -351,16 +418,20 @@ export class RivalLayer implements Opponent {
     }
     if (this.attackTime >= 0) {
       this.attackTime += frame.delta
+      const move = MOVES[this.move]
       // il avance très légèrement pendant le coup, sans traverser Moussa
-      const k = Math.max(0, Math.min(1, (this.attackTime - PUNCH_ADVANCE[0]) / (PUNCH_ADVANCE[1] - PUNCH_ADVANCE[0])))
+      const k = Math.max(0, Math.min(1, (this.attackTime - move.advanceFrom) / (move.advanceTo - move.advanceFrom)))
       const [min] = this.bounds(this.pixel(frame))
-      const target = this.attackFrom - PUNCH.advance * (1 - (1 - k) ** 2)
+      const target = this.attackFrom - move.advance * (1 - (1 - k) ** 2)
       this.x = Math.max(Math.min(this.x, min), target)
-      if (this.attackTime >= PUNCH_TOTAL) {
+      if (move.next && this.queued && this.attackTime >= moveActiveEnd(move)) {
+        // le coup suivant remplace le retour de celui-ci
+        this.startMove(move.next)
+      } else if (this.attackTime >= moveTotal(move)) {
         this.attackTime = -1
         this.pose = 'guard'
       } else {
-        this.pose = this.punchStep().pose
+        this.pose = this.moveStep().pose
       }
     }
     // coup encaissé : le dessin du coup reçu, celui du retour, puis la garde
