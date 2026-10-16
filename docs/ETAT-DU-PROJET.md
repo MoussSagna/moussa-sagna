@@ -2,7 +2,7 @@
 
 Ce fichier sert à reprendre le travail dans une nouvelle conversation sans rien perdre. Il dit où en est le projet, comment Moussa et Claude travaillent ensemble, et ce qui reste à faire. À mettre à jour à chaque fusion dans `main`.
 
-Dernière mise à jour : 15 octobre 2026, après la fusion `8456faf` (lab) et le report dans le folio.
+Dernière mise à jour : 16 octobre 2026, après la fusion de `controle-adversaire-2` dans `main` (adversaire : nouvelle garde, lévitation, téléportations, passage dans le dos, contrôle aux flèches).
 
 ## Pour reprendre dans une nouvelle conversation
 
@@ -10,6 +10,8 @@ Dernière mise à jour : 15 octobre 2026, après la fusion `8456faf` (lab) et le
 2. Avant de toucher au rendu du lab : `lab/docs/ARCHITECTURE.md`. Avant de toucher à l'arène du folio : `folio/docs/03-ARCHITECTURE-TECHNIQUE.md`, « Architecture réelle ».
 3. `git log --oneline -15` donne l'historique récent ; chaque commit du lab commence par « Lab : ».
 4. Répondre à Moussa **en français**.
+5. **Une seule conversation à la fois sur le dépôt.** Le 15 octobre, deux conversations ont travaillé en parallèle (l'une sur `adversaire-deplacements`, l'autre sur `controle-adversaire`) et se sont recouvertes, jusque dans l'aperçu publié. Avant de commencer : `git fetch` et `git branch -r --sort=-committerdate | head` pour voir s'il existe une branche plus récente que `main`, et lire l'aperçu publié avant de le republier.
+6. Pour vérifier le lab image par image, le plus fiable est d'importer `StageEngine` dans la page avec Playwright, de neutraliser `requestAnimationFrame` et d'appeler `frame()` à pas fixes (1/60 s) en déclenchant les commandes à des images précises, puis d'assembler les toiles en une planche. Les toiles des combattants peuvent être retournées en miroir par CSS (changement de côté) : il faut alors les retourner aussi en les assemblant.
 
 ## Comment on travaille
 
@@ -45,6 +47,7 @@ Touches : flèches ou ZQSD, J attaque, L boule de feu, I attaque spéciale au so
 - Boule de feu (shader).
 - Attaque spéciale au sol : mise au point figée avec zoom, ruée, rafale de dix coups au hasard, trois coups lourds qui font trembler l'écran, plan de coupe, charge, frappe de la paume, gros impact.
 - Mannequin et adversaire original : impacts, arrêt sur image, étincelles, secousse ; l'adversaire encaisse et peut parer.
+- Adversaire (nouveau modèle aux proportions de Moussa) : il se déplace en lévitation au ras du sol (un dessin par sens, une pose de passage, sans fondu), garde seul ses distances, ou se joue aux flèches. Dash avant et arrière en téléportation, à la manière de Doom ; au corps à corps, la téléportation le fait passer dans le dos de Moussa et les combattants changent de côté en restant face à face (affichage retourné en miroir, commandes dans le sens de l'écran).
 - Coups reçus et parés par Moussa.
 - Fin de round (il se baisse et disparaît dans la fumée) et K.O. (quatre dessins, « K.O. », round suivant).
 
@@ -52,11 +55,15 @@ Touches : flèches ou ZQSD, J attaque, L boule de feu, I attaque spéciale au so
 
 État au commit `8456faf` du lab : cinématique d'entrée, garde, marche, dashs, accroupi, parade, sauts sur place, avant et arrière (sans l'inclinaison du corps, que `HeroRig.show` ne sait pas afficher), enchaînement léger, moyen, fort, coup de pied.
 
-Pas encore repris (demande du travail de rendu dans Phaser) : boule de feu, attaque spéciale au sol et ses effets, effet de vitesse des dashs, mannequin, impacts, adversaire en combat, coups reçus, fin de round, K.O.
+Pas encore repris (demande du travail de rendu dans Phaser) : boule de feu, attaque spéciale au sol et ses effets, effet de vitesse des dashs, mannequin, impacts, adversaire en combat (avec sa lévitation, ses téléportations et le changement de côté), coups reçus, fin de round, K.O.
+
+Les fusions du 16 octobre ne touchent que l'adversaire, absent de l'arène du folio : il n'y avait rien à reprendre pour Moussa (le seul ajout, `HeroLayer.mirror`, sert au changement de côté). Le folio garde ses boutons sous l'arène : le lab les a retirés, mais sur le site ils servent au tactile.
 
 ## Limites connues et prochaines pistes
 
-- **Adversaire** : nouvelle garde aux proportions de Moussa et déplacement en lévitation (un dessin par sens), mais sa parade et son coup encaissé sont encore dessinés sur l'ancien modèle. Il lui manque des coups et un vrai comportement.
+- **Adversaire** : sa parade et son coup encaissé sont encore dessinés sur l'ancien modèle (ils détonnent à côté de la nouvelle garde). Il lui manque des coups, et il ne se téléporte que si un joueur le contrôle. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié).
+- **Changement de côté** : seul l'adversaire peut passer dans le dos de Moussa ; Moussa se retourne d'un coup, sans animation de demi-tour.
+- **Prochaine grosse étape possible** : faire entrer l'adversaire dans l'arène du folio (affichage, lévitation, téléportations, changement de côté), puis les coups qui touchent.
 - **K.O.** : pas d'animation pour se relever ; il réapparaît en garde.
 - **Rafale de l'attaque spéciale** : le corps saute un peu d'un coup à l'autre, les dessins n'ont pas le même point d'appui.
 - **Logos des baskets** : effacés sur les nouvelles poses, mais quelques zones floues restent visibles de près ; pas encore effacé sur `hero-step.png`. À revoir avant la mise en ligne.

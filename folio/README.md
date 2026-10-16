@@ -91,7 +91,7 @@ Les deux moteurs sont différents : rien ne se copie tout seul. Pour une nouvell
 3. Reporter à la main ce qui a changé dans `../lab/src/game/hero/HeroLayer.ts` : l'état et ses réglages dans `heroState.ts`, l'échelle des poses dans `HeroRig.ts`, le dessin dans `scenes/ArenaScene.ts`. Une nouvelle action s'ajoute aussi à `ACTION_POSES` (ses images), à `input.ts` (sa touche) et à `controls.ts` (son bouton).
 4. Lancer le site, regarder l'arène, et noter dans le message de commit le commit du lab qui a été repris.
 
-Dernier état repris : `lab/` au commit `8456faf` (sauts avant et arrière, sans l’inclinaison du corps ; coup de pied en quatrième coup de l’enchaînement). Pas encore repris : la boule de feu, l’attaque spéciale au sol (mise au point, ruée, rafale, coups lourds, plan de coupe, frappe de la paume), l’effet de vitesse des dashs, les impacts, le mannequin, les coups reçus, l’adversaire en combat, la sortie de fin de round et le K.O. Tout cela demande du travail de rendu dans Phaser, pas seulement de la logique.
+Dernier état repris : `lab/` au commit `8456faf` pour Moussa (sauts avant et arrière, sans l’inclinaison du corps ; coup de pied en quatrième coup de l’enchaînement). Les fusions suivantes du lab (jusqu’à `1e61d10`) ne concernent que l’adversaire, absent de l’arène : rien à reprendre. Pas encore repris : la boule de feu, l’attaque spéciale au sol, l’effet de vitesse des dashs, les impacts, le mannequin, les coups reçus, l’adversaire en combat (lévitation, téléportations, changement de côté), la sortie de fin de round et le K.O. Tout cela demande du travail de rendu dans Phaser.
 
 ## Ce qui n'est pas dans le dépôt
 

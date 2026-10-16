@@ -4,23 +4,41 @@ Le lab sert à mettre au point le stage et les animations du personnage avant de
 
 Écran en place : le stage **Tokyo Underground**, animé et en profondeur, avec le personnage en garde.
 
-## Commandes du personnage
+## Commandes
 
-| Action | Clavier | Boutons |
-| --- | --- | --- |
-| Avancer | maintenir → ou D | maintenir « Avancer » |
-| Reculer | maintenir ← ou Q (A sur un clavier QWERTY) | maintenir « Reculer » |
-| Dash avant ou arrière | deux appuis rapides dans le même sens | deux appuis rapides sur le bouton |
-| S'accroupir | maintenir ↓ ou S | maintenir « S'accroupir » |
-| Parer (debout ou accroupi) | maintenir Espace | maintenir « Parer » |
-| Attaque spéciale (boule de feu) | L | « Spécial » |
-| Sauter (avec ← ou → tenu : saut arrière ou avant) | ↑ ou Z (W sur un clavier QWERTY) | « Sauter » |
-| Seconde attaque spéciale (frappe au sol) | I | « Spécial 2 » |
-| Passer la cinématique d'entrée | Échap | « Passer » |
-| Perdre par K.O. (puis round suivant) | O | « K.O. » |
-| Finir le round (sortie du personnage, puis round suivant) | P | « Fin du round » |
-| Faire attaquer le mannequin (pour tester les coups reçus et parés) | K | « Le mannequin attaque » |
-| Attaquer | J : un appui pour le coup léger, un second pour enchaîner le coup moyen, un troisième pour le coup fort, un quatrième pour le coup de pied. L'enchaînement ne continue que si le coup touche ; L pendant un coup qui touche l'annule en boule de feu | « Attaquer » |
+Tout se joue au clavier (il n'y a plus de boutons sous la scène).
+
+| Action | Clavier |
+| --- | --- |
+| Avancer | maintenir → ou D |
+| Reculer | maintenir ← ou Q (A sur un clavier QWERTY) |
+| Dash avant ou arrière | deux appuis rapides dans le même sens |
+| S'accroupir | maintenir ↓ ou S |
+| Parer (debout ou accroupi) | maintenir Espace |
+| Attaquer | J : un appui pour le coup léger, un second pour enchaîner le coup moyen, un troisième pour le coup fort, un quatrième pour le coup de pied. L'enchaînement ne continue que si le coup touche ; L pendant un coup qui touche l'annule en boule de feu |
+| Attaque spéciale (boule de feu) | L |
+| Sauter (avec une direction tenue : saut avant ou arrière) | ↑ ou Z (W sur un clavier QWERTY) |
+| Seconde attaque spéciale (frappe au sol) | I |
+| Passer la cinématique d'entrée | Échap (ou le bouton « Passer ») |
+| Perdre par K.O. (puis round suivant) | O |
+| Finir le round (sortie du personnage, puis round suivant) | P |
+| Faire attaquer le mannequin (pour tester les coups reçus et parés) | K |
+
+Les directions suivent l'écran : quand les combattants ont changé de côté, → et D vont toujours vers la droite.
+
+### Contrôler l'adversaire
+
+La case « Contrôler l'adversaire » donne les flèches à l'adversaire ; Moussa se joue alors avec Q D, S, Z, Espace et les touches d'attaque.
+
+| Action de l'adversaire | Clavier |
+| --- | --- |
+| Avancer vers Moussa, en lévitation | maintenir la flèche vers Moussa (← au départ) |
+| Reculer | maintenir l'autre flèche |
+| Téléportation avant (dans le dos de Moussa au corps à corps : les combattants changent de côté) | deux appuis rapides vers Moussa |
+| Téléportation arrière | deux appuis rapides à l'opposé |
+| Parer | maintenir ↓ |
+
+Laissé seul (case décochée), il garde ses distances avec Moussa en lévitant ; la case « L'adversaire se déplace » le fige.
 
 ## Démarrer
 
