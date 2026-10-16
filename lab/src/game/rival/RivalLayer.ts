@@ -23,7 +23,7 @@ const POSES = {
   // lévitation : calées sur le ceinturon de la garde, pour que le buste ne saute pas au changement de dessin ;
   // `ground` est alors le point sous le ceinturon, à hauteur du bas de la botte la plus basse
   floatForward: { file: 'rival/float-forward.webp', ground: [480, 1426], scale: 1.1 },
-  floatBack: { file: 'rival/float-back.webp', ground: [445, 1453], scale: 1.1 },
+  floatBack: { file: 'rival/float-back.webp', ground: [445, 1412], scale: 1.1 },
   // pose de passage : droite, en l'air, entre la garde et le vol, et entre l'avance et le recul
   floatStart: { file: 'rival/float-start.webp', ground: [450, 1474], scale: 1.1 },
   // téléportation : baissé, effacé dans un trait de vitesse, puis relevé
@@ -42,7 +42,7 @@ const BLOCK_STEP_SECONDS = 0.06
 
 /**
  * Déplacement en lévitation : il ne marche pas, il glisse en rasant le sol. Un seul dessin par sens
- * (`floatForward` en avançant, `floatBack` en reculant), animé en continu : il monte, flotte et redescend. Un dessin
+ * (`floatForward` penché vers Moussa en avançant, `floatBack` pieds en avant en reculant), animé en continu : il monte, flotte et redescend. Un dessin
  * de passage (`floatStart`) s'affiche `bridge` secondes au décollage et au changement de sens, et pendant qu'il se repose.
  * `forward`, `back` : vitesse, en largeurs d'écran par seconde ; `accel` : vitesse de mise en route et de freinage ;
  * `height` : hauteur de vol, en pixels de la toile ; `bob` et `period` : flottement (pixels, secondes) ;
