@@ -41,6 +41,10 @@ const POSES = {
   kickChamber: { file: 'rival/kick-chamber.webp', ground: [548, 1404], scale: 1.2 },
   kickRaise: { file: 'rival/kick-raise.webp', ground: [551, 1421], scale: 1.18 },
   kickHit: { file: 'rival/kick-hit.webp', ground: [647, 1337], scale: 1.18 },
+  // coup de marteau : calé sur la botte arrière, qui reste au sol (coupée par le bord droit de l'illustration)
+  smashRaise: { file: 'rival/smash-raise.webp', ground: [619, 1415], scale: 1.05 },
+  smashSwing: { file: 'rival/smash-swing.webp', ground: [627, 1455], scale: 1.05 },
+  smashHit: { file: 'rival/smash-hit.webp', ground: [627, 1389], scale: 1.05 },
   blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
   hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
@@ -106,11 +110,12 @@ interface Move {
   /** Le coup suivant de l'enchaînement, lancé par un nouvel appui pendant celui-ci. */
   next?: MoveName
 }
-type MoveName = 'punch' | 'kick'
+type MoveName = 'punch' | 'kick' | 'smash'
 /**
  * Son enchaînement. Le coup de poing : mise en place, bras armé, le bras part, poing tendu, puis retour ; il avance
  * très légèrement pendant l'armé. Un nouvel appui pendant le coup de poing enchaîne le coup de pied haut : genou
- * monté, plus haut, jambe tendue, puis retour. Le coup suivant part à la fin des images actives, à la place du retour.
+ * monté, plus haut, jambe tendue, puis retour ; puis le coup de marteau : poing levé au-dessus de la tête, abattu
+ * vers le sol, plus lourd. Le coup suivant part à la fin des images actives, à la place du retour.
  */
 const MOVES: Record<MoveName, Move> = {
   punch: {
@@ -146,6 +151,23 @@ const MOVES: Record<MoveName, Move> = {
     height: 1200,
     power: 0.9,
     stop: 0.14,
+    next: 'smash',
+  },
+  smash: {
+    steps: [
+      { pose: 'smashRaise', seconds: 0.11 },
+      { pose: 'smashSwing', seconds: 0.05 },
+      { pose: 'smashHit', seconds: 0.1, active: true },
+      { pose: 'smashHit', seconds: 0.16 },
+      { pose: 'smashSwing', seconds: 0.06 },
+    ],
+    advance: 0.02,
+    advanceFrom: 0.06,
+    advanceTo: 0.2,
+    reach: 620,
+    height: 450,
+    power: 1,
+    stop: 0.18,
   },
 }
 const moveTotal = (move: Move) => move.steps.reduce((sum, step) => sum + step.seconds, 0)

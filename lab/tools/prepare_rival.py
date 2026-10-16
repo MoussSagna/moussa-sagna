@@ -13,6 +13,8 @@ from prepare_poses import ART, H, ROOT, W, key_green
 OUT = ROOT / 'public' / 'assets' / 'rival'
 # largeur, en pixels, de l'estompage d'un dessin coupé par le bord droit de l'illustration
 EDGE_FADE = 140
+# dessins dont la botte d'appui est coupée par le bord droit : pas d'estompage
+NO_EDGE_FADE = {'smash-raise', 'smash-swing', 'smash-hit'}
 
 
 def main() -> None:
@@ -20,10 +22,12 @@ def main() -> None:
     for path in sorted(ART.glob('rival-*.png')):
         rgb = np.asarray(Image.open(path).convert('RGB')).copy()
         assert rgb.shape[:2] == (H, W), path.name
+        name = path.stem.removeprefix('rival-')
         art = key_green(rgb)
         # dessin coupé par le bord droit de l'illustration (traits de vitesse, pan du manteau) : on l'estompe
         # sur les dernières colonnes, pour qu'il ne s'arrête pas sur une ligne droite
-        if (art[:, -1, 3] > 128).sum() > 20:
+        # sauf quand c'est la botte d'appui qui touche le bord (coup de marteau) : l'estomper la ferait disparaître
+        if (art[:, -1, 3] > 128).sum() > 20 and name not in NO_EDGE_FADE:
             ramp = np.clip(np.arange(W)[::-1] / EDGE_FADE, 0, 1) ** 1.5
             art[..., 3] = (art[..., 3] * ramp[None, :]).astype(np.uint8)
             art[..., :3] = (art[..., :3] * ramp[None, :, None]).astype(np.uint8)
