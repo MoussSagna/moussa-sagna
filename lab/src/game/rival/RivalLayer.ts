@@ -48,7 +48,7 @@ const POSES = {
   // uppercut : calé sur la botte arrière
   upperCrouch: { file: 'rival/upper-crouch.webp', ground: [606, 1198], scale: 1.1 },
   upperRise: { file: 'rival/upper-rise.webp', ground: [550, 1272], scale: 1.1 },
-  upperHit: { file: 'rival/upper-hit.webp', ground: [612, 1459], scale: 1.1 },
+  upperHit: { file: 'rival/upper-hit.webp', ground: [653, 1463], scale: 1.28 },
   blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
   hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
