@@ -35,8 +35,8 @@ const POSES = {
   // les poses penchées, où cette distance se raccourcit)
   punchReady: { file: 'rival/punch-ready.webp', ground: [559, 1400], scale: 1.13 },
   punchWindup: { file: 'rival/punch-windup.webp', ground: [643, 1365], scale: 1.13 },
-  punchReach: { file: 'rival/punch-reach.webp', ground: [642, 1171], scale: 1.17 },
-  punchHit: { file: 'rival/punch-hit.webp', ground: [655, 1241], scale: 1.17 },
+  punchReach: { file: 'rival/punch-reach.webp', ground: [642, 1171], scale: 1.27 },
+  punchHit: { file: 'rival/punch-hit.webp', ground: [655, 1241], scale: 1.35 },
   // coup de pied : calé sur la botte d'appui, qui reste au sol
   kickChamber: { file: 'rival/kick-chamber.webp', ground: [548, 1404], scale: 1.2 },
   kickRaise: { file: 'rival/kick-raise.webp', ground: [551, 1421], scale: 1.18 },
