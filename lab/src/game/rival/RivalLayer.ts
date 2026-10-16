@@ -31,15 +31,16 @@ const POSES = {
   teleportStreak: { file: 'rival/teleport-streak.webp', ground: [565, 1221], scale: 1.1 },
   teleportRise: { file: 'rival/teleport-rise.webp', ground: [545, 1434], scale: 1.1 },
   // coup de poing : calé sur le centre de sa botte arrière, qui reste plantée pendant que le corps part en avant ;
-  // l'échelle ramène la longueur des bottes à celle de la garde
+  // l'échelle ramène la distance du haut des cheveux au ceinturon à celle de la garde (la taille de la tête pour
+  // les poses penchées, où cette distance se raccourcit)
   punchReady: { file: 'rival/punch-ready.webp', ground: [559, 1400], scale: 1.13 },
-  punchWindup: { file: 'rival/punch-windup.webp', ground: [625, 1362], scale: 1.063 },
-  punchReach: { file: 'rival/punch-reach.webp', ground: [615, 1167], scale: 1.063 },
-  punchHit: { file: 'rival/punch-hit.webp', ground: [638, 1237], scale: 1.1 },
+  punchWindup: { file: 'rival/punch-windup.webp', ground: [643, 1365], scale: 1.13 },
+  punchReach: { file: 'rival/punch-reach.webp', ground: [642, 1171], scale: 1.17 },
+  punchHit: { file: 'rival/punch-hit.webp', ground: [655, 1241], scale: 1.17 },
   // coup de pied : calé sur la botte d'appui, qui reste au sol
-  kickChamber: { file: 'rival/kick-chamber.webp', ground: [516, 1401], scale: 1.07 },
-  kickRaise: { file: 'rival/kick-raise.webp', ground: [531, 1419], scale: 1.1 },
-  kickHit: { file: 'rival/kick-hit.webp', ground: [627, 1335], scale: 1.1 },
+  kickChamber: { file: 'rival/kick-chamber.webp', ground: [548, 1404], scale: 1.2 },
+  kickRaise: { file: 'rival/kick-raise.webp', ground: [551, 1421], scale: 1.18 },
+  kickHit: { file: 'rival/kick-hit.webp', ground: [647, 1337], scale: 1.18 },
   blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
   hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },

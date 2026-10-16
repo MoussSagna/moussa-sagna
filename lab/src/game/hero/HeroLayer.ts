@@ -356,16 +356,16 @@ const IMPACT = { spark: { seconds: 0.24, radius: 420 }, blast: { seconds: 0.42, 
 
 /**
  * Coup encaissé. Le personnage affiche le dessin du coup reçu pendant `stun` secondes, puis celui du retour
- * pendant `recover` secondes, sans pouvoir agir, et recule de `push` (fraction de la largeur du stage) en
- * `pushSeconds`. `front` : distance entre son point d'appui et l'avant de son corps, en pixels de la toile,
+ * pendant `recover` secondes, sans pouvoir agir. Il ne recule pas : `push` (fraction de la largeur du stage, en
+ * `pushSeconds`) est à zéro, à la demande de Moussa ; le remettre pour qu'il soit repoussé. `front` : distance entre son point d'appui et l'avant de son corps, en pixels de la toile,
  * là où le coup le touche.
  */
-const HURT = { stun: 0.24, recover: 0.13, push: 0.07, pushSeconds: 0.24, front: 200 }
+const HURT = { stun: 0.24, recover: 0.13, push: 0, pushSeconds: 0.24, front: 200 }
 /**
- * Coup paré : le personnage reste en parade pendant `stun` secondes et recule de `push`. `height` : hauteur
+ * Coup paré : le personnage reste en parade pendant `stun` secondes ; il ne recule pas non plus (`push` à zéro). `height` : hauteur
  * de l'étincelle sur ses avant-bras, debout et accroupi, en pixels de la toile.
  */
-const GUARD_HIT = { stun: 0.2, push: 0.035, pushSeconds: 0.18, height: 1050, crouchHeight: 720 }
+const GUARD_HIT = { stun: 0.2, push: 0, pushSeconds: 0.18, height: 1050, crouchHeight: 720 }
 /** Couleurs des étincelles (bord, intermédiaire) : rouge et orangé pour un coup porté, bleu pour un coup paré. */
 const SPARK_COLORS = { hit: [[0.91, 0.15, 0.18], [1, 0.6, 0.25]], guard: [[0.2, 0.5, 1], [0.6, 0.85, 1]] }
 
