@@ -47,7 +47,7 @@ const POSES = {
   smashHit: { file: 'rival/smash-hit.webp', ground: [627, 1389], scale: 1.05 },
   // uppercut : calé sur la botte arrière
   upperCrouch: { file: 'rival/upper-crouch.webp', ground: [606, 1198], scale: 1.1 },
-  upperRise: { file: 'rival/upper-rise.webp', ground: [550, 1272], scale: 1.1 },
+  upperRise: { file: 'rival/upper-rise.webp', ground: [594, 1277], scale: 1.3 },
   upperHit: { file: 'rival/upper-hit.webp', ground: [653, 1463], scale: 1.28 },
   // coup de pied de face, de dos : calé sur la botte d'appui ; illustrations dessinées plus petit, d'où l'échelle
   pushReady: { file: 'rival/push-ready.webp', ground: [412, 1344], scale: 1.4 },
@@ -129,12 +129,15 @@ interface Step {
   active?: boolean
   vanish?: boolean
   warp?: boolean
+  /** Le coup de cette étape propulse Moussa hors de l'écran. */
+  launch?: boolean
 }
 /** Un coup de son enchaînement. */
 interface Move {
   /**
    * Les étapes dans l'ordre, avec leur durée en secondes ; `active` : le coup peut toucher pendant cette étape ;
-   * `vanish` : il est invisible ; `warp` : en commençant l'étape, il se téléporte juste devant Moussa.
+   * `vanish` : il est invisible ; `warp` : en commençant l'étape, il se téléporte juste devant Moussa ; `launch` :
+   * le coup propulse Moussa. Chaque étape active peut toucher une fois : un coup à plusieurs étapes actives touche plusieurs fois.
    */
   steps: Step[]
   /** Avancée (fraction de la largeur de l'écran) entre `advanceFrom` et `advanceTo` secondes, sans traverser Moussa. */
@@ -277,8 +280,8 @@ const MOVES: Record<MoveName, Move> = {
       { pose: 'teleportStreak', seconds: 0.04 },
       // uppercut : accroupi, bras armé figé un instant, puis il l'envoie
       { pose: 'upperCrouch', seconds: 0.07 },
-      { pose: 'upperRise', seconds: 0.35 },
-      { pose: 'upperHit', seconds: 0.14, active: true },
+      { pose: 'upperRise', seconds: 0.35, active: true },
+      { pose: 'upperHit', seconds: 0.14, active: true, launch: true },
       { pose: 'upperHit', seconds: 0.4 },
       { pose: 'ultLand1', seconds: 0.08 },
       { pose: 'ultLand2', seconds: 0.08 },
@@ -368,10 +371,11 @@ export class RivalLayer implements Opponent {
   /** Image rémanente laissée au départ de la téléportation : position et temps écoulé. */
   private ghostX = 0
   private ghostTime = Infinity
-  /** Temps écoulé depuis le début du coup de poing en cours (ou -1), position au départ, et vrai s'il a déjà touché. */
+  /** Temps écoulé depuis le début du coup en cours (ou -1), et position au départ. */
   private attackTime = -1
   private attackFrom = 0
-  private attackLanded = false
+  /** L'étape du coup en cours qui a déjà touché : chaque étape active ne touche qu'une fois. */
+  private landedStep: Step | null = null
   /** Temps écoulé depuis l'impact du coup spécial, pour son explosion. */
   private burstTime = Infinity
   /** Vrai quand le coup spécial vient de toucher, jusqu'à ce que le moteur le prenne en compte. */
@@ -512,10 +516,10 @@ export class RivalLayer implements Opponent {
     this.move = move
     this.attackTime = 0
     this.attackFrom = this.x
-    this.attackLanded = false
     this.queued = false
     this.specialQueued = false
     this.warped = false
+    this.landedStep = null
     this.pose = MOVES[move].steps[0].pose
   }
 
@@ -532,14 +536,15 @@ export class RivalLayer implements Opponent {
 
   /** Son coup, s'il peut toucher à cet instant : il frappe vers Moussa, donc vers la gauche. L'uppercut de l'attaque ultime le propulse. */
   strike(pixel: number): Strike | null {
-    if (this.attackTime < 0 || this.attackLanded || !this.moveStep().active) return null
+    const step = this.moveStep()
+    if (this.attackTime < 0 || !step.active || this.landedStep === step) return null
     const move = MOVES[this.move]
-    return { x: this.x - move.reach * pixel, height: move.height, power: move.power, stop: move.stop, launch: this.move === 'ultimate' }
+    return { x: this.x - move.reach * pixel, height: move.height, power: move.power, stop: move.stop, launch: step.launch === true }
   }
 
   /** Son coup a touché ou a été paré : il ne touchera plus. Le coup spécial explose à l'impact. */
   land(): void {
-    this.attackLanded = true
+    this.landedStep = this.moveStep()
     if (this.move === 'special' || this.move === 'ultimate') {
       this.burstTime = 0
       this.impact = true
