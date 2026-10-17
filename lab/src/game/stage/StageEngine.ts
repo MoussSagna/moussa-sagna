@@ -275,6 +275,11 @@ export class StageEngine {
     if (blow && !this.hero.exiting && !this.hero.knockedOut && this.hero.front(pixel) >= blow.x) {
       target.land()
       const guarded = this.hero.takeHit(blow, pixel)
+      // l'uppercut de l'attaque ultime : s'il n'est pas paré, il propulse Moussa hors de l'écran (K.O.)
+      if (blow.launch && !guarded) {
+        this.hero.launch()
+        this.koAnnounced = false
+      }
       this.stop = blow.stop * (guarded ? 0.5 : 1) * (calm ? 0.5 : 1)
       this.shake = Math.max(this.shake, blow.power * (guarded ? 0.4 : 1))
     }

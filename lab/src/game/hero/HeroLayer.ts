@@ -313,6 +313,13 @@ const KO = {
 }
 const KO_AIR = KO.steps[0].seconds + KO.steps[1].seconds
 const KO_DOWN = KO.steps.reduce((sum, step) => sum + step.seconds, 0)
+/**
+ * Propulsé par l'attaque ultime de l'adversaire : il part en l'air à toute vitesse et sort par le haut de l'écran
+ * (`rise` secondes jusqu'à `height` pixels de la toile), reste hors de l'écran `away` secondes, retombe en `fall`
+ * secondes et s'écrase au sol, où il reste jusqu'à `total`. Il recule de `push` pendant la montée.
+ */
+const LAUNCH = { rise: 0.35, height: 5200, away: 0.6, fall: 0.3, push: 0.06, total: 3.4 }
+const LAUNCH_DOWN = LAUNCH.rise + LAUNCH.away + LAUNCH.fall
 
 /**
  * Fumée du bond : les bouffées dessinées (`tools/prepare_fx.py`), de la plus petite à la plus grande, avec leur
@@ -377,6 +384,8 @@ export interface Strike {
   height: number
   power: number
   stop: number
+  /** Vrai si le coup le propulse dans les airs, hors de l'écran (attaque ultime de l'adversaire). */
+  launch?: boolean
 }
 /** Instant du lancer et durée totale de l'attaque spéciale. */
 const SPECIAL_LAUNCH = SPECIAL.steps.slice(0, SPECIAL.steps.findIndex((step) => step.launch)).reduce((sum, step) => sum + step.seconds, 0)
@@ -482,6 +491,8 @@ export class HeroLayer {
   /** Temps écoulé depuis le début du K.O., et position au moment du coup. */
   private koTime = 0
   private koFrom = PLACEMENT.x
+  /** Vrai si le K.O. en cours est une propulsion hors de l'écran. */
+  private launched = false
   /** Temps écoulé depuis le début de la sortie de fin de round. */
   private exitTime = 0
   /** Les bouffées de fumée, chargées avec les poses. */
@@ -775,6 +786,7 @@ export class HeroLayer {
   /** K.O. : il est mis hors de combat, quoi qu'il fasse. `koDone` devient vrai quand il est resté assez au sol. */
   knockOut(): void {
     if (this.pose === 'ko' || this.pose === 'exit') return
+    this.launched = false
     this.pose = 'ko'
     this.koTime = 0
     this.koFrom = this.x
@@ -785,6 +797,21 @@ export class HeroLayer {
     this.throwPebbles()
   }
 
+  /** Propulsé dans les airs par l'attaque ultime de l'adversaire : un K.O. qui l'envoie hors de l'écran. */
+  launch(): void {
+    if (this.pose === 'exit' || (this.pose === 'ko' && this.launched)) return
+    this.knockOut()
+    this.pose = 'ko'
+    this.koTime = 0
+    this.koFrom = this.x
+    this.launched = true
+  }
+
+  /** Instant où il touche le sol pendant le K.O. en cours. */
+  private get koDownAt(): number {
+    return this.launched ? LAUNCH_DOWN : KO_DOWN
+  }
+
   /** Vrai pendant le K.O. */
   get knockedOut(): boolean {
     return this.pose === 'ko'
@@ -792,16 +819,24 @@ export class HeroLayer {
 
   /** Vrai à l'instant où il touche le sol, pendant le K.O. */
   get koLanded(): boolean {
-    return this.pose === 'ko' && this.koTime >= KO_DOWN
+    return this.pose === 'ko' && this.koTime >= this.koDownAt
   }
 
   /** Vrai quand le K.O. est fini : il est resté au sol assez longtemps. */
   get koDone(): boolean {
-    return this.pose === 'ko' && this.koTime >= KO.total
+    return this.pose === 'ko' && this.koTime >= (this.launched ? LAUNCH.total : KO.total)
   }
 
   /** Dessin du K.O. et hauteur des pieds (pixels de la toile) : en l'air, une courbe qui monte et redescend. */
   private koState(): { name: PoseName; lift: number } {
+    if (this.launched) {
+      const t = this.koTime
+      // il part très vite puis ralentit en sortant de l'écran ; il retombe en accélérant
+      if (t < LAUNCH.rise) return { name: 'koAir', lift: LAUNCH.height * (1 - (1 - t / LAUNCH.rise) ** 2) }
+      if (t < LAUNCH.rise + LAUNCH.away) return { name: 'koAir', lift: LAUNCH.height }
+      if (t < LAUNCH_DOWN) return { name: 'koAir', lift: LAUNCH.height * (1 - ((t - LAUNCH.rise - LAUNCH.away) / LAUNCH.fall) ** 2) }
+      return { name: 'koDown', lift: 0 }
+    }
     let end = 0
     for (const step of KO.steps) {
       end += step.seconds
@@ -1042,8 +1077,8 @@ export class HeroLayer {
     if (this.pose === 'ko') {
       this.koTime += frame.delta
       // il recule en freinant, sans sortir du stage
-      const k = Math.min(1, this.koTime / KO.pushSeconds)
-      this.x = Math.max(PLACEMENT.minX, this.koFrom - KO.push * (1 - (1 - k) ** 2))
+      const k = Math.min(1, this.koTime / (this.launched ? LAUNCH.rise : KO.pushSeconds))
+      this.x = Math.max(PLACEMENT.minX, this.koFrom - (this.launched ? LAUNCH.push : KO.push) * (1 - (1 - k) ** 2))
       return
     }
     // recul après un coup reçu ou paré : il part vite et freine
@@ -1500,7 +1535,7 @@ export class HeroLayer {
     // la fumée et les cailloux du bond de sortie, devant lui
     if (this.pose === 'exit' && this.exitTime >= EXIT_CROUCH) this.drawSmoke(gl, flat, this.exitTime - EXIT_CROUCH, sx, sy, unitX / 2, unitY / 2, calm)
     // et celles de sa chute au sol, à la fin d'un K.O.
-    if (this.pose === 'ko' && this.koTime >= KO_DOWN) this.drawSmoke(gl, flat, this.koTime - KO_DOWN, sx, sy, unitX / 2, unitY / 2, calm, 0.55)
+    if (this.pose === 'ko' && this.koTime >= this.koDownAt) this.drawSmoke(gl, flat, this.koTime - this.koDownAt, sx, sy, unitX / 2, unitY / 2, calm, 0.55)
 
     // 5. la boule de feu : elle grossit dans les mains pendant la charge, puis vole devant le personnage
     const fire = this.fire

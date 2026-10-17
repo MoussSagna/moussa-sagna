@@ -62,8 +62,7 @@ const POSES = {
   ultReady: { file: 'rival/ult-ready.webp', ground: [631, 1459], scale: 1.1 },
   ultCharge1: { file: 'rival/ult-charge-1.webp', ground: [664, 1466], scale: 1.1 },
   ultCharge2: { file: 'rival/ult-charge-2.webp', ground: [624, 1351], scale: 1.35 },
-  // l'uppercut de l'attaque ultime, puis il se baisse en trois dessins
-  ultUpper: { file: 'rival/ult-upper.webp', ground: [625, 1397], scale: 1.3 },
+  // après l'uppercut de l'attaque ultime (mêmes dessins que l'uppercut de l'enchaînement), il se baisse en trois dessins
   ultLand1: { file: 'rival/ult-land-1.webp', ground: [519, 1346], scale: 1.3 },
   ultLand2: { file: 'rival/ult-land-2.webp', ground: [611, 1326], scale: 1.3 },
   ultLand3: { file: 'rival/ult-land-3.webp', ground: [599, 1247], scale: 1.3 },
@@ -276,8 +275,11 @@ const MOVES: Record<MoveName, Move> = {
       { pose: 'teleportStreak', seconds: 0.05 },
       { pose: 'teleportStreak', seconds: 0.1, vanish: true, warp: true },
       { pose: 'teleportStreak', seconds: 0.04 },
-      { pose: 'ultUpper', seconds: 0.14, active: true },
-      { pose: 'ultUpper', seconds: 0.22 },
+      // uppercut : accroupi, bras armé figé un instant, puis il l'envoie
+      { pose: 'upperCrouch', seconds: 0.07 },
+      { pose: 'upperRise', seconds: 0.35 },
+      { pose: 'upperHit', seconds: 0.14, active: true },
+      { pose: 'upperHit', seconds: 0.4 },
       { pose: 'ultLand1', seconds: 0.08 },
       { pose: 'ultLand2', seconds: 0.08 },
       { pose: 'ultLand3', seconds: 0.4 },
@@ -528,11 +530,11 @@ export class RivalLayer implements Opponent {
     return steps[steps.length - 1]
   }
 
-  /** Son coup, s'il peut toucher à cet instant : il frappe vers Moussa, donc vers la gauche. */
+  /** Son coup, s'il peut toucher à cet instant : il frappe vers Moussa, donc vers la gauche. L'uppercut de l'attaque ultime le propulse. */
   strike(pixel: number): Strike | null {
     if (this.attackTime < 0 || this.attackLanded || !this.moveStep().active) return null
     const move = MOVES[this.move]
-    return { x: this.x - move.reach * pixel, height: move.height, power: move.power, stop: move.stop }
+    return { x: this.x - move.reach * pixel, height: move.height, power: move.power, stop: move.stop, launch: this.move === 'ultimate' }
   }
 
   /** Son coup a touché ou a été paré : il ne touchera plus. Le coup spécial explose à l'impact. */
