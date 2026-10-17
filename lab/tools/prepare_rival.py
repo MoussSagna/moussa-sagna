@@ -14,7 +14,7 @@ OUT = ROOT / 'public' / 'assets' / 'rival'
 # largeur, en pixels, de l'estompage d'un dessin coupé par le bord droit de l'illustration
 EDGE_FADE = 140
 # dessins dont la botte d'appui est coupée par le bord droit : pas d'estompage
-NO_EDGE_FADE = {'smash-raise', 'smash-swing', 'smash-hit'}
+NO_EDGE_FADE = {'smash-raise', 'smash-swing', 'smash-hit', 'fx-swirl'}
 
 
 def main() -> None:

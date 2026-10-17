@@ -53,6 +53,13 @@ const POSES = {
   pushReady: { file: 'rival/push-ready.webp', ground: [412, 1344], scale: 1.4 },
   pushChamber: { file: 'rival/push-chamber.webp', ground: [408, 1332], scale: 1.4 },
   pushHit: { file: 'rival/push-hit.webp', ground: [399, 1373], scale: 1.4 },
+  // coup spécial : pose, amorçage, amorçage chargé d'énergie, coup de pied ; calés sur la botte d'appui
+  specialStance: { file: 'rival/special-stance.webp', ground: [576, 1395], scale: 1.3 },
+  specialChamber: { file: 'rival/special-chamber.webp', ground: [344, 1365], scale: 1.3 },
+  specialCharge: { file: 'rival/special-charge.webp', ground: [434, 1333], scale: 1.3 },
+  specialKick: { file: 'rival/special-kick.webp', ground: [469, 1289], scale: 1.3 },
+  // effet d'énergie dessiné par-dessus le coup de pied : son cœur lumineux est calé sur la semelle
+  fxSwirl: { file: 'rival/fx-swirl.webp', ground: [665, 1648], scale: 1 },
   blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
   hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
@@ -118,7 +125,7 @@ interface Move {
   /** Le coup suivant de l'enchaînement, lancé par un nouvel appui pendant celui-ci. */
   next?: MoveName
 }
-type MoveName = 'punch' | 'kick' | 'smash' | 'uppercut' | 'push'
+type MoveName = 'punch' | 'kick' | 'smash' | 'uppercut' | 'push' | 'special'
 /**
  * Son enchaînement. Le coup de poing : mise en place, bras armé, le bras part, poing tendu, puis retour ; il avance
  * très légèrement pendant l'armé. Un nouvel appui pendant le coup de poing enchaîne le coup de pied haut : genou
@@ -213,6 +220,26 @@ const MOVES: Record<MoveName, Move> = {
     height: 1150,
     power: 1.2,
     stop: 0.2,
+  },
+  // premier coup spécial, hors enchaînement : pose, amorçage, amorçage chargé d'énergie, coup de pied enveloppé
+  // d'énergie violette, puis retour à l'amorçage
+  special: {
+    steps: [
+      { pose: 'specialStance', seconds: 0.08 },
+      { pose: 'specialChamber', seconds: 0.08 },
+      { pose: 'specialCharge', seconds: 0.16 },
+      { pose: 'specialKick', seconds: 0.14, active: true },
+      { pose: 'specialKick', seconds: 0.16 },
+      { pose: 'specialCharge', seconds: 0.08 },
+      { pose: 'specialChamber', seconds: 0.1 },
+    ],
+    advance: 0.03,
+    advanceFrom: 0.16,
+    advanceTo: 0.34,
+    reach: 820,
+    height: 1150,
+    power: 1.4,
+    stop: 0.24,
   },
 }
 const moveTotal = (move: Move) => move.steps.reduce((sum, step) => sum + step.seconds, 0)
@@ -378,6 +405,13 @@ export class RivalLayer implements Opponent {
     if (this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
     this.settle()
     this.startMove('punch')
+  }
+
+  /** Coup spécial : possible seulement en garde ou en lévitation. */
+  special(): void {
+    if (this.attackTime >= 0 || this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    this.settle()
+    this.startMove('special')
   }
 
   private startMove(move: MoveName): void {
@@ -676,5 +710,11 @@ export class RivalLayer implements Opponent {
       drawPose('teleportStreak', 0.45 * (1 - ghost) ** 2, at, 1 + 0.5 * ghost)
     }
     if (!this.vanished) drawPose(this.pose, 1)
+    // coup spécial : l'énergie violette enveloppe la jambe tendue et s'estompe pendant que le coup se tient
+    if (this.pose === 'specialKick') {
+      const kick = MOVES.special.steps.slice(0, 3).reduce((sum, step) => sum + step.seconds, 0)
+      const k = Math.min(1, Math.max(0, (this.attackTime - kick) / 0.3))
+      drawPose('fxSwirl', (calm ? 0.6 : 1) * (1 - k * k))
+    }
   }
 }

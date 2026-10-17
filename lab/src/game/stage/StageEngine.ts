@@ -131,6 +131,11 @@ export class StageEngine {
   }
 
   /** Fait attaquer celui qui fait face au personnage, pour tester les coups reçus et parés. */
+  /** Coup spécial de l'adversaire. */
+  rivalSpecial(): void {
+    if (!this.cinematic.locked) this.rival.special()
+  }
+
   dummyAttack(): void {
     if (!this.cinematic.locked) this.opponent().attack()
   }

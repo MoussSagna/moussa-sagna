@@ -24,6 +24,7 @@
 - [ ] Changement de côté : le reporter dans le folio ; décider si Moussa peut aussi passer de l'autre côté (saut par-dessus).
 - [x] Plus de boutons sous la scène : tout se joue au clavier.
 - [x] Adversaire : enchaînement coup de poing (quatre dessins, légère avancée), coup de pied haut (trois dessins), coup de marteau vers le sol (trois dessins), uppercut (trois dessins), puis coup de pied de face pour finir (trois dessins) ; il touche Moussa.
+- [x] Adversaire : premier coup spécial (pose, amorçage, coup de pied enveloppé d'énergie violette, retour à l'amorçage), touche M, ou Maj quand on le contrôle.
 - [ ] Adversaire : la suite de son enchaînement ; dashs, coup, recul quand il encaisse ; parade et coup encaissé à refaire au nouveau modèle.
 - [x] Seconde attaque spéciale : mise au point figée sur le personnage, ruée, rafale de dix coups au hasard et trois coups lourds, un effet à chaque impact, puis frappe au sol, avec décor assombri, plan de coupe sur le gros plan de Moussa et effets dessinés (remplace la rafale de coups de pied) (à juger en mouvement).
 - [x] Cinématique d'entrée en six plans (temple, Moussa en pied, gros plan, puis l'adversaire en trois plans) avec transition par un pétale, puis « Face your destiny », « Round 1 », « Fight! » ; on peut la passer (à juger en mouvement).
