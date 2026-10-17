@@ -26,6 +26,8 @@ const KO_KEYS = new Set(['o'])
 const DUMMY_KEYS = new Set(['k'])
 /** Touche du coup spécial de l'adversaire (Maj quand on le contrôle). */
 const RIVAL_SPECIAL_KEYS = new Set(['m'])
+/** Touche de l'attaque ultime de l'adversaire. */
+const RIVAL_ULTIMATE_KEYS = new Set(['n'])
 /**
  * Touches de l'adversaire, quand le joueur le contrôle : les flèches. Il regarde vers la gauche, donc ← le fait
  * avancer vers Moussa. ↓ le fait parer tant qu'elle est maintenue. Moussa garde alors Q D, S, Z et Espace.
@@ -50,6 +52,7 @@ function App() {
   const [knockOut, setKnockOut] = useState(0)
   const [dummyAttack, setDummyAttack] = useState(0)
   const [rivalSpecial, setRivalSpecial] = useState(0)
+  const [rivalUltimate, setRivalUltimate] = useState(0)
   const [dash, setDash] = useState({ id: 0, direction: 1 })
   /** Vrai quand le joueur contrôle aussi l'adversaire, avec les flèches. */
   const [rivalControl, setRivalControl] = useState(false)
@@ -137,7 +140,7 @@ function App() {
       }
       const posture = CROUCH_KEYS.has(key) || BLOCK_KEYS.has(key)
       const jumping = JUMP_KEYS.has(key)
-      const punching = ATTACK_KEYS.has(key) || SPECIAL_KEYS.has(key) || SPECIAL2_KEYS.has(key) || END_ROUND_KEYS.has(key) || KO_KEYS.has(key) || DUMMY_KEYS.has(key) || RIVAL_SPECIAL_KEYS.has(key)
+      const punching = ATTACK_KEYS.has(key) || SPECIAL_KEYS.has(key) || SPECIAL2_KEYS.has(key) || END_ROUND_KEYS.has(key) || KO_KEYS.has(key) || DUMMY_KEYS.has(key) || RIVAL_SPECIAL_KEYS.has(key) || RIVAL_ULTIMATE_KEYS.has(key)
       if ((!(key in KEYS) && !posture && !jumping && !punching) || event.ctrlKey || event.metaKey || event.altKey) return
       const target = event.target
       // on ne détourne les touches que hors des champs de saisie de texte
@@ -155,6 +158,7 @@ function App() {
         else if (KO_KEYS.has(key)) setKnockOut((count) => count + 1)
         else if (DUMMY_KEYS.has(key)) setDummyAttack((count) => count + 1)
         else if (RIVAL_SPECIAL_KEYS.has(key)) setRivalSpecial((count) => count + 1)
+        else if (RIVAL_ULTIMATE_KEYS.has(key)) setRivalUltimate((count) => count + 1)
         else setAttack((count) => count + 1)
         return
       }
@@ -191,7 +195,7 @@ function App() {
   return (
     <main className="mx-auto flex max-w-[1500px] flex-col gap-3.5 px-4 pt-4 pb-8">
       <h1 className="sr-only">Moussa Sagna, développeur frontend</h1>
-      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} block={block} rivalWalk={rivalWalk} rivalBlock={rivalBlock} rivalDash={rivalDash} dash={dash} jump={jump} attack={attack} special={special} special2={special2} endRound={endRound} knockOut={knockOut} dummyAttack={dummyAttack} rivalSpecial={rivalSpecial} onUnavailable={onUnavailable} />
+      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} block={block} rivalWalk={rivalWalk} rivalBlock={rivalBlock} rivalDash={rivalDash} dash={dash} jump={jump} attack={attack} special={special} special2={special2} endRound={endRound} knockOut={knockOut} dummyAttack={dummyAttack} rivalSpecial={rivalSpecial} rivalUltimate={rivalUltimate} onUnavailable={onUnavailable} />
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-muted">
         <button
@@ -242,7 +246,7 @@ function App() {
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">I</kbd> pour la frappe au sol,{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">P</kbd> pour finir le round,{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">O</kbd> pour perdre par K.O. ;{' '}
-        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">K</kbd> pour que le mannequin ou l'adversaire t'attaque, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">M</kbd> pour son coup spécial. {note}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">K</kbd> pour que le mannequin ou l'adversaire t'attaque, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">M</kbd> pour son coup spécial, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">N</kbd> pour le début de son attaque ultime. {note}
       </p>
       {rivalControl && (
         <p className="m-0 text-[15px] text-line">

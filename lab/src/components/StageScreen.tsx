@@ -40,11 +40,13 @@ interface Props {
   dummyAttack: number
   /** Change de valeur à chaque coup spécial demandé pour l'adversaire. */
   rivalSpecial: number
+  /** Change de valeur à chaque attaque ultime demandée pour l'adversaire. */
+  rivalUltimate: number
   onUnavailable?: () => void
 }
 
 /** L'écran du stage : décor animé, personnage en garde, météo et carton de titre. */
-export function StageScreen({ options, introKey, walk, crouch, block, rivalWalk, rivalBlock, rivalDash, dash, jump, attack, special, special2, knockOut, endRound, dummyAttack, rivalSpecial, onUnavailable }: Props) {
+export function StageScreen({ options, introKey, walk, crouch, block, rivalWalk, rivalBlock, rivalDash, dash, jump, attack, special, special2, knockOut, endRound, dummyAttack, rivalSpecial, rivalUltimate, onUnavailable }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLCanvasElement>(null)
   const dummy = useRef<HTMLCanvasElement>(null)
@@ -145,6 +147,10 @@ export function StageScreen({ options, introKey, walk, crouch, block, rivalWalk,
   useEffect(() => {
     if (rivalSpecial > 0) engine.current?.rivalSpecial()
   }, [rivalSpecial])
+
+  useEffect(() => {
+    if (rivalUltimate > 0) engine.current?.rivalUltimate()
+  }, [rivalUltimate])
 
   // Échap passe la cinématique
   useEffect(() => {

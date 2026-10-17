@@ -58,6 +58,10 @@ const POSES = {
   specialChamber: { file: 'rival/special-chamber.webp', ground: [344, 1365], scale: 1.3 },
   specialCharge: { file: 'rival/special-charge.webp', ground: [434, 1333], scale: 1.3 },
   specialKick: { file: 'rival/special-kick.webp', ground: [469, 1289], scale: 1.3 },
+  // attaque ultime : mains tendues, puis énergie qui grossit entre ses mains ; calés sur la botte arrière
+  ultReady: { file: 'rival/ult-ready.webp', ground: [631, 1459], scale: 1.1 },
+  ultCharge1: { file: 'rival/ult-charge-1.webp', ground: [664, 1466], scale: 1.1 },
+  ultCharge2: { file: 'rival/ult-charge-2.webp', ground: [679, 1469], scale: 1.1 },
   // effets du coup spécial (planche fournie par Moussa) : leur cœur lumineux est calé sur la semelle du coup de pied.
   // La traînée grandit en trois dessins ; l'explosion et l'anneau éclatent quand le coup touche.
   fxTrail1: { file: 'rival/fx-trail-1.webp', ground: [745, 1716], scale: 1 },
@@ -130,7 +134,7 @@ interface Move {
   /** Le coup suivant de l'enchaînement, lancé par un nouvel appui pendant celui-ci. */
   next?: MoveName
 }
-type MoveName = 'punch' | 'kick' | 'smash' | 'uppercut' | 'push' | 'special'
+type MoveName = 'punch' | 'kick' | 'smash' | 'uppercut' | 'push' | 'special' | 'ultimate'
 /**
  * Son enchaînement. Le coup de poing : mise en place, bras armé, le bras part, poing tendu, puis retour ; il avance
  * très légèrement pendant l'armé. Un nouvel appui pendant le coup de poing enchaîne le coup de pied haut : genou
@@ -246,6 +250,24 @@ const MOVES: Record<MoveName, Move> = {
     power: 1.4,
     stop: 0.24,
   },
+  // attaque ultime, pour l'instant seulement son début : mains tendues, l'énergie se forme, puis grossit ; au moment où
+  // elle grossit, le combat se fige et la caméra se resserre sur lui (`takeFocus`). Il ne frappe pas encore.
+  ultimate: {
+    steps: [
+      { pose: 'ultReady', seconds: 0.1 },
+      { pose: 'ultCharge1', seconds: 0.14 },
+      { pose: 'ultCharge2', seconds: 0.7 },
+      { pose: 'ultCharge1', seconds: 0.1 },
+      { pose: 'ultReady', seconds: 0.12 },
+    ],
+    advance: 0,
+    advanceFrom: 0,
+    advanceTo: 1,
+    reach: 0,
+    height: 0,
+    power: 0,
+    stop: 0,
+  },
 }
 /** Effets du coup spécial : durée de la croissance de la traînée, de son estompage et de l'explosion, en secondes. */
 const FX = { grow: 0.08, fade: 0.22, burst: 0.35 }
@@ -328,6 +350,8 @@ export class RivalLayer implements Opponent {
   private burstTime = Infinity
   /** Vrai quand le coup spécial vient de toucher, jusqu'à ce que le moteur le prenne en compte. */
   private impact = false
+  /** Vrai dès que la mise au point de l'attaque ultime en cours a été lancée. */
+  private focusTaken = false
   /** Coup en cours de l'enchaînement, et vrai si le joueur a demandé le suivant. */
   private move: MoveName = 'punch'
   private queued = false
@@ -420,6 +444,26 @@ export class RivalLayer implements Opponent {
     if (this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
     this.settle()
     this.startMove('punch')
+  }
+
+  /** Attaque ultime : possible seulement en garde ou en lévitation. */
+  ultimate(): void {
+    if (this.attackTime >= 0 || this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    this.settle()
+    this.focusTaken = false
+    this.startMove('ultimate')
+  }
+
+  /** Vrai pendant l'attaque ultime : le moteur assombrit le décor et Moussa. */
+  get ultimateActive(): boolean {
+    return this.attackTime >= 0 && this.move === 'ultimate'
+  }
+
+  /** Vrai une seule fois, quand l'énergie de l'attaque ultime grossit : le combat se fige et la caméra se resserre sur lui. */
+  takeFocus(): boolean {
+    if (!this.ultimateActive || this.focusTaken || this.pose !== 'ultCharge2') return false
+    this.focusTaken = true
+    return true
   }
 
   /**

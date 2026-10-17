@@ -28,7 +28,7 @@ const SHAKE = { amplitude: 0.006, decay: 16 }
  * (`pull` : part du chemin parcouru, pour ne pas montrer le bord du décor), le temps de `FOCUS_SECONDS`.
  * `height` : hauteur visée, en fraction de l'écran (le haut du corps du personnage baissé).
  */
-const FOCUS = { zoom: 0.38, pull: 0.45, height: 0.8, ease: 0.12 }
+const FOCUS = { zoom: 0.38, pull: 0.45, height: 0.8, rivalHeight: 0.7, ease: 0.12 }
 
 /**
  * Orchestre l'écran du stage : une seule boucle, une seule caméra, six plans
@@ -62,6 +62,10 @@ export class StageEngine {
   private covered = false
   /** Temps écoulé depuis le début de la mise au point, ou -1. */
   private focusTime = -1
+  /** Celui sur qui la caméra se resserre pendant la mise au point. */
+  private focusOn: 'hero' | 'rival' = 'hero'
+  /** Plans assombris pendant l'attaque ultime de l'adversaire : tout sauf lui. */
+  private rivalDimmed: HTMLCanvasElement[]
   /** Round en cours, et vrai pendant la sortie de fin de round. */
   private round = 1
   private roundEnding = false
@@ -101,7 +105,8 @@ export class StageEngine {
     this.cinematic = new CinematicLayer(canvases.cinematic)
     this.fighters = [canvases.dummy, canvases.rival, canvases.hero]
     this.dimmed = [canvases.backdrop, canvases.dummy, canvases.rival, canvases.weather]
-    for (const canvas of this.dimmed) canvas.style.transition = 'filter 0.15s'
+    this.rivalDimmed = [canvases.backdrop, canvases.dummy, canvases.hero, canvases.weather]
+    for (const canvas of [...this.dimmed, canvases.hero]) canvas.style.transition = 'filter 0.15s'
     this.canvases = [canvases.backdrop, canvases.dummy, canvases.rival, canvases.hero, canvases.weather, canvases.cinematic]
   }
 
@@ -131,6 +136,11 @@ export class StageEngine {
   }
 
   /** Fait attaquer celui qui fait face au personnage, pour tester les coups reçus et parés. */
+  /** Attaque ultime de l'adversaire. */
+  rivalUltimate(): void {
+    if (!this.cinematic.locked) this.rival.ultimate()
+  }
+
   /** Coup spécial de l'adversaire. */
   rivalSpecial(): void {
     if (!this.cinematic.locked) this.rival.special()
@@ -306,9 +316,12 @@ export class StageEngine {
       const zoom = camera.zoom + FOCUS.zoom * e
       const depth = PLACEMENT.depth
       // position du personnage à l'écran, retournée quand les combattants ont changé de côté
-      const screen = this.mirrored ? 1 - this.hero.position : this.hero.position
+      const position = this.focusOn === 'rival' ? this.rival.x : this.hero.position
+      const screen = this.mirrored ? 1 - position : position
       const ox = (0.5 - screen) / depth
-      const oy = (0.5 + 0.05 / zoom - FOCUS.height) / depth
+      // l'adversaire est debout : la caméra vise plus haut que pour Moussa baissé
+      const height = this.focusOn === 'rival' ? FOCUS.rivalHeight : FOCUS.height
+      const oy = (0.5 + 0.05 / zoom - height) / depth
       camera.zoom = zoom
       camera.ox += (ox - camera.ox) * FOCUS.pull * e
       camera.oy += (oy - camera.oy) * FOCUS.pull * e
@@ -368,6 +381,14 @@ export class StageEngine {
       // la main au sol : le jeu se fige, la caméra se resserre sur lui
       this.cinematic.focus()
       this.focusTime = 0
+      this.focusOn = 'hero'
+      this.stop = FOCUS_SECONDS
+    }
+    // attaque ultime de l'adversaire : quand son énergie grossit, le combat se fige et la caméra se resserre sur lui
+    if (this.rival.takeFocus()) {
+      this.cinematic.focus()
+      this.focusTime = 0
+      this.focusOn = 'rival'
       this.stop = FOCUS_SECONDS
     }
     if (this.hero.takeCutIn()) {
@@ -380,8 +401,12 @@ export class StageEngine {
       this.shake = 2.2
     }
     // et tant qu'elle dure, le décor, l'adversaire et la météo sont assombris : seul le personnage reste éclairé
-    const dim = this.hero.superActive || this.focusTime >= 0 ? 'brightness(0.35) saturate(0.7)' : ''
-    for (const canvas of this.dimmed) {
+    // (pendant l'attaque ultime de l'adversaire, c'est lui qui reste éclairé)
+    const heroDim = this.hero.superActive || (this.focusTime >= 0 && this.focusOn === 'hero')
+    const rivalDim = this.rival.ultimateActive || (this.focusTime >= 0 && this.focusOn === 'rival')
+    for (const canvas of new Set([...this.dimmed, ...this.rivalDimmed])) {
+      const dark = (heroDim && this.dimmed.includes(canvas)) || (rivalDim && this.rivalDimmed.includes(canvas))
+      const dim = dark ? 'brightness(0.35) saturate(0.7)' : ''
       if (canvas.style.filter !== dim) canvas.style.filter = dim
     }
     if (this.hero.koLanded && !this.koAnnounced) {

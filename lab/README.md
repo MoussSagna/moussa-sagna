@@ -37,6 +37,7 @@ La case « Contrôler l'adversaire » donne les flèches à l'adversaire ; Mouss
 | Téléportation avant (dans le dos de Moussa au corps à corps : les combattants changent de côté) | deux appuis rapides vers Moussa |
 | Téléportation arrière | deux appuis rapides à l'opposé |
 | Parer | maintenir ↓ |
+| Début de l'attaque ultime (mise au point sur lui) | N |
 | Coup spécial (annule n'importe quel coup de l'enchaînement) | Maj (ou M, même quand il n'est pas contrôlé) |
 | Coup de poing, puis coup de pied, coup de marteau, uppercut et coup de pied final, à chaque nouvel appui | Entrée (ou K, même quand il n'est pas contrôlé) |
 
