@@ -58,8 +58,13 @@ const POSES = {
   specialChamber: { file: 'rival/special-chamber.webp', ground: [344, 1365], scale: 1.3 },
   specialCharge: { file: 'rival/special-charge.webp', ground: [434, 1333], scale: 1.3 },
   specialKick: { file: 'rival/special-kick.webp', ground: [469, 1289], scale: 1.3 },
-  // effet d'énergie dessiné par-dessus le coup de pied : son cœur lumineux est calé sur la semelle
-  fxSwirl: { file: 'rival/fx-swirl.webp', ground: [665, 1648], scale: 1 },
+  // effets du coup spécial (planche fournie par Moussa) : leur cœur lumineux est calé sur la semelle du coup de pied.
+  // La traînée grandit en trois dessins ; l'explosion et l'anneau éclatent quand le coup touche.
+  fxTrail1: { file: 'rival/fx-trail-1.webp', ground: [745, 1716], scale: 1 },
+  fxTrail2: { file: 'rival/fx-trail-2.webp', ground: [745, 1716], scale: 1 },
+  fxTrail3: { file: 'rival/fx-trail-3.webp', ground: [745, 1716], scale: 1 },
+  fxBurst: { file: 'rival/fx-burst.webp', ground: [1057, 1716], scale: 1 },
+  fxRing: { file: 'rival/fx-ring.webp', ground: [1057, 1716], scale: 1 },
   blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
   hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
@@ -242,6 +247,9 @@ const MOVES: Record<MoveName, Move> = {
     stop: 0.24,
   },
 }
+/** Effets du coup spécial : durée de la croissance de la traînée, de son estompage et de l'explosion, en secondes. */
+const FX = { grow: 0.08, fade: 0.22, burst: 0.35 }
+const SPECIAL_KICK = MOVES.special.steps.slice(0, 3).reduce((sum, step) => sum + step.seconds, 0)
 const moveTotal = (move: Move) => move.steps.reduce((sum, step) => sum + step.seconds, 0)
 /** Fin des images actives d'un coup : c'est là que part le coup suivant de l'enchaînement. */
 const moveActiveEnd = (move: Move) => {
@@ -316,6 +324,8 @@ export class RivalLayer implements Opponent {
   private attackTime = -1
   private attackFrom = 0
   private attackLanded = false
+  /** Temps écoulé depuis l'impact du coup spécial, pour son explosion. */
+  private burstTime = Infinity
   /** Coup en cours de l'enchaînement, et vrai si le joueur a demandé le suivant. */
   private move: MoveName = 'punch'
   private queued = false
@@ -381,6 +391,7 @@ export class RivalLayer implements Opponent {
     this.pose = 'guard'
     this.teleportTime = -1
     this.attackTime = -1
+    this.burstTime = Infinity
     this.ghostTime = Infinity
     this.crossing = false
     this.settle()
@@ -441,9 +452,10 @@ export class RivalLayer implements Opponent {
     return { x: this.x - move.reach * pixel, height: move.height, power: move.power, stop: move.stop }
   }
 
-  /** Son coup a touché ou a été paré : il ne touchera plus. */
+  /** Son coup a touché ou a été paré : il ne touchera plus. Le coup spécial explose à l'impact. */
   land(): void {
     this.attackLanded = true
+    if (this.move === 'special') this.burstTime = 0
   }
 
   /**
@@ -495,6 +507,7 @@ export class RivalLayer implements Opponent {
   }
 
   update(frame: FrameInfo): void {
+    this.burstTime += frame.delta
     this.ghostTime += frame.delta
     if (this.teleportTime >= 0) {
       const before = this.teleportTime
@@ -710,11 +723,18 @@ export class RivalLayer implements Opponent {
       drawPose('teleportStreak', 0.45 * (1 - ghost) ** 2, at, 1 + 0.5 * ghost)
     }
     if (!this.vanished) drawPose(this.pose, 1)
-    // coup spécial : l'énergie violette enveloppe la jambe tendue et s'estompe pendant que le coup se tient
-    if (this.pose === 'specialKick') {
-      const kick = MOVES.special.steps.slice(0, 3).reduce((sum, step) => sum + step.seconds, 0)
-      const k = Math.min(1, Math.max(0, (this.attackTime - kick) / 0.3))
-      drawPose('fxSwirl', (calm ? 0.6 : 1) * (1 - k * k))
+    // coup spécial : la traînée d'énergie grandit en trois dessins pendant la jambe tendue, puis s'estompe
+    const strength = calm ? 0.6 : 1
+    if (this.pose === 'specialKick' && this.attackTime >= 0) {
+      const t = this.attackTime - SPECIAL_KICK
+      const k = Math.min(1, Math.max(0, (t - FX.grow) / FX.fade))
+      drawPose(t < FX.grow / 2 ? 'fxTrail1' : t < FX.grow ? 'fxTrail2' : 'fxTrail3', strength * (1 - k * k))
+    }
+    // à l'impact : l'anneau et l'explosion éclatent sur Moussa, puis s'estompent
+    if (this.burstTime < FX.burst) {
+      const k = this.burstTime / FX.burst
+      if (k < 0.5) drawPose('fxRing', strength * (1 - 2 * k))
+      drawPose('fxBurst', strength * (1 - k * k))
     }
   }
 }
