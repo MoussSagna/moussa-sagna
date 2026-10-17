@@ -246,7 +246,7 @@ function App() {
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">I</kbd> pour la frappe au sol,{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">P</kbd> pour finir le round,{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">O</kbd> pour perdre par K.O. ;{' '}
-        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">K</kbd> pour que le mannequin ou l'adversaire t'attaque, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">M</kbd> pour son coup spécial, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">N</kbd> pour le début de son attaque ultime. {note}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">K</kbd> pour que le mannequin ou l'adversaire t'attaque, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">M</kbd> pour son coup spécial, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">N</kbd> pour son attaque ultime. {note}
       </p>
       {rivalControl && (
         <p className="m-0 text-[15px] text-line">

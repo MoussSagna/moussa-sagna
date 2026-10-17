@@ -61,7 +61,12 @@ const POSES = {
   // attaque ultime : mains tendues, puis énergie qui grossit entre ses mains ; calés sur la botte arrière
   ultReady: { file: 'rival/ult-ready.webp', ground: [631, 1459], scale: 1.1 },
   ultCharge1: { file: 'rival/ult-charge-1.webp', ground: [664, 1466], scale: 1.1 },
-  ultCharge2: { file: 'rival/ult-charge-2.webp', ground: [595, 1348], scale: 1.2 },
+  ultCharge2: { file: 'rival/ult-charge-2.webp', ground: [624, 1351], scale: 1.35 },
+  // l'uppercut de l'attaque ultime, puis il se baisse en trois dessins
+  ultUpper: { file: 'rival/ult-upper.webp', ground: [625, 1397], scale: 1.3 },
+  ultLand1: { file: 'rival/ult-land-1.webp', ground: [519, 1346], scale: 1.3 },
+  ultLand2: { file: 'rival/ult-land-2.webp', ground: [611, 1326], scale: 1.3 },
+  ultLand3: { file: 'rival/ult-land-3.webp', ground: [599, 1247], scale: 1.3 },
   // effets du coup spécial (planche fournie par Moussa) : leur cœur lumineux est calé sur la semelle du coup de pied.
   // La traînée grandit en trois dessins ; l'explosion et l'anneau éclatent quand le coup touche.
   fxTrail1: { file: 'rival/fx-trail-1.webp', ground: [745, 1716], scale: 1 },
@@ -118,10 +123,21 @@ const TELEPORT = {
 }
 const TELEPORT_VANISH = TELEPORT.steps[0].seconds + TELEPORT.steps[1].seconds
 const TELEPORT_TOTAL = TELEPORT.steps.reduce((sum, step) => sum + step.seconds, 0)
+/** Une étape d'un coup. */
+interface Step {
+  pose: RivalPose
+  seconds: number
+  active?: boolean
+  vanish?: boolean
+  warp?: boolean
+}
 /** Un coup de son enchaînement. */
 interface Move {
-  /** Les étapes dans l'ordre, avec leur durée en secondes ; `active` : le coup peut toucher pendant cette étape. */
-  steps: { pose: RivalPose; seconds: number; active?: boolean }[]
+  /**
+   * Les étapes dans l'ordre, avec leur durée en secondes ; `active` : le coup peut toucher pendant cette étape ;
+   * `vanish` : il est invisible ; `warp` : en commençant l'étape, il se téléporte juste devant Moussa.
+   */
+  steps: Step[]
   /** Avancée (fraction de la largeur de l'écran) entre `advanceFrom` et `advanceTo` secondes, sans traverser Moussa. */
   advance: number
   advanceFrom: number
@@ -250,23 +266,31 @@ const MOVES: Record<MoveName, Move> = {
     power: 1.4,
     stop: 0.24,
   },
-  // attaque ultime, pour l'instant seulement son début : mains tendues, l'énergie se forme, puis grossit ; au moment où
-  // elle grossit, le combat se fige et la caméra se resserre sur lui (`takeFocus`). Il ne frappe pas encore.
+  // attaque ultime : mains tendues, l'énergie se forme puis grossit (le combat se fige et la caméra se resserre sur lui,
+  // `takeFocus`), puis il se téléporte à travers l'écran juste devant Moussa, le frappe d'un uppercut et se baisse
   ultimate: {
     steps: [
       { pose: 'ultReady', seconds: 0.1 },
       { pose: 'ultCharge1', seconds: 0.14 },
-      { pose: 'ultCharge2', seconds: 0.7 },
-      { pose: 'ultCharge1', seconds: 0.1 },
-      { pose: 'ultReady', seconds: 0.12 },
+      { pose: 'ultCharge2', seconds: 0.45 },
+      { pose: 'teleportStreak', seconds: 0.05 },
+      { pose: 'teleportStreak', seconds: 0.1, vanish: true, warp: true },
+      { pose: 'teleportStreak', seconds: 0.04 },
+      { pose: 'ultUpper', seconds: 0.14, active: true },
+      { pose: 'ultUpper', seconds: 0.22 },
+      { pose: 'ultLand1', seconds: 0.08 },
+      { pose: 'ultLand2', seconds: 0.08 },
+      { pose: 'ultLand3', seconds: 0.4 },
+      { pose: 'ultLand2', seconds: 0.08 },
+      { pose: 'ultLand1', seconds: 0.08 },
     ],
     advance: 0,
     advanceFrom: 0,
     advanceTo: 1,
-    reach: 0,
-    height: 0,
-    power: 0,
-    stop: 0,
+    reach: 900,
+    height: 1350,
+    power: 1.6,
+    stop: 0.3,
   },
 }
 /** Effets du coup spécial : durée de la croissance de la traînée, de son estompage et de l'explosion, en secondes. */
@@ -352,6 +376,8 @@ export class RivalLayer implements Opponent {
   private impact = false
   /** Vrai dès que la mise au point de l'attaque ultime en cours a été lancée. */
   private focusTaken = false
+  /** Vrai dès que la téléportation de l'attaque ultime en cours a eu lieu. */
+  private warped = false
   /** Coup en cours de l'enchaînement, et vrai si le joueur a demandé le suivant. */
   private move: MoveName = 'punch'
   private queued = false
@@ -487,11 +513,12 @@ export class RivalLayer implements Opponent {
     this.attackLanded = false
     this.queued = false
     this.specialQueued = false
+    this.warped = false
     this.pose = MOVES[move].steps[0].pose
   }
 
   /** L'étape en cours du coup. */
-  private moveStep(): { pose: RivalPose; seconds: number; active?: boolean } {
+  private moveStep(): Step {
     const steps = MOVES[this.move].steps
     let end = 0
     for (const step of steps) {
@@ -511,7 +538,7 @@ export class RivalLayer implements Opponent {
   /** Son coup a touché ou a été paré : il ne touchera plus. Le coup spécial explose à l'impact. */
   land(): void {
     this.attackLanded = true
-    if (this.move === 'special') {
+    if (this.move === 'special' || this.move === 'ultimate') {
       this.burstTime = 0
       this.impact = true
     }
@@ -559,7 +586,7 @@ export class RivalLayer implements Opponent {
 
   /** Vrai pendant la téléportation, quand il n'est plus visible. */
   private get vanished(): boolean {
-    return this.teleportTime >= 0 && this.teleportStep() === null
+    return (this.teleportTime >= 0 && this.teleportStep() === null) || (this.attackTime >= 0 && this.moveStep().vanish === true)
   }
 
   /** Le dessin de l'étape en cours de la téléportation, ou `null` quand il est invisible. */
@@ -600,6 +627,15 @@ export class RivalLayer implements Opponent {
     if (this.attackTime >= 0) {
       this.attackTime += frame.delta
       const move = MOVES[this.move]
+      // téléportation de l'attaque ultime : il laisse une image rémanente et réapparaît juste devant Moussa
+      if (this.moveStep().warp && !this.warped) {
+        this.warped = true
+        this.ghostX = this.x
+        this.ghostTime = 0
+        const [min] = this.bounds(this.pixel(frame))
+        this.x = min + 0.02
+        this.attackFrom = this.x
+      }
       // il avance très légèrement pendant le coup, sans traverser Moussa
       const k = Math.max(0, Math.min(1, (this.attackTime - move.advanceFrom) / (move.advanceTo - move.advanceFrom)))
       const [min] = this.bounds(this.pixel(frame))
