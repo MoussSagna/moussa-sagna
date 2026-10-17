@@ -61,7 +61,7 @@ const POSES = {
   // attaque ultime : mains tendues, puis énergie qui grossit entre ses mains ; calés sur la botte arrière
   ultReady: { file: 'rival/ult-ready.webp', ground: [631, 1459], scale: 1.1 },
   ultCharge1: { file: 'rival/ult-charge-1.webp', ground: [664, 1466], scale: 1.1 },
-  ultCharge2: { file: 'rival/ult-charge-2.webp', ground: [679, 1469], scale: 1.1 },
+  ultCharge2: { file: 'rival/ult-charge-2.webp', ground: [595, 1348], scale: 1.2 },
   // effets du coup spécial (planche fournie par Moussa) : leur cœur lumineux est calé sur la semelle du coup de pied.
   // La traînée grandit en trois dessins ; l'explosion et l'anneau éclatent quand le coup touche.
   fxTrail1: { file: 'rival/fx-trail-1.webp', ground: [745, 1716], scale: 1 },
