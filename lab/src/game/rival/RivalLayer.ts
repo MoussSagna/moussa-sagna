@@ -230,17 +230,17 @@ const MOVES: Record<MoveName, Move> = {
   // d'énergie violette, puis retour à l'amorçage
   special: {
     steps: [
-      { pose: 'specialStance', seconds: 0.08 },
-      { pose: 'specialChamber', seconds: 0.08 },
-      { pose: 'specialCharge', seconds: 0.16 },
-      { pose: 'specialKick', seconds: 0.14, active: true },
-      { pose: 'specialKick', seconds: 0.16 },
-      { pose: 'specialCharge', seconds: 0.08 },
-      { pose: 'specialChamber', seconds: 0.1 },
+      { pose: 'specialStance', seconds: 0.05 },
+      { pose: 'specialChamber', seconds: 0.05 },
+      { pose: 'specialCharge', seconds: 0.1 },
+      { pose: 'specialKick', seconds: 0.12, active: true },
+      { pose: 'specialKick', seconds: 0.12 },
+      { pose: 'specialCharge', seconds: 0.06 },
+      { pose: 'specialChamber', seconds: 0.07 },
     ],
     advance: 0.03,
-    advanceFrom: 0.16,
-    advanceTo: 0.34,
+    advanceFrom: 0.1,
+    advanceTo: 0.22,
     reach: 820,
     height: 1150,
     power: 1.4,
@@ -326,6 +326,8 @@ export class RivalLayer implements Opponent {
   private attackLanded = false
   /** Temps écoulé depuis l'impact du coup spécial, pour son explosion. */
   private burstTime = Infinity
+  /** Vrai quand le coup spécial vient de toucher, jusqu'à ce que le moteur le prenne en compte. */
+  private impact = false
   /** Coup en cours de l'enchaînement, et vrai si le joueur a demandé le suivant. */
   private move: MoveName = 'punch'
   private queued = false
@@ -465,7 +467,17 @@ export class RivalLayer implements Opponent {
   /** Son coup a touché ou a été paré : il ne touchera plus. Le coup spécial explose à l'impact. */
   land(): void {
     this.attackLanded = true
-    if (this.move === 'special') this.burstTime = 0
+    if (this.move === 'special') {
+      this.burstTime = 0
+      this.impact = true
+    }
+  }
+
+  /** Vrai une seule fois, quand le coup spécial vient de toucher ou d'être paré : le moteur fait trembler l'écran. */
+  takeImpact(): boolean {
+    const impact = this.impact
+    this.impact = false
+    return impact
   }
 
   /**

@@ -406,6 +406,8 @@ export class StageEngine {
       this.cinematic.startRound(this.round)
     }
     if (!stopped) this.resolveHits(info, calm)
+    // le coup spécial de l'adversaire : forte secousse de l'écran à l'impact, comme la frappe au sol de Moussa
+    if (this.rival.takeImpact()) this.shake = 2.2
     // un seul des deux est affiché
     this.opponentCanvases.dummy.style.visibility = target === this.dummy ? 'visible' : 'hidden'
     this.opponentCanvases.rival.style.visibility = target === this.rival ? 'visible' : 'hidden'
