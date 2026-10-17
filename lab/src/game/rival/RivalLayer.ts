@@ -329,6 +329,8 @@ export class RivalLayer implements Opponent {
   /** Coup en cours de l'enchaînement, et vrai si le joueur a demandé le suivant. */
   private move: MoveName = 'punch'
   private queued = false
+  /** Vrai si le coup spécial a été demandé pendant un coup de l'enchaînement, pour l'annuler. */
+  private specialQueued = false
   /** Sens de la téléportation en cours : -1 vers Moussa, 1 en s'éloignant. */
   private teleportDirection = -1
   /** Vrai quand il vient de disparaître au corps à corps : le moteur fait changer les combattants de côté. */
@@ -418,9 +420,16 @@ export class RivalLayer implements Opponent {
     this.startMove('punch')
   }
 
-  /** Coup spécial : possible seulement en garde ou en lévitation. */
+  /**
+   * Coup spécial : en garde ou en lévitation, ou pendant n'importe quel coup de l'enchaînement, qu'il annule. Pendant
+   * un coup, il part dès la fin des images actives (tout de suite si elles sont passées), à la place de la suite.
+   */
   special(): void {
-    if (this.attackTime >= 0 || this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    if (this.attackTime >= 0) {
+      if (this.move !== 'special') this.specialQueued = true
+      return
+    }
+    if (this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
     this.settle()
     this.startMove('special')
   }
@@ -431,6 +440,7 @@ export class RivalLayer implements Opponent {
     this.attackFrom = this.x
     this.attackLanded = false
     this.queued = false
+    this.specialQueued = false
     this.pose = MOVES[move].steps[0].pose
   }
 
@@ -539,7 +549,10 @@ export class RivalLayer implements Opponent {
       const [min] = this.bounds(this.pixel(frame))
       const target = this.attackFrom - move.advance * (1 - (1 - k) ** 2)
       this.x = Math.max(Math.min(this.x, min), target)
-      if (move.next && this.queued && this.attackTime >= moveActiveEnd(move)) {
+      if (this.specialQueued && this.attackTime >= moveActiveEnd(move)) {
+        // le coup spécial annule la suite du coup en cours
+        this.startMove('special')
+      } else if (move.next && this.queued && this.attackTime >= moveActiveEnd(move)) {
         // le coup suivant remplace le retour de celui-ci
         this.startMove(move.next)
       } else if (this.attackTime >= moveTotal(move)) {
