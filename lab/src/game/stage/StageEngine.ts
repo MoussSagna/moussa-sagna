@@ -373,9 +373,8 @@ export class StageEngine {
     this.rival.heroX = this.hero.position
     const target = this.opponent()
     target.update(fight)
-    // propulsé : traits de vitesse verticaux sur tout l'écran
     // l'adversaire décolle : forte secousse de l'écran
-    if (this.rival.flying) this.shake = Math.max(this.shake, 2.2)
+    if (this.rival.flying) this.shake = Math.max(this.shake, 3.5)
     // pour la démo : dès qu'il s'est envolé hors de l'écran, le round suivant commence
     if (this.rival.takeTakeoff()) {
       this.round += 1

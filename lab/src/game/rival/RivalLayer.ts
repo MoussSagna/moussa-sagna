@@ -341,7 +341,7 @@ const MOVES: Record<MoveName, Move> = {
       { pose: 'ultCrouch3', seconds: 0.08 },
       { pose: 'ultFly', seconds: 0.12, takeoff: true },
       // il est parti : la traînée de super vitesse reste un instant et s'estompe
-      { pose: 'ultFly', seconds: 0.34, vanish: true, trail: true },
+      { pose: 'ultFly', seconds: 0.5, vanish: true, trail: true },
     ],
     advance: 0,
     advanceFrom: 0,
@@ -375,7 +375,7 @@ const TAKEOFF_START = (() => {
 })()
 /** Impact au sol du décollage : les onze dessins se suivent, chacun `frame` secondes, à partir du décollage. */
 const GROUND_FX = ['fxGround1', 'fxGround2', 'fxGround3', 'fxGround4', 'fxGround5', 'fxGround6', 'fxGround7', 'fxGround8', 'fxGround9', 'fxGround10', 'fxGround11'] as const
-const GROUND_FX_FRAME = 0.04
+const GROUND_FX_FRAME = 0.055
 const TAKEOFF_SECONDS = MOVES.ultimate.steps.find((step) => step.takeoff)?.seconds ?? 1
 const moveTotal = (move: Move) => move.steps.reduce((sum, step) => sum + step.seconds, 0)
 /** Fin des images actives d'un coup : c'est là que part le coup suivant de l'enchaînement. */
