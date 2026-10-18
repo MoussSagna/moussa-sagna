@@ -30,6 +30,90 @@ const POSES = {
   teleportCrouch: { file: 'rival/teleport-crouch.webp', ground: [565, 1256], scale: 1.1 },
   teleportStreak: { file: 'rival/teleport-streak.webp', ground: [565, 1221], scale: 1.1 },
   teleportRise: { file: 'rival/teleport-rise.webp', ground: [545, 1434], scale: 1.1 },
+  // coup de poing : calé sur le centre de sa botte arrière, qui reste plantée pendant que le corps part en avant ;
+  // l'échelle ramène la distance du haut des cheveux au ceinturon à celle de la garde (la taille de la tête pour
+  // les poses penchées, où cette distance se raccourcit)
+  punchReady: { file: 'rival/punch-ready.webp', ground: [559, 1400], scale: 1.13 },
+  punchWindup: { file: 'rival/punch-windup.webp', ground: [643, 1365], scale: 1.13 },
+  punchReach: { file: 'rival/punch-reach.webp', ground: [642, 1171], scale: 1.27 },
+  punchHit: { file: 'rival/punch-hit.webp', ground: [655, 1241], scale: 1.35 },
+  // coup de pied : calé sur la botte d'appui, qui reste au sol
+  kickChamber: { file: 'rival/kick-chamber.webp', ground: [548, 1404], scale: 1.2 },
+  kickRaise: { file: 'rival/kick-raise.webp', ground: [551, 1421], scale: 1.18 },
+  kickHit: { file: 'rival/kick-hit.webp', ground: [647, 1337], scale: 1.18 },
+  // coup de marteau : calé sur la botte arrière, qui reste au sol (coupée par le bord droit de l'illustration)
+  smashRaise: { file: 'rival/smash-raise.webp', ground: [619, 1415], scale: 1.05 },
+  smashSwing: { file: 'rival/smash-swing.webp', ground: [627, 1455], scale: 1.05 },
+  smashHit: { file: 'rival/smash-hit.webp', ground: [627, 1389], scale: 1.05 },
+  // uppercut : calé sur la botte arrière
+  upperCrouch: { file: 'rival/upper-crouch.webp', ground: [606, 1198], scale: 1.1 },
+  upperRise: { file: 'rival/upper-rise.webp', ground: [594, 1277], scale: 1.3 },
+  upperHit: { file: 'rival/upper-hit.webp', ground: [653, 1463], scale: 1.28 },
+  // coup de pied de face, de dos : calé sur la botte d'appui ; illustrations dessinées plus petit, d'où l'échelle
+  pushReady: { file: 'rival/push-ready.webp', ground: [412, 1344], scale: 1.4 },
+  pushChamber: { file: 'rival/push-chamber.webp', ground: [408, 1332], scale: 1.4 },
+  pushHit: { file: 'rival/push-hit.webp', ground: [399, 1373], scale: 1.4 },
+  // coup spécial : pose, amorçage, amorçage chargé d'énergie, coup de pied ; calés sur la botte d'appui
+  specialStance: { file: 'rival/special-stance.webp', ground: [576, 1395], scale: 1.3 },
+  specialChamber: { file: 'rival/special-chamber.webp', ground: [344, 1365], scale: 1.3 },
+  specialCharge: { file: 'rival/special-charge.webp', ground: [434, 1333], scale: 1.3 },
+  specialKick: { file: 'rival/special-kick.webp', ground: [469, 1289], scale: 1.3 },
+  // suite du coup spécial : coup de poing chargé (garde, armé, poing qui part, poing tendu) ; calés 150 à 280 px en
+  // arrière de la botte arrière, sinon son corps chevauche Moussa à la distance du coup de pied
+  special2Ready: { file: 'rival/special2-ready.webp', ground: [362, 1316], scale: 1.15 },
+  special2Cock: { file: 'rival/special2-cock.webp', ground: [368, 1360], scale: 1.15 },
+  special2Punch: { file: 'rival/special2-punch.webp', ground: [401, 1305], scale: 1.15 },
+  special2Hit: { file: 'rival/special2-hit.webp', ground: [453, 1302], scale: 1.15 },
+  // attaque ultime : mains tendues, puis énergie qui grossit entre ses mains ; calés sur la botte arrière
+  ultReady: { file: 'rival/ult-ready.webp', ground: [631, 1459], scale: 1.1 },
+  ultCharge1: { file: 'rival/ult-charge-1.webp', ground: [664, 1466], scale: 1.1 },
+  ultCharge2: { file: 'rival/ult-charge-2.webp', ground: [624, 1351], scale: 1.35 },
+  // après l'uppercut de l'attaque ultime (mêmes dessins que l'uppercut de l'enchaînement), il se baisse en trois dessins
+  // puis il libère son énergie (de face), se baisse en la chargeant et s'envole ; calés sur la botte arrière
+  ultPower: { file: 'rival/ult-power.webp', ground: [670, 1407], scale: 1.3 },
+  ultCrouch1: { file: 'rival/ult-crouch-1.webp', ground: [670, 1382], scale: 1.3 },
+  ultCrouch2: { file: 'rival/ult-crouch-2.webp', ground: [660, 1243], scale: 1.3 },
+  ultCrouch3: { file: 'rival/ult-crouch-3.webp', ground: [655, 1292], scale: 1.3 },
+  // l'envol : `ground` sous ses bottes, pour qu'il parte du sol
+  ultFly: { file: 'rival/ult-fly.webp', ground: [560, 1060], scale: 1.35 },
+  // il retombe en frappant du poing vers le sol : calé sur la botte arrière, poing vers (200, 1250)
+  ultLand: { file: 'rival/ult-land.webp', ground: [685, 1386], scale: 1.3 },
+  // coup de marteau à deux mains de la fin de l'attaque ultime : calés sur la botte arrière ; l'échelle ramène l'oreille
+  // à sa taille dans la garde
+  hammerRaise: { file: 'rival/hammer-raise.webp', ground: [697, 1476], scale: 1.35 },
+  hammerSwing: { file: 'rival/hammer-swing.webp', ground: [678, 1306], scale: 1.25 },
+  hammerHit: { file: 'rival/hammer-hit.webp', ground: [694, 1303], scale: 1.25 },
+  hammerEnd: { file: 'rival/hammer-end.webp', ground: [686, 1317], scale: 1.25 },
+  // bond en arrière après le coup final : calés sur la botte arrière au sol, sous les pieds en l'air
+  hop1: { file: 'rival/hop-1.webp', ground: [614, 1311], scale: 1.25 },
+  hop2: { file: 'rival/hop-2.webp', ground: [618, 1314], scale: 1.25 },
+  hop3: { file: 'rival/hop-3.webp', ground: [600, 1250], scale: 1.25 },
+  hop4: { file: 'rival/hop-4.webp', ground: [600, 1359], scale: 1.25 },
+  hop5: { file: 'rival/hop-5.webp', ground: [600, 1386], scale: 1.25 },
+  hop6: { file: 'rival/hop-6.webp', ground: [567, 1266], scale: 1.25 },
+  hop7: { file: 'rival/hop-7.webp', ground: [589, 1246], scale: 1.25 },
+  hop8: { file: 'rival/hop-8.webp', ground: [510, 1344], scale: 1.25 },
+  // traînée de super vitesse de l'envol : la pointe du bas posée au sol, assez grande pour monter jusqu'en haut de l'écran
+  fxStreak: { file: 'rival/fx-streak.webp', ground: [512, 1530], scale: 2 },
+  // impact au sol du décollage (onze dessins fournis par Moussa) : le centre du bas posé là où il s'envole
+  fxGround1: { file: 'rival/fx-ground-1.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround2: { file: 'rival/fx-ground-2.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround3: { file: 'rival/fx-ground-3.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround4: { file: 'rival/fx-ground-4.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround5: { file: 'rival/fx-ground-5.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround6: { file: 'rival/fx-ground-6.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround7: { file: 'rival/fx-ground-7.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround8: { file: 'rival/fx-ground-8.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround9: { file: 'rival/fx-ground-9.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround10: { file: 'rival/fx-ground-10.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround11: { file: 'rival/fx-ground-11.webp', ground: [512, 1500], scale: 1.5 },
+  // effets du coup spécial (planche fournie par Moussa) : leur cœur lumineux est calé sur la semelle du coup de pied.
+  // La traînée grandit en trois dessins ; l'explosion et l'anneau éclatent quand le coup touche.
+  fxTrail1: { file: 'rival/fx-trail-1.webp', ground: [745, 1716], scale: 1 },
+  fxTrail2: { file: 'rival/fx-trail-2.webp', ground: [745, 1716], scale: 1 },
+  fxTrail3: { file: 'rival/fx-trail-3.webp', ground: [745, 1716], scale: 1 },
+  fxBurst: { file: 'rival/fx-burst.webp', ground: [1057, 1716], scale: 1 },
+  fxRing: { file: 'rival/fx-ring.webp', ground: [1057, 1716], scale: 1 },
   blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
   hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
@@ -79,6 +163,297 @@ const TELEPORT = {
 }
 const TELEPORT_VANISH = TELEPORT.steps[0].seconds + TELEPORT.steps[1].seconds
 const TELEPORT_TOTAL = TELEPORT.steps.reduce((sum, step) => sum + step.seconds, 0)
+/** Une étape d'un coup. */
+interface Step {
+  pose: RivalPose
+  seconds: number
+  active?: boolean
+  vanish?: boolean
+  /** La traînée de super vitesse de l'envol s'estompe (il est déjà sorti de l'écran). */
+  trail?: boolean
+  warp?: boolean
+  /** Il s'envole hors de l'écran (l'écran tremble). */
+  takeoff?: boolean
+  /** Le coup de cette étape soulève Moussa (`pop`) ou le propulse hors de l'écran (`fly`). */
+  launch?: 'pop' | 'fly'
+}
+/** Un coup de son enchaînement. */
+interface Move {
+  /**
+   * Les étapes dans l'ordre, avec leur durée en secondes ; `active` : le coup peut toucher pendant cette étape ;
+   * `vanish` : il est invisible ; `warp` : en commençant l'étape, il se téléporte juste devant Moussa ; `launch` :
+   * le coup propulse Moussa. Chaque étape active peut toucher une fois : un coup à plusieurs étapes actives touche plusieurs fois.
+   */
+  steps: Step[]
+  /** Avancée (fraction de la largeur de l'écran) entre `advanceFrom` et `advanceTo` secondes, sans traverser Moussa. */
+  advance: number
+  advanceFrom: number
+  advanceTo: number
+  /** Bout du coup devant lui et hauteur, en pixels de la toile. */
+  reach: number
+  height: number
+  power: number
+  stop: number
+  /** Le coup suivant de l'enchaînement, lancé par un nouvel appui pendant celui-ci. */
+  next?: MoveName
+}
+type MoveName = 'punch' | 'kick' | 'smash' | 'uppercut' | 'push' | 'special' | 'special2' | 'ultimate'
+/**
+ * Son enchaînement. Le coup de poing : mise en place, bras armé, le bras part, poing tendu, puis retour ; il avance
+ * très légèrement pendant l'armé. Un nouvel appui pendant le coup de poing enchaîne le coup de pied haut : genou
+ * monté, plus haut, jambe tendue, puis retour ; puis le coup de marteau : poing levé au-dessus de la tête, abattu
+ * vers le sol, plus lourd ; enfin l'uppercut, dernier coup : accroupi, il se relève en lançant le poing vers le haut.
+ * Pour finir, le coup de pied de face : il se met de dos, monte le genou et repousse Moussa d'un coup de pied tendu.
+ * Le coup suivant part à la fin des images actives, à la place du retour.
+ */
+const MOVES: Record<MoveName, Move> = {
+  punch: {
+    steps: [
+      { pose: 'punchReady', seconds: 0.05 },
+      { pose: 'punchWindup', seconds: 0.09 },
+      { pose: 'punchReach', seconds: 0.04 },
+      { pose: 'punchHit', seconds: 0.11, active: true },
+      { pose: 'punchReach', seconds: 0.07 },
+      { pose: 'punchReady', seconds: 0.07 },
+  ],
+    advance: 0.025,
+    advanceFrom: 0.05,
+    advanceTo: 0.18,
+    reach: 580,
+    height: 1000,
+    power: 0.7,
+    stop: 0.12,
+    next: 'kick',
+  },
+  kick: {
+    steps: [
+      { pose: 'kickChamber', seconds: 0.06 },
+      { pose: 'kickRaise', seconds: 0.07 },
+      { pose: 'kickHit', seconds: 0.13, active: true },
+      { pose: 'kickRaise', seconds: 0.08 },
+      { pose: 'kickChamber', seconds: 0.07 },
+    ],
+    advance: 0.015,
+    advanceFrom: 0,
+    advanceTo: 0.13,
+    reach: 650,
+    height: 1200,
+    power: 0.9,
+    stop: 0.14,
+    next: 'smash',
+  },
+  smash: {
+    steps: [
+      { pose: 'smashRaise', seconds: 0.11 },
+      { pose: 'smashSwing', seconds: 0.05 },
+      { pose: 'smashHit', seconds: 0.1, active: true },
+      { pose: 'smashHit', seconds: 0.16 },
+      { pose: 'smashSwing', seconds: 0.06 },
+    ],
+    advance: 0.02,
+    advanceFrom: 0.06,
+    advanceTo: 0.2,
+    reach: 620,
+    height: 450,
+    power: 1,
+    stop: 0.18,
+    next: 'uppercut',
+  },
+  uppercut: {
+    steps: [
+      { pose: 'upperCrouch', seconds: 0.09 },
+      { pose: 'upperRise', seconds: 0.05 },
+      { pose: 'upperHit', seconds: 0.12, active: true },
+      { pose: 'upperHit', seconds: 0.2 },
+      { pose: 'upperRise', seconds: 0.08 },
+    ],
+    advance: 0.02,
+    advanceFrom: 0.05,
+    advanceTo: 0.2,
+    reach: 640,
+    height: 1350,
+    power: 1.3,
+    stop: 0.22,
+    next: 'push',
+  },
+  push: {
+    steps: [
+      { pose: 'pushReady', seconds: 0.08 },
+      { pose: 'pushChamber', seconds: 0.08 },
+      { pose: 'pushHit', seconds: 0.12, active: true },
+      { pose: 'pushHit', seconds: 0.18 },
+      { pose: 'pushChamber', seconds: 0.08 },
+      { pose: 'pushReady', seconds: 0.08 },
+    ],
+    advance: 0.025,
+    advanceFrom: 0.05,
+    advanceTo: 0.22,
+    reach: 680,
+    height: 1150,
+    power: 1.2,
+    stop: 0.2,
+  },
+  // premier coup spécial, hors enchaînement : pose, amorçage, amorçage chargé d'énergie, coup de pied enveloppé
+  // d'énergie violette, puis retour à l'amorçage
+  special: {
+    steps: [
+      { pose: 'specialStance', seconds: 0.05 },
+      { pose: 'specialChamber', seconds: 0.05 },
+      { pose: 'specialCharge', seconds: 0.1 },
+      { pose: 'specialKick', seconds: 0.12, active: true },
+      { pose: 'specialKick', seconds: 0.12 },
+      { pose: 'specialCharge', seconds: 0.06 },
+      { pose: 'specialChamber', seconds: 0.07 },
+    ],
+    advance: 0.03,
+    advanceFrom: 0.1,
+    advanceTo: 0.22,
+    reach: 820,
+    height: 1150,
+    power: 1.4,
+    stop: 0.24,
+    next: 'special2',
+  },
+  // suite du coup spécial, si l'on rappuie quand le coup de pied touche : coup de poing chargé d'énergie
+  special2: {
+    steps: [
+      { pose: 'special2Ready', seconds: 0.05 },
+      { pose: 'special2Cock', seconds: 0.07 },
+      { pose: 'special2Punch', seconds: 0.05 },
+      { pose: 'special2Hit', seconds: 0.12, active: true },
+      { pose: 'special2Hit', seconds: 0.14 },
+      { pose: 'special2Cock', seconds: 0.08 },
+    ],
+    advance: 0,
+    advanceFrom: 0.04,
+    advanceTo: 0.17,
+    reach: 820,
+    height: 1150,
+    power: 1.4,
+    stop: 0.24,
+  },
+  // attaque ultime : mains tendues, l'énergie se forme puis grossit (le combat se fige et la caméra se resserre sur lui,
+  // `takeFocus`), puis il se téléporte à travers l'écran juste devant Moussa, le frappe d'un uppercut et se baisse
+  ultimate: {
+    steps: [
+      { pose: 'ultReady', seconds: 0.1 },
+      { pose: 'ultCharge1', seconds: 0.14 },
+      { pose: 'ultCharge2', seconds: 0.45 },
+      { pose: 'teleportStreak', seconds: 0.05 },
+      { pose: 'teleportStreak', seconds: 0.1, vanish: true, warp: true },
+      { pose: 'teleportStreak', seconds: 0.04 },
+      // uppercut : accroupi, bras armé figé un instant, puis il l'envoie
+      { pose: 'upperCrouch', seconds: 0.07 },
+      { pose: 'upperRise', seconds: 0.35, active: true, launch: 'pop' },
+      { pose: 'upperHit', seconds: 0.14, active: true, launch: 'fly' },
+      { pose: 'upperHit', seconds: 0.4 },
+      // il libère son énergie, se baisse en la chargeant, puis s'envole en un éclair (l'écran tremble)
+      { pose: 'ultPower', seconds: 0.12 },
+      { pose: 'ultCrouch1', seconds: 0.12 },
+      { pose: 'ultCrouch2', seconds: 0.12 },
+      { pose: 'ultCrouch3', seconds: 0.12 },
+      { pose: 'ultCrouch2', seconds: 0.1 },
+      { pose: 'ultCrouch3', seconds: 0.1 },
+      { pose: 'ultCrouch2', seconds: 0.08 },
+      { pose: 'ultCrouch3', seconds: 0.08 },
+      { pose: 'ultFly', seconds: 0.12, takeoff: true },
+      // il est parti : la traînée de super vitesse reste un instant et s'estompe
+      { pose: 'ultFly', seconds: 0.5, vanish: true, trail: true },
+    ],
+    advance: 0,
+    advanceFrom: 0,
+    advanceTo: 1,
+    reach: 900,
+    height: 1350,
+    power: 1.6,
+    stop: 0.3,
+  },
+}
+/** Effets du coup spécial : durée de la croissance de la traînée, de son estompage et de l'explosion, en secondes. */
+const FX = { grow: 0.08, fade: 0.22, burst: 0.35 }
+/** Début de la première étape active d'un coup, en secondes : là où sa traînée d'énergie commence. */
+const activeStart = (move: Move) => {
+  let start = 0
+  for (const step of move.steps) {
+    if (step.active) return start
+    start += step.seconds
+  }
+  return start
+}
+/** L'envol de l'attaque ultime : hauteur atteinte à la fin de l'étape, en pixels de la toile (bien au-delà de l'écran). */
+const TAKEOFF = { height: 6500 }
+const TAKEOFF_START = (() => {
+  let start = 0
+  for (const step of MOVES.ultimate.steps) {
+    if (step.takeoff) return start
+    start += step.seconds
+  }
+  return start
+})()
+/** Impact au sol du décollage : les onze dessins se suivent, chacun `frame` secondes, à partir du décollage. */
+const GROUND_FX = ['fxGround1', 'fxGround2', 'fxGround3', 'fxGround4', 'fxGround5', 'fxGround6', 'fxGround7', 'fxGround8', 'fxGround9', 'fxGround10', 'fxGround11'] as const
+const GROUND_FX_FRAME = 0.055
+/**
+ * Retour de l'attaque ultime : il retombe du haut de l'écran sur Moussa, à la vitesse de l'envol (`TAKEOFF_SECONDS`),
+ * le poing en avant, puis reste `hold` secondes sur son coup ; la traînée de super vitesse s'estompe en `fade`
+ * secondes après l'impact. `fist` : du poing au point posé au sol, en pixels de la toile ; `target` : de Moussa
+ * (milieu du corps) à l'endroit où le poing frappe.
+ */
+const DIVE = { hold: 0.35, fade: 0.3, fist: (685 - 200) * 1.3, target: -100 }
+/**
+ * Coup de marteau final, après le plan de coupe : les dessins dans l'ordre et leur durée ; le coup frappe au début
+ * de `hammerHit`. `fists` : des poings au point posé au sol dans `hammerHit`, en pixels de la toile ; `target` : de
+ * Moussa (milieu du corps) à l'endroit où frappent les poings.
+ */
+const HAMMER = {
+  steps: [
+    { pose: 'hammerRaise', seconds: 0.3 },
+    { pose: 'hammerSwing', seconds: 0.06 },
+    { pose: 'hammerHit', seconds: 0.1 },
+    { pose: 'hammerEnd', seconds: 1.4 },
+  ] as { pose: RivalPose; seconds: number }[],
+  fists: (694 - 450) * 1.25,
+  target: -150,
+}
+const TAKEOFF_SECONDS = MOVES.ultimate.steps.find((step) => step.takeoff)?.seconds ?? 1
+/**
+ * Bond en arrière après le coup final : il s'accroupit, saute en arrière d'un peu plus qu'un dash (`distance`)
+ * en montant jusqu'à `height` pixels de la toile pendant les dessins en l'air (`air`), puis se réceptionne et se
+ * redresse. Les dessins dans l'ordre et leur durée.
+ */
+const HOP = {
+  steps: [
+    { pose: 'hop1', seconds: 0.08 },
+    { pose: 'hop2', seconds: 0.08 },
+    { pose: 'hop3', seconds: 0.17 },
+    { pose: 'hop4', seconds: 0.17 },
+    { pose: 'hop5', seconds: 0.17 },
+    { pose: 'hop6', seconds: 0.1 },
+    { pose: 'hop7', seconds: 0.1 },
+    { pose: 'hop8', seconds: 0.15 },
+  ] as { pose: RivalPose; seconds: number }[],
+  air: ['hop3', 'hop4', 'hop5'] as RivalPose[],
+  height: 300,
+  // un peu plus loin qu'un dash
+  distance: 0.3,
+}
+const HOP_AIR_START = HOP.steps[0].seconds + HOP.steps[1].seconds
+const HOP_AIR = HOP.steps.filter((step) => HOP.air.includes(step.pose)).reduce((sum, step) => sum + step.seconds, 0)
+const HOP_TOTAL = HOP.steps.reduce((sum, step) => sum + step.seconds, 0)
+/** Instants, depuis le début de la chute sur Moussa, du plan de coupe, du coup de marteau et de la fin. */
+const DIVE_CUT_IN = TAKEOFF_SECONDS + DIVE.hold
+const HAMMER_IMPACT = DIVE_CUT_IN + HAMMER.steps[0].seconds + HAMMER.steps[1].seconds
+const DIVE_END = DIVE_CUT_IN + HAMMER.steps.reduce((sum, step) => sum + step.seconds, 0)
+const moveTotal = (move: Move) => move.steps.reduce((sum, step) => sum + step.seconds, 0)
+/** Fin des images actives d'un coup : c'est là que part le coup suivant de l'enchaînement. */
+const moveActiveEnd = (move: Move) => {
+  let end = 0
+  for (const step of move.steps) {
+    end += step.seconds
+    if (step.active) return end
+  }
+  return end
+}
 type FloatPose = 'floatForward' | 'floatBack' | 'floatStart'
 const isFloatPose = (pose: RivalPose): pose is FloatPose => pose === 'floatForward' || pose === 'floatBack' || pose === 'floatStart'
 /** Les dessins du vol dans un sens. */
@@ -139,6 +514,43 @@ export class RivalLayer implements Opponent {
   /** Image rémanente laissée au départ de la téléportation : position et temps écoulé. */
   private ghostX = 0
   private ghostTime = Infinity
+  /** Temps écoulé depuis le début du coup en cours (ou -1), et position au départ. */
+  private attackTime = -1
+  private attackFrom = 0
+  /** L'étape du coup en cours qui a déjà touché : chaque étape active ne touche qu'une fois. */
+  private landedStep: Step | null = null
+  /** Temps écoulé depuis l'impact du coup spécial, pour son explosion. */
+  private burstTime = Infinity
+  /** Vrai quand le coup spécial vient de toucher, jusqu'à ce que le moteur le prenne en compte. */
+  private impact = false
+  /** Vrai dès que la mise au point de l'attaque ultime en cours a été lancée. */
+  private focusTaken = false
+  /** Vrai quand il vient de s'envoler hors de l'écran, jusqu'à ce que le moteur le prenne en compte. */
+  private tookOff = false
+  /** Vrai une fois envolé : il reste hors de l'écran jusqu'à ce qu'il retombe sur Moussa. */
+  private away = false
+  /** Temps écoulé depuis qu'il retombe sur Moussa, ou -1. */
+  private diveTime = -1
+  /** Vrai quand son poing vient de frapper en retombant, jusqu'à ce que le moteur le prenne en compte. */
+  private diveImpact = false
+  /** Vrai quand le coup final vient de finir, jusqu'à ce que le moteur le prenne en compte. */
+  private finished = false
+  /** Vrai quand le plan de coupe du coup de marteau doit commencer, jusqu'à ce que le moteur le prenne en compte. */
+  private hammerCutIn = false
+  /** Vrai quand le coup de marteau vient de frapper, jusqu'à ce que le moteur le prenne en compte. */
+  private hammerImpact = false
+  /** Temps écoulé depuis le début du bond en arrière, ou -1 ; position de départ du bond. */
+  private hopTime = -1
+  private hopFrom = 0
+  /** Position de Moussa et taille d'un pixel de la toile au moment où il retombe sur lui. */
+  private diveTarget: [number, number] = [0, 0]
+  /** Vrai dès que la téléportation de l'attaque ultime en cours a eu lieu. */
+  private warped = false
+  /** Coup en cours de l'enchaînement, et vrai si le joueur a demandé le suivant. */
+  private move: MoveName = 'punch'
+  private queued = false
+  /** Vrai si le coup spécial a été demandé pendant un coup de l'enchaînement, pour l'annuler. */
+  private specialQueued = false
   /** Sens de la téléportation en cours : -1 vers Moussa, 1 en s'éloignant. */
   private teleportDirection = -1
   /** Vrai quand il vient de disparaître au corps à corps : le moteur fait changer les combattants de côté. */
@@ -189,6 +601,7 @@ export class RivalLayer implements Opponent {
       this.pose = 'hurt'
       this.hurtTime = 0
       this.teleportTime = -1
+      this.attackTime = -1
       this.settle()
     }
     return guarded
@@ -199,8 +612,14 @@ export class RivalLayer implements Opponent {
     this.x = RivalLayer.START_X
     this.pose = 'guard'
     this.teleportTime = -1
+    this.attackTime = -1
+    this.burstTime = Infinity
     this.ghostTime = Infinity
     this.crossing = false
+    this.away = false
+    this.diveTime = -1
+    this.finished = false
+    this.hopTime = -1
     this.settle()
   }
 
@@ -211,21 +630,174 @@ export class RivalLayer implements Opponent {
     this.hover = 0
   }
 
-  /** Il n'a pas encore d'attaque. */
-  attack(): void {}
-
-  strike(): Strike | null {
-    return null
+  /**
+   * Touche d'attaque. Depuis la garde ou la lévitation, lance le coup de poing ; pendant un coup, met en attente le
+   * coup suivant de l'enchaînement.
+   */
+  attack(): void {
+    if (this.attackTime >= 0) {
+      if (MOVES[this.move].next && this.move !== 'special') this.queued = true
+      return
+    }
+    if (this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    this.settle()
+    this.startMove('punch')
   }
 
-  land(): void {}
+  /** Attaque ultime : possible seulement en garde ou en lévitation. */
+  ultimate(): void {
+    if (this.attackTime >= 0 || this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    this.settle()
+    this.focusTaken = false
+    this.startMove('ultimate')
+  }
+
+  /** Vrai pendant son envol : le moteur fait trembler l'écran. */
+  get flying(): boolean {
+    return this.attackTime >= 0 && this.moveStep().takeoff === true
+  }
+
+  /** Vrai une seule fois, quand il vient de s'envoler hors de l'écran : le moteur renvoie Moussa au sol. */
+  takeTakeoff(): boolean {
+    const took = this.tookOff
+    this.tookOff = false
+    return took
+  }
+
+  /**
+   * Fin de l'attaque ultime : envolé hors de l'écran, il retombe sur Moussa (milieu du corps en `heroX`) en le
+   * frappant du poing. `pixel` : largeur d'un pixel de la toile, en fraction du stage.
+   */
+  dive(heroX: number, pixel: number): boolean {
+    if (!this.away) return false
+    this.away = false
+    this.diveTime = 0
+    this.pose = 'ultLand'
+    this.x = Math.min(RANGE.maxX, heroX + (DIVE.target + DIVE.fist) * pixel)
+    this.diveTarget = [heroX, pixel]
+    return true
+  }
+
+  /** Vrai une seule fois, quand il est resté un instant sur son coup de poing : le moteur lance le plan de coupe. */
+  takeHammerCutIn(): boolean {
+    const cut = this.hammerCutIn
+    this.hammerCutIn = false
+    return cut
+  }
+
+  /** Position sur le stage (fraction de l'écran) où frappent ses poings pendant le coup de marteau. */
+  get hammerX(): number {
+    const [heroX, pixel] = this.diveTarget
+    return heroX + HAMMER.target * pixel
+  }
+
+  /** Vrai une seule fois, quand le coup de marteau frappe : le moteur fait trembler l'écran. */
+  takeHammerImpact(): boolean {
+    const impact = this.hammerImpact
+    this.hammerImpact = false
+    return impact
+  }
+
+  /** Vrai une seule fois, quand son poing frappe Moussa en retombant : le moteur fait trembler l'écran. */
+  takeDiveImpact(): boolean {
+    const impact = this.diveImpact
+    this.diveImpact = false
+    return impact
+  }
+
+  /** Vrai pendant qu'il retombe sur Moussa et reste sur son coup. */
+  get diving(): boolean {
+    return this.diveTime >= 0
+  }
+
+  /** Vrai une seule fois, quand le coup de marteau est fini et qu'il repart à sa place : Moussa peut se relever. */
+  takeFinish(): boolean {
+    const finished = this.finished
+    this.finished = false
+    return finished
+  }
+
+  /** Vrai pendant l'attaque ultime : le moteur assombrit le décor et Moussa. */
+  get ultimateActive(): boolean {
+    return this.attackTime >= 0 && this.move === 'ultimate'
+  }
+
+  /** Vrai une seule fois, quand l'énergie de l'attaque ultime grossit : le combat se fige et la caméra se resserre sur lui. */
+  takeFocus(): boolean {
+    if (!this.ultimateActive || this.focusTaken || this.pose !== 'ultCharge2') return false
+    this.focusTaken = true
+    return true
+  }
+
+  /**
+   * Coup spécial : en garde ou en lévitation, ou pendant n'importe quel coup de l'enchaînement, qu'il annule. Pendant
+   * un coup, il part dès la fin des images actives (tout de suite si elles sont passées), à la place de la suite.
+   */
+  special(): void {
+    if (this.attackTime >= 0) {
+      // pendant le coup spécial, un nouvel appui enchaîne sa suite, seulement si le coup de pied a touché
+      if (this.move === 'special') {
+        if (this.landedStep) this.queued = true
+      } else if (this.move !== 'special2') this.specialQueued = true
+      return
+    }
+    if (this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    this.settle()
+    this.startMove('special')
+  }
+
+  private startMove(move: MoveName): void {
+    this.move = move
+    this.attackTime = 0
+    this.attackFrom = this.x
+    this.queued = false
+    this.specialQueued = false
+    this.warped = false
+    this.landedStep = null
+    this.pose = MOVES[move].steps[0].pose
+  }
+
+  /** L'étape en cours du coup. */
+  private moveStep(): Step {
+    const steps = MOVES[this.move].steps
+    let end = 0
+    for (const step of steps) {
+      end += step.seconds
+      if (this.attackTime < end) return step
+    }
+    return steps[steps.length - 1]
+  }
+
+  /** Son coup, s'il peut toucher à cet instant : il frappe vers Moussa, donc vers la gauche. L'uppercut de l'attaque ultime le propulse. */
+  strike(pixel: number): Strike | null {
+    const step = this.moveStep()
+    if (this.attackTime < 0 || !step.active || this.landedStep === step) return null
+    const move = MOVES[this.move]
+    return { x: this.x - move.reach * pixel, height: move.height, power: move.power, stop: move.stop, launch: step.launch }
+  }
+
+  /** Son coup a touché ou a été paré : il ne touchera plus. Le coup spécial explose à l'impact. */
+  land(): void {
+    this.landedStep = this.moveStep()
+    if (this.move === 'special' || this.move === 'special2' || this.move === 'ultimate') {
+      this.burstTime = 0
+      this.impact = true
+    }
+  }
+
+  /** Vrai une seule fois, quand le coup spécial vient de toucher ou d'être paré : le moteur fait trembler l'écran. */
+  takeImpact(): boolean {
+    const impact = this.impact
+    this.impact = false
+    return impact
+  }
 
   /**
    * Dash : il se téléporte, vers Moussa (`direction` -1, dash avant) ou en s'éloignant (1, dash arrière), avec les
    * mêmes dessins. Possible seulement en garde ou en lévitation.
    */
   teleport(direction = -1): void {
-    if (this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    if (this.teleportTime >= 0 || this.attackTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
     this.settle()
     this.teleportTime = 0
     this.teleportDirection = Math.sign(direction) || -1
@@ -255,7 +827,7 @@ export class RivalLayer implements Opponent {
 
   /** Vrai pendant la téléportation, quand il n'est plus visible. */
   private get vanished(): boolean {
-    return this.teleportTime >= 0 && this.teleportStep() === null
+    return this.away || (this.teleportTime >= 0 && this.teleportStep() === null) || (this.attackTime >= 0 && this.moveStep().vanish === true)
   }
 
   /** Le dessin de l'étape en cours de la téléportation, ou `null` quand il est invisible. */
@@ -269,7 +841,56 @@ export class RivalLayer implements Opponent {
   }
 
   update(frame: FrameInfo): void {
+    this.burstTime += frame.delta
     this.ghostTime += frame.delta
+    if (this.away) return
+    if (this.hopTime >= 0) {
+      this.hopTime += frame.delta
+      const k = Math.max(0, Math.min(1, (this.hopTime - HOP_AIR_START) / HOP_AIR))
+      this.x = Math.min(RANGE.maxX, this.hopFrom + HOP.distance * k * (2 - k))
+      if (this.hopTime >= HOP_TOTAL) {
+        this.hopTime = -1
+        this.pose = 'guard'
+        return
+      }
+      let end = 0
+      for (const step of HOP.steps) {
+        end += step.seconds
+        this.pose = step.pose
+        if (this.hopTime < end) break
+      }
+      return
+    }
+    if (this.diveTime >= 0) {
+      const before = this.diveTime
+      this.diveTime += frame.delta
+      if (before < TAKEOFF_SECONDS && this.diveTime >= TAKEOFF_SECONDS) this.diveImpact = true
+      // plan de coupe, puis coup de marteau à deux mains : il se place pour que ses poings tombent sur Moussa
+      if (before < DIVE_CUT_IN && this.diveTime >= DIVE_CUT_IN) {
+        this.hammerCutIn = true
+        const [heroX, pixel] = this.diveTarget
+        this.x = Math.min(RANGE.maxX, heroX + (HAMMER.target + HAMMER.fists) * pixel)
+      }
+      if (before < HAMMER_IMPACT && this.diveTime >= HAMMER_IMPACT) this.hammerImpact = true
+      // coup fini : il fait un bond en arrière d'une distance de dash, et Moussa se relève
+      if (this.diveTime >= DIVE_END) {
+        this.diveTime = -1
+        this.finished = true
+        this.hopTime = 0
+        this.hopFrom = this.x
+        this.pose = 'hop1'
+        return
+      }
+      if (this.diveTime >= DIVE_CUT_IN) {
+        let end = DIVE_CUT_IN
+        for (const step of HAMMER.steps) {
+          end += step.seconds
+          this.pose = step.pose
+          if (this.diveTime < end) break
+        }
+      }
+      return
+    }
     if (this.teleportTime >= 0) {
       const before = this.teleportTime
       this.teleportTime += frame.delta
@@ -292,8 +913,44 @@ export class RivalLayer implements Opponent {
         this.pose = this.teleportStep() ?? this.pose
       }
     }
+    if (this.attackTime >= 0) {
+      this.attackTime += frame.delta
+      const move = MOVES[this.move]
+      // téléportation de l'attaque ultime : il laisse une image rémanente et réapparaît juste devant Moussa
+      if (this.moveStep().warp && !this.warped) {
+        this.warped = true
+        this.ghostX = this.x
+        this.ghostTime = 0
+        const [min] = this.bounds(this.pixel(frame))
+        this.x = min + 0.02
+        this.attackFrom = this.x
+      }
+      // il avance très légèrement pendant le coup, sans traverser Moussa
+      const k = Math.max(0, Math.min(1, (this.attackTime - move.advanceFrom) / (move.advanceTo - move.advanceFrom)))
+      const [min] = this.bounds(this.pixel(frame))
+      const target = this.attackFrom - move.advance * (1 - (1 - k) ** 2)
+      this.x = Math.max(Math.min(this.x, min), target)
+      if (this.specialQueued && this.attackTime >= moveActiveEnd(move)) {
+        // le coup spécial annule la suite du coup en cours
+        this.startMove('special')
+      } else if (move.next && this.queued && this.attackTime >= moveActiveEnd(move)) {
+        // le coup suivant remplace le retour de celui-ci
+        this.startMove(move.next)
+      } else if (this.attackTime >= moveTotal(move)) {
+        // envolé hors de l'écran : le moteur passe au round suivant
+        this.attackTime = -1
+        this.pose = 'guard'
+        if (move.steps.some((step) => step.takeoff)) {
+          this.tookOff = true
+          this.away = true
+          this.pose = 'ultFly'
+        }
+      } else {
+        this.pose = this.moveStep().pose
+      }
+    }
     // coup encaissé : le dessin du coup reçu, celui du retour, puis la garde
-    if (this.teleportTime >= 0) {
+    if (this.attackTime >= 0 || this.teleportTime >= 0) {
       // rien d'autre pendant la téléportation
     } else if (this.pose === 'hurt' || this.pose === 'hurtRecover') {
       this.hurtTime += frame.delta
@@ -385,6 +1042,18 @@ export class RivalLayer implements Opponent {
 
   /** Hauteur de vol du dessin `pose` à cet instant, en pixels de la toile : montée, puis flottement. */
   private lift(pose: RivalPose, amplitude: number): number {
+    // l'envol de l'attaque ultime : il quitte l'écran par le haut presque instantanément
+    // bond en arrière : une courbe qui monte et redescend pendant les dessins en l'air
+    if (this.hopTime >= 0 && HOP.air.includes(pose)) {
+      const k = Math.max(0, Math.min(1, (this.hopTime - HOP_AIR_START) / HOP_AIR))
+      return HOP.height * Math.sin(Math.PI * k)
+    }
+    // il retombe aussi vite qu'il s'est envolé
+    if (pose === 'ultLand' && this.diveTime >= 0) return TAKEOFF.height * Math.max(0, 1 - this.diveTime / TAKEOFF_SECONDS)
+    if (pose === 'ultFly' && this.attackTime >= 0) {
+      const k = Math.max(0, (this.attackTime - TAKEOFF_START) / TAKEOFF_SECONDS)
+      return TAKEOFF.height * k
+    }
     if (!isFloatPose(pose)) return 0
     const bob = Math.sin((this.floatTime * 2 * Math.PI) / FLOAT.period) * FLOAT.bob * amplitude
     return this.hover * (FLOAT.height + bob)
@@ -466,5 +1135,38 @@ export class RivalLayer implements Opponent {
       drawPose('teleportStreak', 0.45 * (1 - ghost) ** 2, at, 1 + 0.5 * ghost)
     }
     if (!this.vanished) drawPose(this.pose, 1)
+    // coup spécial : la traînée d'énergie grandit en trois dessins pendant la jambe tendue, puis s'estompe
+    const strength = calm ? 0.6 : 1
+    // (même effet sur le coup de poing de sa suite)
+    if ((this.pose === 'specialKick' || this.pose === 'special2Hit') && this.attackTime >= 0) {
+      const t = this.attackTime - activeStart(MOVES[this.move])
+      const k = Math.min(1, Math.max(0, (t - FX.grow) / FX.fade))
+      drawPose(t < FX.grow / 2 ? 'fxTrail1' : t < FX.grow ? 'fxTrail2' : 'fxTrail3', strength * (1 - k * k))
+    }
+    // envol de l'attaque ultime : la traînée de super vitesse, pleine pendant le décollage, puis qui s'estompe
+    if (this.attackTime >= 0) {
+      const step = this.moveStep()
+      if (step.takeoff) drawPose('fxStreak', strength)
+      else if (step.trail) {
+        const k = Math.min(1, (this.attackTime - TAKEOFF_START - TAKEOFF_SECONDS) / step.seconds)
+        drawPose('fxStreak', strength * (1 - k) * (1 - k))
+      }
+      // l'impact au sol, par-dessus : il éclate au décollage et retombe en onze dessins
+      if (this.move === 'ultimate') {
+        const index = Math.floor((this.attackTime - TAKEOFF_START) / GROUND_FX_FRAME)
+        if (index >= 0 && index < GROUND_FX.length) drawPose(GROUND_FX[index], strength)
+      }
+    }
+    // il retombe sur Moussa : la même traînée, pleine pendant la chute, puis qui s'estompe
+    if (this.diveTime >= 0) {
+      const k = Math.min(1, Math.max(0, (this.diveTime - TAKEOFF_SECONDS) / DIVE.fade))
+      if (k < 1) drawPose('fxStreak', strength * (1 - k) * (1 - k))
+    }
+    // à l'impact : l'anneau et l'explosion éclatent sur Moussa, puis s'estompent
+    if (this.burstTime < FX.burst) {
+      const k = this.burstTime / FX.burst
+      if (k < 0.5) drawPose('fxRing', strength * (1 - 2 * k))
+      drawPose('fxBurst', strength * (1 - k * k))
+    }
   }
 }

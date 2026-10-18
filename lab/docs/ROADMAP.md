@@ -23,7 +23,12 @@
 - [x] Adversaire : dash avant et dash arrière en téléportation (deux appuis rapides vers Moussa), à la manière de Doom ; au corps à corps, il passe dans le dos de Moussa et les combattants changent de côté, toujours face à face.
 - [ ] Changement de côté : le reporter dans le folio ; décider si Moussa peut aussi passer de l'autre côté (saut par-dessus).
 - [x] Plus de boutons sous la scène : tout se joue au clavier.
-- [ ] Adversaire : dashs, coup, recul quand il encaisse ; parade et coup encaissé à refaire au nouveau modèle.
+- [x] Adversaire : enchaînement coup de poing (quatre dessins, légère avancée), coup de pied haut (trois dessins), coup de marteau vers le sol (trois dessins), uppercut (trois dessins), puis coup de pied de face pour finir (trois dessins) ; il touche Moussa.
+- [x] Adversaire : attaque ultime (touche N) : mains tendues, énergie qui se forme puis grossit (le combat se fige, la caméra se resserre sur lui et tout le reste s'assombrit), téléportation juste devant Moussa, uppercut en deux coups (le bras armé soulève Moussa, l'envoi le propulse hors de l'écran), puis il charge son énergie et s'envole en un éclair à sa poursuite (secousse) ; pour la démo, round suivant dès l'envol.
+- [ ] Adversaire : la suite de l'attaque ultime, dans les airs.
+- [x] Adversaire : suite du coup spécial, un coup de poing chargé, si l'on rappuie quand le coup de pied touche.
+- [x] Adversaire : premier coup spécial (pose, amorçage, coup de pied enveloppé d'énergie violette, retour à l'amorçage), touche M, ou Maj quand on le contrôle.
+- [ ] Adversaire : la suite de son enchaînement ; dashs, coup, recul quand il encaisse ; parade et coup encaissé à refaire au nouveau modèle.
 - [x] Seconde attaque spéciale : mise au point figée sur le personnage, ruée, rafale de dix coups au hasard et trois coups lourds, un effet à chaque impact, puis frappe au sol, avec décor assombri, plan de coupe sur le gros plan de Moussa et effets dessinés (remplace la rafale de coups de pied) (à juger en mouvement).
 - [x] Cinématique d'entrée en six plans (temple, Moussa en pied, gros plan, puis l'adversaire en trois plans) avec transition par un pétale, puis « Face your destiny », « Round 1 », « Fight! » ; on peut la passer (à juger en mouvement).
 - [x] Fin de round : il se baisse et disparaît d'un bond dans la fumée, puis « Round 2 » (à juger en mouvement).
