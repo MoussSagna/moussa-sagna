@@ -338,10 +338,11 @@ const LAUNCH_DOWN = LAUNCH.rise + LAUNCH.away + LAUNCH.fall
 /**
  * Écrasé au sol par l'attaque ultime de l'adversaire, après la propulsion : il tombe du haut de l'écran (`from`
  * pixels de la toile) en `fall` secondes, en accélérant, s'écrase au sol (`down` secondes), rebondit à `height`
- * pixels en `bounce` secondes et reste suspendu près du sol pendant `hang` secondes. Il retombe au moins à `x`
+ * pixels en `bounce` secondes et reste suspendu près du sol pendant `hang` secondes ; l'adversaire retombe sur
+ * lui au bout de `wait` secondes de suspension. Il retombe au moins à `x`
  * (fraction de l'écran), pour tenir en entier dans l'écran une fois allongé.
  */
-const SLAM = { x: 0.45, from: 3000, fall: 0.14, down: 0.12, bounce: 0.1, height: 150, hang: 0.4 }
+const SLAM = { x: 0.45, from: 3000, fall: 0.14, down: 0.12, bounce: 0.15, height: 150, hang: 0.6, wait: 0.25 }
 const SLAM_BOUNCE = SLAM.fall + SLAM.down
 const SLAM_TOTAL = SLAM_BOUNCE + SLAM.bounce + SLAM.hang
 
@@ -873,9 +874,9 @@ export class HeroLayer {
     return impact
   }
 
-  /** Vrai dès qu'il flotte près du sol après le rebond : l'adversaire peut retomber sur lui. */
+  /** Vrai quand il a flotté un moment près du sol après le rebond : l'adversaire peut retomber sur lui. */
   get slamHanging(): boolean {
-    return this.pose === 'ko' && this.slamTime >= SLAM_BOUNCE + SLAM.bounce
+    return this.pose === 'ko' && this.slamTime >= SLAM_BOUNCE + SLAM.bounce + SLAM.wait
   }
 
   /** Le coup de poing de l'adversaire le recloue au sol, pendant le rebond. */
