@@ -356,12 +356,12 @@ const SLAM_TOTAL = SLAM_BOUNCE + SLAM.bounce + SLAM.hang
  * se redresse et reprend une garde de passage avant la garde habituelle. Durée de chaque dessin, en secondes.
  */
 const GETUP = {
-  delay: 0.8,
+  delay: 0.35,
   steps: [
-    { pose: 'getupSit', seconds: 0.4 },
-    { pose: 'getupKneel', seconds: 0.35 },
-    { pose: 'getupRise', seconds: 0.35 },
-    { pose: 'getupGuard', seconds: 0.3 },
+    { pose: 'getupSit', seconds: 0.12 },
+    { pose: 'getupKneel', seconds: 0.1 },
+    { pose: 'getupRise', seconds: 0.1 },
+    { pose: 'getupGuard', seconds: 0.12 },
   ] as { pose: PoseName; seconds: number }[],
 }
 const GETUP_TOTAL = GETUP.delay + GETUP.steps.reduce((sum, step) => sum + step.seconds, 0)
