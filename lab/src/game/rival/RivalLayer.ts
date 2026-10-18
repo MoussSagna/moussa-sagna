@@ -331,7 +331,7 @@ const MOVES: Record<MoveName, Move> = {
       { pose: 'upperHit', seconds: 0.14, active: true, launch: 'fly' },
       { pose: 'upperHit', seconds: 0.4 },
       // il libère son énergie, se baisse en la chargeant, puis s'envole en un éclair (l'écran tremble)
-      { pose: 'ultPower', seconds: 0.45 },
+      { pose: 'ultPower', seconds: 0.12 },
       { pose: 'ultCrouch1', seconds: 0.12 },
       { pose: 'ultCrouch2', seconds: 0.12 },
       { pose: 'ultCrouch3', seconds: 0.12 },
