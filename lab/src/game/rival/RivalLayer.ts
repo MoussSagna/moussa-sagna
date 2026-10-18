@@ -84,6 +84,15 @@ const POSES = {
   hammerSwing: { file: 'rival/hammer-swing.webp', ground: [678, 1306], scale: 1.25 },
   hammerHit: { file: 'rival/hammer-hit.webp', ground: [694, 1303], scale: 1.25 },
   hammerEnd: { file: 'rival/hammer-end.webp', ground: [686, 1317], scale: 1.25 },
+  // bond en arrière après le coup final : calés sur la botte arrière au sol, sous les pieds en l'air
+  hop1: { file: 'rival/hop-1.webp', ground: [614, 1311], scale: 1.25 },
+  hop2: { file: 'rival/hop-2.webp', ground: [618, 1314], scale: 1.25 },
+  hop3: { file: 'rival/hop-3.webp', ground: [600, 1250], scale: 1.25 },
+  hop4: { file: 'rival/hop-4.webp', ground: [600, 1359], scale: 1.25 },
+  hop5: { file: 'rival/hop-5.webp', ground: [600, 1386], scale: 1.25 },
+  hop6: { file: 'rival/hop-6.webp', ground: [567, 1266], scale: 1.25 },
+  hop7: { file: 'rival/hop-7.webp', ground: [589, 1246], scale: 1.25 },
+  hop8: { file: 'rival/hop-8.webp', ground: [510, 1344], scale: 1.25 },
   // traînée de super vitesse de l'envol : la pointe du bas posée au sol, assez grande pour monter jusqu'en haut de l'écran
   fxStreak: { file: 'rival/fx-streak.webp', ground: [512, 1530], scale: 2 },
   // impact au sol du décollage (onze dessins fournis par Moussa) : le centre du bas posé là où il s'envole
@@ -407,6 +416,28 @@ const HAMMER = {
   target: -150,
 }
 const TAKEOFF_SECONDS = MOVES.ultimate.steps.find((step) => step.takeoff)?.seconds ?? 1
+/**
+ * Bond en arrière après le coup final : il s'accroupit, saute en arrière d'une distance de dash (`TELEPORT.distance`)
+ * en montant jusqu'à `height` pixels de la toile pendant les dessins en l'air (`air`), puis se réceptionne et se
+ * redresse. Les dessins dans l'ordre et leur durée.
+ */
+const HOP = {
+  steps: [
+    { pose: 'hop1', seconds: 0.08 },
+    { pose: 'hop2', seconds: 0.08 },
+    { pose: 'hop3', seconds: 0.12 },
+    { pose: 'hop4', seconds: 0.12 },
+    { pose: 'hop5', seconds: 0.12 },
+    { pose: 'hop6', seconds: 0.1 },
+    { pose: 'hop7', seconds: 0.1 },
+    { pose: 'hop8', seconds: 0.15 },
+  ] as { pose: RivalPose; seconds: number }[],
+  air: ['hop3', 'hop4', 'hop5'] as RivalPose[],
+  height: 260,
+}
+const HOP_AIR_START = HOP.steps[0].seconds + HOP.steps[1].seconds
+const HOP_AIR = HOP.steps.filter((step) => HOP.air.includes(step.pose)).reduce((sum, step) => sum + step.seconds, 0)
+const HOP_TOTAL = HOP.steps.reduce((sum, step) => sum + step.seconds, 0)
 /** Instants, depuis le début de la chute sur Moussa, du plan de coupe, du coup de marteau et de la fin. */
 const DIVE_CUT_IN = TAKEOFF_SECONDS + DIVE.hold
 const HAMMER_IMPACT = DIVE_CUT_IN + HAMMER.steps[0].seconds + HAMMER.steps[1].seconds
@@ -506,6 +537,9 @@ export class RivalLayer implements Opponent {
   private hammerCutIn = false
   /** Vrai quand le coup de marteau vient de frapper, jusqu'à ce que le moteur le prenne en compte. */
   private hammerImpact = false
+  /** Temps écoulé depuis le début du bond en arrière, ou -1 ; position de départ du bond. */
+  private hopTime = -1
+  private hopFrom = 0
   /** Position de Moussa et taille d'un pixel de la toile au moment où il retombe sur lui. */
   private diveTarget: [number, number] = [0, 0]
   /** Vrai dès que la téléportation de l'attaque ultime en cours a eu lieu. */
@@ -583,6 +617,7 @@ export class RivalLayer implements Opponent {
     this.away = false
     this.diveTime = -1
     this.finished = false
+    this.hopTime = -1
     this.settle()
   }
 
@@ -807,6 +842,23 @@ export class RivalLayer implements Opponent {
     this.burstTime += frame.delta
     this.ghostTime += frame.delta
     if (this.away) return
+    if (this.hopTime >= 0) {
+      this.hopTime += frame.delta
+      const k = Math.max(0, Math.min(1, (this.hopTime - HOP_AIR_START) / HOP_AIR))
+      this.x = Math.min(RANGE.maxX, this.hopFrom + TELEPORT.distance * k * (2 - k))
+      if (this.hopTime >= HOP_TOTAL) {
+        this.hopTime = -1
+        this.pose = 'guard'
+        return
+      }
+      let end = 0
+      for (const step of HOP.steps) {
+        end += step.seconds
+        this.pose = step.pose
+        if (this.hopTime < end) break
+      }
+      return
+    }
     if (this.diveTime >= 0) {
       const before = this.diveTime
       this.diveTime += frame.delta
@@ -818,12 +870,13 @@ export class RivalLayer implements Opponent {
         this.x = Math.min(RANGE.maxX, heroX + (HAMMER.target + HAMMER.fists) * pixel)
       }
       if (before < HAMMER_IMPACT && this.diveTime >= HAMMER_IMPACT) this.hammerImpact = true
-      // coup fini : il se téléporte en arrière, comme pour un dash arrière, et le combat reprend
+      // coup fini : il fait un bond en arrière d'une distance de dash, et Moussa se relève
       if (this.diveTime >= DIVE_END) {
         this.diveTime = -1
-        this.pose = 'guard'
         this.finished = true
-        this.teleport(1)
+        this.hopTime = 0
+        this.hopFrom = this.x
+        this.pose = 'hop1'
         return
       }
       if (this.diveTime >= DIVE_CUT_IN) {
@@ -988,6 +1041,11 @@ export class RivalLayer implements Opponent {
   /** Hauteur de vol du dessin `pose` à cet instant, en pixels de la toile : montée, puis flottement. */
   private lift(pose: RivalPose, amplitude: number): number {
     // l'envol de l'attaque ultime : il quitte l'écran par le haut presque instantanément
+    // bond en arrière : une courbe qui monte et redescend pendant les dessins en l'air
+    if (this.hopTime >= 0 && HOP.air.includes(pose)) {
+      const k = Math.max(0, Math.min(1, (this.hopTime - HOP_AIR_START) / HOP_AIR))
+      return HOP.height * Math.sin(Math.PI * k)
+    }
     // il retombe aussi vite qu'il s'est envolé
     if (pose === 'ultLand' && this.diveTime >= 0) return TAKEOFF.height * Math.max(0, 1 - this.diveTime / TAKEOFF_SECONDS)
     if (pose === 'ultFly' && this.attackTime >= 0) {
