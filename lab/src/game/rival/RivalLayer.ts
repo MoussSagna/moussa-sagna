@@ -19,9 +19,7 @@ type Point = [number, number]
  * que la tête garde la taille de celle de la garde (les illustrations ne sont pas à la même échelle).
  */
 const POSES = {
-  // garde : la main levée, et une variante où elle passe sur le front (les jambes ne bougent pas)
-  guard: { file: 'rival/guard.webp', ground: [560, 1469], scale: 1.1 },
-  guard2: { file: 'rival/guard-2.webp', ground: [559, 1471], scale: 1.1 },
+  guard: { file: 'rival/guard.webp', ground: [525, 1455], scale: 1.1 },
   // lévitation : calées sur le ceinturon de la garde, pour que le buste ne saute pas au changement de dessin ;
   // `ground` est alors le point sous le ceinturon, à hauteur du bas de la botte la plus basse
   floatForward: { file: 'rival/float-forward.webp', ground: [480, 1426], scale: 1.1 },
@@ -116,8 +114,9 @@ const POSES = {
   fxTrail3: { file: 'rival/fx-trail-3.webp', ground: [745, 1716], scale: 1 },
   fxBurst: { file: 'rival/fx-burst.webp', ground: [1057, 1716], scale: 1 },
   fxRing: { file: 'rival/fx-ring.webp', ground: [1057, 1716], scale: 1 },
-  blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
-  block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
+  // parade : il lève la main (passage), puis se protège le front de l'avant-bras ; les jambes ne bougent pas
+  blockStep: { file: 'rival/block-step.webp', ground: [560, 1469], scale: 1.1 },
+  block: { file: 'rival/block.webp', ground: [559, 1471], scale: 1.1 },
   hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
   hurtRecover: { file: 'rival/hurt-recover.webp', ground: [564, 1472], scale: 0.9 },
 } satisfies Record<string, { file: string; ground: Point; scale: number }>
@@ -372,8 +371,6 @@ const MOVES: Record<MoveName, Move> = {
   },
 }
 /** Effets du coup spécial : durée de la croissance de la traînée, de son estompage et de l'explosion, en secondes. */
-/** Garde : toutes les `period` secondes, il garde `gesture` secondes la main sur le front (dessin `guard2`). */
-const GUARD_IDLE = { period: 3.2, gesture: 0.9 }
 const FX = { grow: 0.08, fade: 0.22, burst: 0.35 }
 /** Début de la première étape active d'un coup, en secondes : là où sa traînée d'énergie commence. */
 const activeStart = (move: Move) => {
@@ -1138,9 +1135,7 @@ export class RivalLayer implements Opponent {
       const at = (this.ghostX + PLACEMENT.depth * camera.ox - 0.5) * camera.zoom + 0.5
       drawPose('teleportStreak', 0.45 * (1 - ghost) ** 2, at, 1 + 0.5 * ghost)
     }
-    // en garde, il passe de temps en temps la main sur le front
-    const idle = this.pose === 'guard' && (frame.time % GUARD_IDLE.period) > GUARD_IDLE.period - GUARD_IDLE.gesture
-    if (!this.vanished) drawPose(idle ? 'guard2' : this.pose, 1)
+    if (!this.vanished) drawPose(this.pose, 1)
     // coup spécial : la traînée d'énergie grandit en trois dessins pendant la jambe tendue, puis s'estompe
     const strength = calm ? 0.6 : 1
     // (même effet sur le coup de poing de sa suite)
