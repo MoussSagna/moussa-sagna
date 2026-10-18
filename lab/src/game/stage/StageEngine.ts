@@ -108,6 +108,9 @@ export class StageEngine {
     this.rivalDimmed = [canvases.backdrop, canvases.dummy, canvases.hero, canvases.weather]
     for (const canvas of [...this.dimmed, canvases.hero]) canvas.style.transition = 'filter 0.15s'
     this.canvases = [canvases.backdrop, canvases.dummy, canvases.rival, canvases.hero, canvases.weather, canvases.cinematic]
+    // la pluie et la cinématique restent au-dessus de l'adversaire quand il passe devant Moussa
+    canvases.weather.style.zIndex = '2'
+    canvases.cinematic.style.zIndex = '2'
   }
 
   /** Charge les images puis lance la boucle. Résout `false` si le décor animé est indisponible. */
@@ -384,12 +387,20 @@ export class StageEngine {
     target.update(fight)
     // l'adversaire décolle : forte secousse de l'écran
     if (this.rival.flying) this.shake = Math.max(this.shake, 3.5)
-    // envolé hors de l'écran, il renvoie Moussa au sol : Moussa s'écrase (forte secousse) et rebondit ;
-    // pour la démo, le round suivant commence à la fin du rebond (tout de suite si Moussa n'était pas propulsé)
+    // envolé hors de l'écran, il renvoie Moussa au sol : Moussa s'écrase (forte secousse) et rebondit ; pendant
+    // le rebond, l'adversaire retombe sur lui d'un coup de poing qui le recloue au sol (même secousse). Pour la
+    // démo, le round suivant commence quand il est resté sur son coup (tout de suite si Moussa n'était pas propulsé)
     const tookOff = this.rival.takeTakeoff()
     if (tookOff && !this.hero.slam()) this.nextRound()
     if (this.hero.takeSlamImpact()) this.shake = Math.max(this.shake, 3.5)
-    if (this.hero.slamDone) this.nextRound()
+    if (this.hero.slamHanging) this.rival.dive(this.hero.position, (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width))
+    if (this.rival.takeDiveImpact()) {
+      this.shake = Math.max(this.shake, 3.5)
+      this.hero.pin()
+    }
+    if (this.rival.diveDone || (this.hero.slamDone && !this.rival.diving)) this.nextRound()
+    // retombé sur Moussa, il est dessiné devant lui
+    this.opponentCanvases.rival.style.zIndex = this.rival.diving ? '1' : ''
     // l'adversaire disparaît au corps à corps : les combattants changent de côté et il réapparaît dans le dos de Moussa
     if (this.rival.takeCross()) {
       const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)

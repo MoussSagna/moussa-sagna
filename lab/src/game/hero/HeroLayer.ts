@@ -528,6 +528,8 @@ export class HeroLayer {
   private slamTime = -1
   /** Vrai quand il vient de s'écraser au sol, jusqu'à ce que le moteur le prenne en compte. */
   private slamImpact = false
+  /** Vrai quand le coup de poing de l'adversaire l'a recloué au sol pendant le rebond. */
+  private pinned = false
   /** Temps écoulé depuis le début de la sortie de fin de round. */
   private exitTime = 0
   /** Les bouffées de fumée, chargées avec les poses. */
@@ -824,6 +826,7 @@ export class HeroLayer {
     this.launched = false
     this.popped = false
     this.slamTime = -1
+    this.pinned = false
     this.pose = 'ko'
     this.koTime = 0
     this.koFrom = this.x
@@ -870,6 +873,18 @@ export class HeroLayer {
     return impact
   }
 
+  /** Vrai dès qu'il flotte près du sol après le rebond : l'adversaire peut retomber sur lui. */
+  get slamHanging(): boolean {
+    return this.pose === 'ko' && this.slamTime >= SLAM_BOUNCE + SLAM.bounce
+  }
+
+  /** Le coup de poing de l'adversaire le recloue au sol, pendant le rebond. */
+  pin(): void {
+    if (this.slamTime < 0 || this.pinned) return
+    this.pinned = true
+    this.throwPebbles()
+  }
+
   /** Vrai quand le rebond est fini : il est resté suspendu près du sol. */
   get slamDone(): boolean {
     return this.slamTime >= SLAM_TOTAL
@@ -902,6 +917,7 @@ export class HeroLayer {
       return { name: 'launch', lift: POP.height * (1 - (1 - k) ** 2) }
     }
     if (this.slamTime >= 0) {
+      if (this.pinned) return { name: 'slamDown', lift: 0 }
       const t = this.slamTime
       if (t < SLAM.fall) return { name: 'slamFall', lift: SLAM.from * (1 - (t / SLAM.fall) ** 2) }
       if (t < SLAM_BOUNCE) return { name: 'slamDown', lift: 0 }
@@ -947,6 +963,7 @@ export class HeroLayer {
     this.launched = false
     this.popped = false
     this.slamTime = -1
+    this.pinned = false
     this.slide = null
     this.x = PLACEMENT.x
     this.fireball = null

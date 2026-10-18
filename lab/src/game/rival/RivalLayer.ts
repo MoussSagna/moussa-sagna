@@ -76,6 +76,8 @@ const POSES = {
   ultCrouch3: { file: 'rival/ult-crouch-3.webp', ground: [655, 1292], scale: 1.3 },
   // l'envol : `ground` sous ses bottes, pour qu'il parte du sol
   ultFly: { file: 'rival/ult-fly.webp', ground: [560, 1060], scale: 1.35 },
+  // il retombe en frappant du poing vers le sol : calé sur la botte arrière, poing vers (200, 1250)
+  ultLand: { file: 'rival/ult-land.webp', ground: [685, 1386], scale: 1.3 },
   // traînée de super vitesse de l'envol : la pointe du bas posée au sol, assez grande pour monter jusqu'en haut de l'écran
   fxStreak: { file: 'rival/fx-streak.webp', ground: [512, 1530], scale: 2 },
   // impact au sol du décollage (onze dessins fournis par Moussa) : le centre du bas posé là où il s'envole
@@ -376,6 +378,13 @@ const TAKEOFF_START = (() => {
 /** Impact au sol du décollage : les onze dessins se suivent, chacun `frame` secondes, à partir du décollage. */
 const GROUND_FX = ['fxGround1', 'fxGround2', 'fxGround3', 'fxGround4', 'fxGround5', 'fxGround6', 'fxGround7', 'fxGround8', 'fxGround9', 'fxGround10', 'fxGround11'] as const
 const GROUND_FX_FRAME = 0.055
+/**
+ * Retour de l'attaque ultime : il retombe du haut de l'écran sur Moussa, à la vitesse de l'envol (`TAKEOFF_SECONDS`),
+ * le poing en avant, puis reste `hold` secondes sur son coup ; la traînée de super vitesse s'estompe en `fade`
+ * secondes après l'impact. `fist` : du poing au point posé au sol, en pixels de la toile ; `target` : de Moussa
+ * (milieu du corps) à l'endroit où le poing frappe.
+ */
+const DIVE = { hold: 0.7, fade: 0.3, fist: (685 - 200) * 1.3, target: -100 }
 const TAKEOFF_SECONDS = MOVES.ultimate.steps.find((step) => step.takeoff)?.seconds ?? 1
 const moveTotal = (move: Move) => move.steps.reduce((sum, step) => sum + step.seconds, 0)
 /** Fin des images actives d'un coup : c'est là que part le coup suivant de l'enchaînement. */
@@ -460,8 +469,12 @@ export class RivalLayer implements Opponent {
   private focusTaken = false
   /** Vrai quand il vient de s'envoler hors de l'écran, jusqu'à ce que le moteur le prenne en compte. */
   private tookOff = false
-  /** Vrai une fois envolé : il reste hors de l'écran jusqu'au round suivant. */
+  /** Vrai une fois envolé : il reste hors de l'écran jusqu'à ce qu'il retombe sur Moussa. */
   private away = false
+  /** Temps écoulé depuis qu'il retombe sur Moussa, ou -1. */
+  private diveTime = -1
+  /** Vrai quand son poing vient de frapper en retombant, jusqu'à ce que le moteur le prenne en compte. */
+  private diveImpact = false
   /** Vrai dès que la téléportation de l'attaque ultime en cours a eu lieu. */
   private warped = false
   /** Coup en cours de l'enchaînement, et vrai si le joueur a demandé le suivant. */
@@ -535,6 +548,7 @@ export class RivalLayer implements Opponent {
     this.ghostTime = Infinity
     this.crossing = false
     this.away = false
+    this.diveTime = -1
     this.settle()
   }
 
@@ -577,6 +591,36 @@ export class RivalLayer implements Opponent {
     const took = this.tookOff
     this.tookOff = false
     return took
+  }
+
+  /**
+   * Fin de l'attaque ultime : envolé hors de l'écran, il retombe sur Moussa (milieu du corps en `heroX`) en le
+   * frappant du poing. `pixel` : largeur d'un pixel de la toile, en fraction du stage.
+   */
+  dive(heroX: number, pixel: number): boolean {
+    if (!this.away) return false
+    this.away = false
+    this.diveTime = 0
+    this.pose = 'ultLand'
+    this.x = Math.min(RANGE.maxX, heroX + (DIVE.target + DIVE.fist) * pixel)
+    return true
+  }
+
+  /** Vrai une seule fois, quand son poing frappe Moussa en retombant : le moteur fait trembler l'écran. */
+  takeDiveImpact(): boolean {
+    const impact = this.diveImpact
+    this.diveImpact = false
+    return impact
+  }
+
+  /** Vrai pendant qu'il retombe sur Moussa et reste sur son coup. */
+  get diving(): boolean {
+    return this.diveTime >= 0
+  }
+
+  /** Vrai quand il est resté assez longtemps sur son coup, après être retombé. */
+  get diveDone(): boolean {
+    return this.diveTime >= TAKEOFF_SECONDS + DIVE.hold
   }
 
   /** Vrai pendant l'attaque ultime : le moteur assombrit le décor et Moussa. */
@@ -706,6 +750,12 @@ export class RivalLayer implements Opponent {
     this.burstTime += frame.delta
     this.ghostTime += frame.delta
     if (this.away) return
+    if (this.diveTime >= 0) {
+      const before = this.diveTime
+      this.diveTime += frame.delta
+      if (before < TAKEOFF_SECONDS && this.diveTime >= TAKEOFF_SECONDS) this.diveImpact = true
+      return
+    }
     if (this.teleportTime >= 0) {
       const before = this.teleportTime
       this.teleportTime += frame.delta
@@ -858,6 +908,8 @@ export class RivalLayer implements Opponent {
   /** Hauteur de vol du dessin `pose` à cet instant, en pixels de la toile : montée, puis flottement. */
   private lift(pose: RivalPose, amplitude: number): number {
     // l'envol de l'attaque ultime : il quitte l'écran par le haut presque instantanément
+    // il retombe aussi vite qu'il s'est envolé
+    if (pose === 'ultLand' && this.diveTime >= 0) return TAKEOFF.height * Math.max(0, 1 - this.diveTime / TAKEOFF_SECONDS)
     if (pose === 'ultFly' && this.attackTime >= 0) {
       const k = Math.max(0, (this.attackTime - TAKEOFF_START) / TAKEOFF_SECONDS)
       return TAKEOFF.height * k
@@ -964,6 +1016,11 @@ export class RivalLayer implements Opponent {
         const index = Math.floor((this.attackTime - TAKEOFF_START) / GROUND_FX_FRAME)
         if (index >= 0 && index < GROUND_FX.length) drawPose(GROUND_FX[index], strength)
       }
+    }
+    // il retombe sur Moussa : la même traînée, pleine pendant la chute, puis qui s'estompe
+    if (this.diveTime >= 0) {
+      const k = Math.min(1, Math.max(0, (this.diveTime - TAKEOFF_SECONDS) / DIVE.fade))
+      if (k < 1) drawPose('fxStreak', strength * (1 - k) * (1 - k))
     }
     // à l'impact : l'anneau et l'explosion éclatent sur Moussa, puis s'estompent
     if (this.burstTime < FX.burst) {
