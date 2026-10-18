@@ -14,13 +14,20 @@ OUT = ROOT / 'public' / 'assets' / 'rival'
 # largeur, en pixels, de l'estompage d'un dessin coupé par le bord droit de l'illustration
 EDGE_FADE = 140
 # dessins dont la botte d'appui est coupée par le bord droit : pas d'estompage
-NO_EDGE_FADE = {'smash-raise', 'smash-swing', 'smash-hit', 'fx-trail-1', 'fx-trail-2', 'fx-trail-3', 'fx-burst', 'fx-ring', 'ult-ready', 'ult-charge-1', 'ult-charge-2', 'special2-ready', 'special2-cock', 'special2-punch', 'special2-hit', 'ult-power', 'ult-crouch-1', 'ult-crouch-2', 'ult-crouch-3', 'ult-fly', 'ult-land', 'hammer-raise', 'hammer-swing', 'hammer-hit', 'hammer-end', 'hop-1', 'hop-2', 'hop-3', 'hop-4', 'hop-5', 'hop-6', 'hop-7', 'hop-8'}
+NO_EDGE_FADE = {'smash-raise', 'smash-swing', 'smash-hit', 'fx-trail-1', 'fx-trail-2', 'fx-trail-3', 'fx-burst', 'fx-ring', 'ult-ready', 'ult-charge-1', 'ult-charge-2', 'special2-ready', 'special2-cock', 'special2-punch', 'special2-hit', 'ult-power', 'ult-crouch-1', 'ult-crouch-2', 'ult-crouch-3', 'ult-fly', 'ult-land', 'hammer-raise', 'hammer-swing', 'hammer-hit', 'hammer-end', 'hop-1', 'hop-2', 'hop-3', 'hop-4', 'hop-5', 'hop-6', 'hop-7', 'hop-8', 'ko-1', 'ko-2', 'ko-3', 'ko-4', 'ko-5'}
 
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for path in sorted(ART.glob('rival-*.png')):
-        rgb = np.asarray(Image.open(path).convert('RGB')).copy()
+        image = Image.open(path).convert('RGB')
+        # illustration en largeur (personnage allongé) : réduite à la largeur de la toile et posée en bas, sur un fond
+        # du même vert
+        if image.size == (H, W):
+            canvas = Image.new('RGB', (W, H), image.getpixel((4, 4)))
+            canvas.paste(image.resize((W, W * W // H), Image.LANCZOS), (0, H - W * W // H))
+            image = canvas
+        rgb = np.asarray(image).copy()
         assert rgb.shape[:2] == (H, W), path.name
         name = path.stem.removeprefix('rival-')
         art = key_green(rgb)

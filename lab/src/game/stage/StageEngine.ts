@@ -29,7 +29,7 @@ const SHAKE = { amplitude: 0.006, decay: 16 }
  * l'attaque ultime de l'adversaire (sa retombée en coup de poing, puis le coup de marteau) retirent `dive` et
  * `hammer`. Après un K.O. de l'adversaire, le round suivant commence au bout de `koSeconds`.
  */
-const DAMAGE = { perPower: 0.05, dive: 0.08, hammer: 0.2, koSeconds: 2.6 }
+const DAMAGE = { perPower: 0.05, dive: 0.08, hammer: 0.2, koSeconds: 3 }
 /**
  * Secousse verticale de l'impact du coup de marteau de l'adversaire : l'écran rebondit de haut en bas `frequency`
  * fois par seconde, de moins en moins fort, pendant `seconds` (la durée de l'explosion). `amplitude` : décalage de
@@ -303,6 +303,7 @@ export class StageEngine {
         // plus de vie : « K.O. », puis round suivant
         if (this.hud.health('rival') <= 0) {
           this.koWait = 0
+          this.rival.knockOut()
           this.cinematic.showKO()
           this.shake = Math.max(this.shake, 2.2)
         }
@@ -560,6 +561,8 @@ export class StageEngine {
     if (!stopped) this.resolveHits(info, calm)
     // le coup spécial de l'adversaire : forte secousse de l'écran à l'impact, comme la frappe au sol de Moussa
     if (this.rival.takeImpact()) this.shake = 2.2
+    // l'adversaire K.O. touche le sol
+    if (this.rival.takeKoLanding()) this.shake = Math.max(this.shake, 1.6)
     // un seul des deux est affiché
     this.opponentCanvases.dummy.style.visibility = target === this.dummy ? 'visible' : 'hidden'
     this.opponentCanvases.rival.style.visibility = target === this.rival ? 'visible' : 'hidden'
