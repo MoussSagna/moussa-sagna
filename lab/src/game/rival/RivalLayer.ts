@@ -76,6 +76,8 @@ const POSES = {
   ultCrouch3: { file: 'rival/ult-crouch-3.webp', ground: [655, 1292], scale: 1.3 },
   // l'envol : `ground` sous ses bottes, pour qu'il parte du sol
   ultFly: { file: 'rival/ult-fly.webp', ground: [560, 1060], scale: 1.35 },
+  // traînée de super vitesse de l'envol : la pointe du bas posée au sol, assez grande pour monter jusqu'en haut de l'écran
+  fxStreak: { file: 'rival/fx-streak.webp', ground: [512, 1530], scale: 2 },
   // effets du coup spécial (planche fournie par Moussa) : leur cœur lumineux est calé sur la semelle du coup de pied.
   // La traînée grandit en trois dessins ; l'explosion et l'anneau éclatent quand le coup touche.
   fxTrail1: { file: 'rival/fx-trail-1.webp', ground: [745, 1716], scale: 1 },
@@ -138,6 +140,8 @@ interface Step {
   seconds: number
   active?: boolean
   vanish?: boolean
+  /** La traînée de super vitesse de l'envol s'estompe (il est déjà sorti de l'écran). */
+  trail?: boolean
   warp?: boolean
   /** Il s'envole hors de l'écran (l'écran tremble). */
   takeoff?: boolean
@@ -324,6 +328,8 @@ const MOVES: Record<MoveName, Move> = {
       { pose: 'ultCrouch2', seconds: 0.08 },
       { pose: 'ultCrouch3', seconds: 0.08 },
       { pose: 'ultFly', seconds: 0.12, takeoff: true },
+      // il est parti : la traînée de super vitesse reste un instant et s'estompe
+      { pose: 'ultFly', seconds: 0.3, vanish: true, trail: true },
     ],
     advance: 0,
     advanceFrom: 0,
@@ -921,6 +927,15 @@ export class RivalLayer implements Opponent {
       const t = this.attackTime - activeStart(MOVES[this.move])
       const k = Math.min(1, Math.max(0, (t - FX.grow) / FX.fade))
       drawPose(t < FX.grow / 2 ? 'fxTrail1' : t < FX.grow ? 'fxTrail2' : 'fxTrail3', strength * (1 - k * k))
+    }
+    // envol de l'attaque ultime : la traînée de super vitesse, pleine pendant le décollage, puis qui s'estompe
+    if (this.attackTime >= 0) {
+      const step = this.moveStep()
+      if (step.takeoff) drawPose('fxStreak', strength)
+      else if (step.trail) {
+        const k = Math.min(1, (this.attackTime - TAKEOFF_START - TAKEOFF_SECONDS) / step.seconds)
+        drawPose('fxStreak', strength * (1 - k) * (1 - k))
+      }
     }
     // à l'impact : l'anneau et l'explosion éclatent sur Moussa, puis s'estompent
     if (this.burstTime < FX.burst) {
