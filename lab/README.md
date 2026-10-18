@@ -38,7 +38,7 @@ La case « Contrôler l'adversaire » donne les flèches à l'adversaire ; Mouss
 | Téléportation arrière | deux appuis rapides à l'opposé |
 | Parer | maintenir ↓ |
 | Attaque ultime (mise au point, téléportation, uppercut) | N |
-| Coup spécial (annule n'importe quel coup de l'enchaînement) | Maj (ou M, même quand il n'est pas contrôlé) |
+| Coup spécial (annule n'importe quel coup de l'enchaînement ; un nouvel appui quand il touche enchaîne un coup de poing chargé) | Maj (ou M, même quand il n'est pas contrôlé) |
 | Coup de poing, puis coup de pied, coup de marteau, uppercut et coup de pied final, à chaque nouvel appui | Entrée (ou K, même quand il n'est pas contrôlé) |
 
 Laissé seul (case décochée), il garde ses distances avec Moussa en lévitant ; la case « L'adversaire se déplace » le fige.

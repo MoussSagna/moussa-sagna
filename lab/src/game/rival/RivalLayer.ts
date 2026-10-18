@@ -58,6 +58,12 @@ const POSES = {
   specialChamber: { file: 'rival/special-chamber.webp', ground: [344, 1365], scale: 1.3 },
   specialCharge: { file: 'rival/special-charge.webp', ground: [434, 1333], scale: 1.3 },
   specialKick: { file: 'rival/special-kick.webp', ground: [469, 1289], scale: 1.3 },
+  // suite du coup spécial : coup de poing chargé (garde, armé, poing qui part, poing tendu) ; calés 150 à 280 px en
+  // arrière de la botte arrière, sinon son corps chevauche Moussa à la distance du coup de pied
+  special2Ready: { file: 'rival/special2-ready.webp', ground: [362, 1316], scale: 1.15 },
+  special2Cock: { file: 'rival/special2-cock.webp', ground: [368, 1360], scale: 1.15 },
+  special2Punch: { file: 'rival/special2-punch.webp', ground: [401, 1305], scale: 1.15 },
+  special2Hit: { file: 'rival/special2-hit.webp', ground: [453, 1302], scale: 1.15 },
   // attaque ultime : mains tendues, puis énergie qui grossit entre ses mains ; calés sur la botte arrière
   ultReady: { file: 'rival/ult-ready.webp', ground: [631, 1459], scale: 1.1 },
   ultCharge1: { file: 'rival/ult-charge-1.webp', ground: [664, 1466], scale: 1.1 },
@@ -152,7 +158,7 @@ interface Move {
   /** Le coup suivant de l'enchaînement, lancé par un nouvel appui pendant celui-ci. */
   next?: MoveName
 }
-type MoveName = 'punch' | 'kick' | 'smash' | 'uppercut' | 'push' | 'special' | 'ultimate'
+type MoveName = 'punch' | 'kick' | 'smash' | 'uppercut' | 'push' | 'special' | 'special2' | 'ultimate'
 /**
  * Son enchaînement. Le coup de poing : mise en place, bras armé, le bras part, poing tendu, puis retour ; il avance
  * très légèrement pendant l'armé. Un nouvel appui pendant le coup de poing enchaîne le coup de pied haut : genou
@@ -267,6 +273,25 @@ const MOVES: Record<MoveName, Move> = {
     height: 1150,
     power: 1.4,
     stop: 0.24,
+    next: 'special2',
+  },
+  // suite du coup spécial, si l'on rappuie quand le coup de pied touche : coup de poing chargé d'énergie
+  special2: {
+    steps: [
+      { pose: 'special2Ready', seconds: 0.05 },
+      { pose: 'special2Cock', seconds: 0.07 },
+      { pose: 'special2Punch', seconds: 0.05 },
+      { pose: 'special2Hit', seconds: 0.12, active: true },
+      { pose: 'special2Hit', seconds: 0.14 },
+      { pose: 'special2Cock', seconds: 0.08 },
+    ],
+    advance: 0,
+    advanceFrom: 0.04,
+    advanceTo: 0.17,
+    reach: 820,
+    height: 1150,
+    power: 1.4,
+    stop: 0.24,
   },
   // attaque ultime : mains tendues, l'énergie se forme puis grossit (le combat se fige et la caméra se resserre sur lui,
   // `takeFocus`), puis il se téléporte à travers l'écran juste devant Moussa, le frappe d'un uppercut et se baisse
@@ -300,7 +325,15 @@ const MOVES: Record<MoveName, Move> = {
 }
 /** Effets du coup spécial : durée de la croissance de la traînée, de son estompage et de l'explosion, en secondes. */
 const FX = { grow: 0.08, fade: 0.22, burst: 0.35 }
-const SPECIAL_KICK = MOVES.special.steps.slice(0, 3).reduce((sum, step) => sum + step.seconds, 0)
+/** Début de la première étape active d'un coup, en secondes : là où sa traînée d'énergie commence. */
+const activeStart = (move: Move) => {
+  let start = 0
+  for (const step of move.steps) {
+    if (step.active) return start
+    start += step.seconds
+  }
+  return start
+}
 const moveTotal = (move: Move) => move.steps.reduce((sum, step) => sum + step.seconds, 0)
 /** Fin des images actives d'un coup : c'est là que part le coup suivant de l'enchaînement. */
 const moveActiveEnd = (move: Move) => {
@@ -470,7 +503,7 @@ export class RivalLayer implements Opponent {
    */
   attack(): void {
     if (this.attackTime >= 0) {
-      if (MOVES[this.move].next) this.queued = true
+      if (MOVES[this.move].next && this.move !== 'special') this.queued = true
       return
     }
     if (this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
@@ -504,7 +537,10 @@ export class RivalLayer implements Opponent {
    */
   special(): void {
     if (this.attackTime >= 0) {
-      if (this.move !== 'special') this.specialQueued = true
+      // pendant le coup spécial, un nouvel appui enchaîne sa suite, seulement si le coup de pied a touché
+      if (this.move === 'special') {
+        if (this.landedStep) this.queued = true
+      } else if (this.move !== 'special2') this.specialQueued = true
       return
     }
     if (this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
@@ -545,7 +581,7 @@ export class RivalLayer implements Opponent {
   /** Son coup a touché ou a été paré : il ne touchera plus. Le coup spécial explose à l'impact. */
   land(): void {
     this.landedStep = this.moveStep()
-    if (this.move === 'special' || this.move === 'ultimate') {
+    if (this.move === 'special' || this.move === 'special2' || this.move === 'ultimate') {
       this.burstTime = 0
       this.impact = true
     }
@@ -837,8 +873,9 @@ export class RivalLayer implements Opponent {
     if (!this.vanished) drawPose(this.pose, 1)
     // coup spécial : la traînée d'énergie grandit en trois dessins pendant la jambe tendue, puis s'estompe
     const strength = calm ? 0.6 : 1
-    if (this.pose === 'specialKick' && this.attackTime >= 0) {
-      const t = this.attackTime - SPECIAL_KICK
+    // (même effet sur le coup de poing de sa suite)
+    if ((this.pose === 'specialKick' || this.pose === 'special2Hit') && this.attackTime >= 0) {
+      const t = this.attackTime - activeStart(MOVES[this.move])
       const k = Math.min(1, Math.max(0, (t - FX.grow) / FX.fade))
       drawPose(t < FX.grow / 2 ? 'fxTrail1' : t < FX.grow ? 'fxTrail2' : 'fxTrail3', strength * (1 - k * k))
     }
