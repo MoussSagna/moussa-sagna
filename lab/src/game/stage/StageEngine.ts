@@ -374,7 +374,17 @@ export class StageEngine {
     const target = this.opponent()
     target.update(fight)
     // propulsé : traits de vitesse verticaux sur tout l'écran
-    this.cinematic.speedLines = this.hero.flying && !calm
+    this.cinematic.speedLines = (this.hero.flying || this.rival.flying) && !calm
+    // l'adversaire charge son énergie : l'écran tremble légèrement
+    if (this.rival.charging) this.shake = Math.max(this.shake, 0.35)
+    // pour la démo : dès qu'il s'est envolé hors de l'écran, le round suivant commence
+    if (this.rival.takeTakeoff()) {
+      this.round += 1
+      this.hero.reenter()
+      this.rival.reset()
+      this.setMirrored(false)
+      this.cinematic.startRound(this.round)
+    }
     // l'adversaire disparaît au corps à corps : les combattants changent de côté et il réapparaît dans le dos de Moussa
     if (this.rival.takeCross()) {
       const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)

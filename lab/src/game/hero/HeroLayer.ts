@@ -323,7 +323,8 @@ const KO_DOWN = KO.steps.reduce((sum, step) => sum + step.seconds, 0)
  * fraction de la hauteur, opacité), comme dans les mangas.
  */
 const LAUNCH = {
-  rise: 0.32, height: 5200, away: 0.6, fall: 0.3, push: 0.06, total: 3.4, stretch: 0.45,
+  // il reste hors de l'écran longtemps : l'adversaire s'envole à sa poursuite et le round suivant commence avant
+  rise: 0.32, height: 5200, away: 4, fall: 0.3, push: 0.06, total: 6.8, stretch: 0.45,
   ghosts: [[0.12, 0.4], [0.25, 0.25], [0.4, 0.12]] as [number, number][],
 }
 /**
@@ -833,7 +834,7 @@ export class HeroLayer {
 
   /** Vrai pendant la montée de la propulsion : le moteur ajoute des traits de vitesse. */
   get flying(): boolean {
-    return this.pose === 'ko' && this.launched && this.koTime < LAUNCH.rise + LAUNCH.away
+    return this.pose === 'ko' && this.launched && this.koTime < LAUNCH.rise + 0.25
   }
 
   /** Vitesse de la montée de la propulsion : 1 au départ, 0 en haut. */
@@ -900,6 +901,8 @@ export class HeroLayer {
   /** Ramène le personnage en garde à sa place de départ, pour le round suivant. */
   reenter(): void {
     this.pose = 'guard'
+    this.launched = false
+    this.popped = false
     this.slide = null
     this.x = PLACEMENT.x
     this.fireball = null

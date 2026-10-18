@@ -69,9 +69,13 @@ const POSES = {
   ultCharge1: { file: 'rival/ult-charge-1.webp', ground: [664, 1466], scale: 1.1 },
   ultCharge2: { file: 'rival/ult-charge-2.webp', ground: [624, 1351], scale: 1.35 },
   // après l'uppercut de l'attaque ultime (mêmes dessins que l'uppercut de l'enchaînement), il se baisse en trois dessins
-  ultLand1: { file: 'rival/ult-land-1.webp', ground: [519, 1346], scale: 1.3 },
-  ultLand2: { file: 'rival/ult-land-2.webp', ground: [611, 1326], scale: 1.3 },
-  ultLand3: { file: 'rival/ult-land-3.webp', ground: [599, 1247], scale: 1.3 },
+  // puis il libère son énergie (de face), se baisse en la chargeant et s'envole ; calés sur la botte arrière
+  ultPower: { file: 'rival/ult-power.webp', ground: [597, 1399], scale: 1 },
+  ultCrouch1: { file: 'rival/ult-crouch-1.webp', ground: [612, 1376], scale: 1.05 },
+  ultCrouch2: { file: 'rival/ult-crouch-2.webp', ground: [602, 1237], scale: 1.05 },
+  ultCrouch3: { file: 'rival/ult-crouch-3.webp', ground: [597, 1286], scale: 1.05 },
+  // l'envol : `ground` sous ses bottes, pour qu'il parte du sol
+  ultFly: { file: 'rival/ult-fly.webp', ground: [560, 1060], scale: 1.05 },
   // effets du coup spécial (planche fournie par Moussa) : leur cœur lumineux est calé sur la semelle du coup de pied.
   // La traînée grandit en trois dessins ; l'explosion et l'anneau éclatent quand le coup touche.
   fxTrail1: { file: 'rival/fx-trail-1.webp', ground: [745, 1716], scale: 1 },
@@ -135,6 +139,9 @@ interface Step {
   active?: boolean
   vanish?: boolean
   warp?: boolean
+  /** Il charge son énergie (l'écran tremble légèrement) ; il s'envole hors de l'écran. */
+  charge?: boolean
+  takeoff?: boolean
   /** Le coup de cette étape soulève Moussa (`pop`) ou le propulse hors de l'écran (`fly`). */
   launch?: 'pop' | 'fly'
 }
@@ -308,11 +315,16 @@ const MOVES: Record<MoveName, Move> = {
       { pose: 'upperRise', seconds: 0.35, active: true, launch: 'pop' },
       { pose: 'upperHit', seconds: 0.14, active: true, launch: 'fly' },
       { pose: 'upperHit', seconds: 0.4 },
-      { pose: 'ultLand1', seconds: 0.08 },
-      { pose: 'ultLand2', seconds: 0.08 },
-      { pose: 'ultLand3', seconds: 0.4 },
-      { pose: 'ultLand2', seconds: 0.08 },
-      { pose: 'ultLand1', seconds: 0.08 },
+      // il libère son énergie, se baisse en la chargeant (l'écran tremble), puis s'envole à toute vitesse
+      { pose: 'ultPower', seconds: 0.45, charge: true },
+      { pose: 'ultCrouch1', seconds: 0.12, charge: true },
+      { pose: 'ultCrouch2', seconds: 0.12, charge: true },
+      { pose: 'ultCrouch3', seconds: 0.12, charge: true },
+      { pose: 'ultCrouch2', seconds: 0.1, charge: true },
+      { pose: 'ultCrouch3', seconds: 0.1, charge: true },
+      { pose: 'ultCrouch2', seconds: 0.08, charge: true },
+      { pose: 'ultCrouch3', seconds: 0.08, charge: true },
+      { pose: 'ultFly', seconds: 0.5, takeoff: true },
     ],
     advance: 0,
     advanceFrom: 0,
@@ -334,6 +346,17 @@ const activeStart = (move: Move) => {
   }
   return start
 }
+/** L'envol de l'attaque ultime : hauteur atteinte à la fin de l'étape, en pixels de la toile (bien au-delà de l'écran). */
+const TAKEOFF = { height: 6500 }
+const TAKEOFF_START = (() => {
+  let start = 0
+  for (const step of MOVES.ultimate.steps) {
+    if (step.takeoff) return start
+    start += step.seconds
+  }
+  return start
+})()
+const TAKEOFF_SECONDS = MOVES.ultimate.steps.find((step) => step.takeoff)?.seconds ?? 1
 const moveTotal = (move: Move) => move.steps.reduce((sum, step) => sum + step.seconds, 0)
 /** Fin des images actives d'un coup : c'est là que part le coup suivant de l'enchaînement. */
 const moveActiveEnd = (move: Move) => {
@@ -415,6 +438,8 @@ export class RivalLayer implements Opponent {
   private impact = false
   /** Vrai dès que la mise au point de l'attaque ultime en cours a été lancée. */
   private focusTaken = false
+  /** Vrai quand il vient de s'envoler hors de l'écran, jusqu'à ce que le moteur le prenne en compte. */
+  private tookOff = false
   /** Vrai dès que la téléportation de l'attaque ultime en cours a eu lieu. */
   private warped = false
   /** Coup en cours de l'enchaînement, et vrai si le joueur a demandé le suivant. */
@@ -517,6 +542,22 @@ export class RivalLayer implements Opponent {
     this.settle()
     this.focusTaken = false
     this.startMove('ultimate')
+  }
+
+  /** Vrai pendant qu'il charge son énergie (l'écran tremble) ; pendant son envol (traits de vitesse). */
+  get charging(): boolean {
+    return this.attackTime >= 0 && this.moveStep().charge === true
+  }
+
+  get flying(): boolean {
+    return this.attackTime >= 0 && this.moveStep().takeoff === true
+  }
+
+  /** Vrai une seule fois, quand il vient de s'envoler hors de l'écran : pour la démo, on passe au round suivant. */
+  takeTakeoff(): boolean {
+    const took = this.tookOff
+    this.tookOff = false
+    return took
   }
 
   /** Vrai pendant l'attaque ultime : le moteur assombrit le décor et Moussa. */
@@ -691,6 +732,8 @@ export class RivalLayer implements Opponent {
         // le coup suivant remplace le retour de celui-ci
         this.startMove(move.next)
       } else if (this.attackTime >= moveTotal(move)) {
+        // envolé hors de l'écran : le moteur passe au round suivant
+        if (move.steps.some((step) => step.takeoff)) this.tookOff = true
         this.attackTime = -1
         this.pose = 'guard'
       } else {
@@ -790,6 +833,11 @@ export class RivalLayer implements Opponent {
 
   /** Hauteur de vol du dessin `pose` à cet instant, en pixels de la toile : montée, puis flottement. */
   private lift(pose: RivalPose, amplitude: number): number {
+    // l'envol de l'attaque ultime : il part du sol et accélère jusqu'à sortir par le haut de l'écran
+    if (pose === 'ultFly' && this.attackTime >= 0) {
+      const k = Math.max(0, (this.attackTime - TAKEOFF_START) / TAKEOFF_SECONDS)
+      return TAKEOFF.height * k * k
+    }
     if (!isFloatPose(pose)) return 0
     const bob = Math.sin((this.floatTime * 2 * Math.PI) / FLOAT.period) * FLOAT.bob * amplitude
     return this.hover * (FLOAT.height + bob)
