@@ -168,6 +168,8 @@ export class CinematicLayer {
   private rivalCutInImage: HTMLCanvasElement | null = null
   private blastImages: (HTMLImageElement | null)[] = []
   private blastTime = -1
+  /** Interface de combat, dessinée sous les annonces dès que les plans de la cinématique ne couvrent plus l'écran. */
+  hud: ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | null = null
   /** Où dessiner l'impact du coup de marteau, mis à jour par le moteur à chaque image. */
   blastAt: BlastPlace | null = null
   /** Personnage du plan de coupe en cours. */
@@ -295,6 +297,7 @@ export class CinematicLayer {
     const { width: w, height: h } = frame
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, w, h)
+    if (this.hud && !this.covering) this.hud(ctx, w, h)
     // l'impact du coup de marteau, devant les combattants
     const blast = this.blastAt
     if (this.blastTime >= 0 && blast) {

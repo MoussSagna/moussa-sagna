@@ -257,6 +257,15 @@ Toucher conditionne aussi la suite de l'enchaînement :
 - Le mannequin n'a qu'un dessin de coup reçu, le même pour un coup léger au buste et un uppercut à la tête, et la zone de frappe est une simple distance : un coup porté en sautant ou accroupi toucherait de la même façon.
 - Les dashs sont une pose fixe qui glisse : rien ne bouge dans le dessin pendant le déplacement. Le premier des deux appuis lance brièvement la pose intermédiaire de la marche avant que le dash parte.
 
+## L'interface de combat
+
+`HudLayer` (`src/game/hud/`) tient et dessine les barres, à la manière de Street Fighter 6, Moussa à gauche et l'adversaire à droite. Elle se dessine sur la toile de la cinématique (`CinematicLayer.hud`), sous les annonces et les plans de coupe, et seulement quand les plans de l'intro ne couvrent plus l'écran.
+
+- **Vie**, en haut, de part et d'autre du numéro de round : ancrée au centre, elle perd par l'extérieur ; la part perdue s'efface d'abord en rouge, puis rattrape la vie. Un coup retire `DAMAGE.perPower` × sa puissance (`StageEngine`) ; la retombée et le coup de marteau de l'attaque ultime de l'adversaire retirent `DAMAGE.dive` et `DAMAGE.hammer`. Seul l'adversaire a une vie, pas le mannequin.
+- **Super**, en bas, depuis les bords : elle se remplit à chaque coup donné ou reçu, brille quand elle est pleine (« SUPER MAX ») et se vide quand l'attaque ultime part (`useSuper`). Pour les essais, l'attaque ultime ne demande pas encore une barre pleine.
+- **Drive**, juste sous la super : quatre blocs. Une parade en coûte ; la jauge se recharge seule après un instant ; vide, elle passe en surchauffe (« BURNOUT », grise) jusqu'à être pleine. Réglages dans `HUD`.
+- **K.O.** : à zéro, Moussa tombe K.O. (le K.O. habituel) ; s'il tombe à zéro pendant l'attaque ultime, il reste au sol à la fin au lieu de se relever. L'adversaire à zéro : « K.O. », puis round suivant (`DAMAGE.koSeconds`). Les vies reviennent au plein à chaque round ; le super est gardé.
+
 ## Ajouter un plan
 
 1. Créer une classe avec `load(): Promise<boolean>` et `draw(frame, camera, …)`.
