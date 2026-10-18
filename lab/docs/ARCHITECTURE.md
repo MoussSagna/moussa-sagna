@@ -259,6 +259,8 @@ Toucher conditionne aussi la suite de l'enchaînement :
 
 Quand Moussa encaisse un coup, il alterne deux dessins d'un coup à l'autre : le coup encaissé habituel (`hurt` puis `hurtRecover`), et plié au ventre (`hurtGut`, `HeroLayer.gut`).
 
+Quand un coup touche (ceux de Moussa comme ceux de l'adversaire), l'étincelle est dessinée : huit dessins (`fx/hit-N.webp`, `HIT_FX` dans `HeroLayer`), une étoile puis une onde qui part dans le sens du coup (vers la gauche quand c'est Moussa qui encaisse). Les parades et les explosions gardent l'étincelle calculée par le shader.
+
 ## L'interface de combat
 
 `HudLayer` (`src/game/hud/`) tient et dessine les barres, à la manière de Street Fighter 6, Moussa à gauche et l'adversaire à droite. Elle se dessine sur la toile de la cinématique (`CinematicLayer.hud`), sous les annonces et les plans de coupe, et seulement quand les plans de l'intro ne couvrent plus l'écran.

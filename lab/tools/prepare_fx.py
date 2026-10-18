@@ -7,6 +7,7 @@ bouffées là où une colonne entière est vide, et écrit chacune dans public/a
 petite à la plus grande. Affiche leur taille, reprise dans SMOKE (src/game/hero/HeroLayer.ts).
 Lit aussi ../art/fx-ground-special.png (planche d'effets déjà détourée) et l'écrit telle quelle dans
 public/assets/fx/ground-special.webp ; les rectangles de chaque effet sont dans FX (HeroLayer.ts).
+Les huit dessins de l'étincelle d'un coup qui touche (../art/fx-hit-N.png), voir `hit`.
 Et les douze dessins de l'impact du coup de marteau de l'adversaire (../art/fx-hammer-N.png), voir `hammer`.
 """
 import numpy as np
@@ -44,6 +45,33 @@ def main() -> None:
     print(f'ground-special : {sheet.width} x {sheet.height}')
 
     hammer()
+    hit()
+
+
+# étincelle d'un coup qui touche : toile commune, point d'impact en `origin`
+HIT = dict(width=448, height=448, origin=(96, 224))
+
+
+def hit() -> None:
+    """Les huit dessins de l'étincelle d'un coup qui touche (../art/fx-hit-N.png, petites images à la même échelle) :
+    détourés et posés sur une toile commune, sans changer d'échelle. Le premier (une étoile) est centré sur le point
+    d'impact ; les suivants (la gerbe, puis l'onde qui part vers la droite) y ont leur bord gauche. Écrits dans
+    public/assets/fx/hit-N.webp."""
+    for index in range(1, 9):
+        rgb = np.asarray(Image.open(ART / f'fx-hit-{index}.png').convert('RGB')).copy()
+        # les bords des images portent parfois un trait sombre (fin de la capture) : repeints en vert
+        rgb[:8] = rgb[-8:] = rgb[:, :8] = rgb[:, -8:] = (0, 255, 0)
+        art = key_green(rgb)
+        art[art[..., 3] == 0] = 0
+        ys, xs = np.where(art[..., 3] > 0)
+        x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
+        crop = Image.fromarray(art[y0:y1, x0:x1])
+        ox, oy = HIT['origin']
+        left = ox - crop.width // 2 if index == 1 else ox - 12
+        canvas = Image.new('RGBA', (HIT['width'], HIT['height']), (0, 0, 0, 0))
+        canvas.paste(crop, (left, oy - crop.height // 2))
+        canvas.save(OUT / f'hit-{index}.webp', lossless=True, quality=100, method=6)
+        print(f'hit-{index} : {crop.width} x {crop.height}')
 
 
 # impact du coup de marteau de l'adversaire : toile commune, pied de la colonne au même point

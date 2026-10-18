@@ -408,6 +408,15 @@ const PEBBLES = { count: 16, speed: [900, 1900] as [number, number], spread: 0.8
  * de la toile pour un coup de pleine puissance.
  */
 const IMPACT = { spark: { seconds: 0.24, radius: 420 }, blast: { seconds: 0.42, radius: 560 } }
+/**
+ * Étincelle dessinée d'un coup qui touche (huit dessins, `fx/hit-N.webp`, toile commune de `size` pixels, point
+ * d'impact en `origin`) : remplace l'étincelle calculée sur les coups encaissés (pas sur les parades ni les
+ * explosions). Chaque dessin dure `frame` secondes ; `scale` : taille d'un pixel du dessin, en pixels de la toile du
+ * personnage, pour un coup de puissance 1. L'onde part vers la droite (coup de Moussa), ou vers la gauche quand
+ * c'est Moussa qui encaisse.
+ */
+const HIT_FX = { count: 8, frame: 0.035, size: 448, origin: [96, 224] as [number, number], scale: 2.6, unit: 7 }
+const HIT_FX_SECONDS = HIT_FX.count * HIT_FX.frame
 
 /**
  * Coup encaissé. Le personnage affiche le dessin du coup reçu pendant `stun` secondes, puis celui du retour
@@ -515,7 +524,9 @@ export class HeroLayer {
   /** Vrai si l'attaque spéciale a été demandée pendant le coup en cours : elle annulera sa récupération s'il touche. */
   private specialQueued = false
   /** Impacts en cours : position, hauteur au-dessus du sol, âge, et s'il s'agit d'une explosion. */
-  private impacts: { x: number; height: number; age: number; power: number; blast: boolean; guard?: boolean; seed: number }[] = []
+  private impacts: { x: number; height: number; age: number; power: number; blast: boolean; guard?: boolean; seed: number; dir?: number }[] = []
+  /** Les dessins de l'étincelle d'un coup qui touche. */
+  private hitFx: (WebGLTexture | null)[] = []
   /** Temps écoulé depuis le coup encaissé en cours. */
   private hurtTime = 0
   /** Vrai si le coup encaissé en cours le prend au ventre (un coup sur deux) : autre dessin, sans dessin de retour. */
@@ -625,6 +636,8 @@ export class HeroLayer {
     this.fx = sheet ? uploadTexture(gl, FX_UNIT, sheet, { alpha: true, premultiply: true }) : null
     const puffs = await Promise.all(SMOKE.files.map((file) => loadImage(asset(file))))
     this.smoke = puffs.map((image, index) => (image ? uploadTexture(gl, SMOKE_UNIT + index, image, { alpha: true, premultiply: true }) : null))
+    const hits = await Promise.all(Array.from({ length: HIT_FX.count }, (_, i) => loadImage(asset(`fx/hit-${i + 1}.webp`))))
+    this.hitFx = hits.map((image) => (image ? uploadTexture(gl, HIT_FX.unit, image, { alpha: true, premultiply: true }) : null))
 
     // texture hors écran du reflet, sur sa propre unité
     gl.activeTexture(gl.TEXTURE0 + REFLECTION_UNIT)
@@ -776,7 +789,7 @@ export class HeroLayer {
     if (this.pose === 'exit' || this.pose === 'ko') return false
     const guarded = this.pose === 'block' || this.pose === 'crouchBlock'
     const height = !guarded ? strike.height : this.pose === 'block' ? GUARD_HIT.height : GUARD_HIT.crouchHeight
-    this.impacts.push({ x: this.front(pixel), height, age: 0, power: strike.power, blast: false, guard: guarded, seed: this.x * 50 + this.impacts.length })
+    this.impacts.push({ x: this.front(pixel), height, age: 0, power: strike.power, blast: false, guard: guarded, seed: this.x * 50 + this.impacts.length, dir: -1 })
     const push = guarded ? GUARD_HIT : HURT
     this.slide = { from: this.x, distance: push.push * (0.5 + 0.5 * strike.power), time: 0, seconds: push.pushSeconds }
     if (guarded) {
@@ -792,12 +805,17 @@ export class HeroLayer {
     return false
   }
 
+  /** Vrai si l'impact est dessiné avec l'étincelle dessinée (coup encaissé, dessins chargés). */
+  private drawnHit(impact: { blast: boolean; guard?: boolean }): boolean {
+    return !impact.blast && !impact.guard && this.hitFx.length === HIT_FX.count && this.hitFx.every(Boolean)
+  }
+
   /** Fait vieillir les impacts. À appeler à chaque image avec le temps réel : ils continuent pendant l'arrêt sur image. */
   tick(delta: number): void {
     for (const impact of this.impacts) impact.age += delta
     for (const fx of this.flurryFx) fx.age += delta
     this.flurryFx = this.flurryFx.filter((fx) => fx.age < (fx.heavy ? 0.32 : 0.22))
-    this.impacts = this.impacts.filter((impact) => impact.age < (impact.blast ? IMPACT.blast : IMPACT.spark).seconds)
+    this.impacts = this.impacts.filter((impact) => impact.age < (impact.blast ? IMPACT.blast.seconds : this.drawnHit(impact) ? HIT_FX_SECONDS : IMPACT.spark.seconds))
   }
 
   /** Dessin du coup de poing en cours : démarrage, bras tendu pendant les images actives, puis récupération. */
@@ -1760,13 +1778,41 @@ export class HeroLayer {
       }
     }
 
-    // 6. les étincelles d'impact, par-dessus tout le reste
+    // 6. les étincelles d'impact, par-dessus tout le reste : d'abord celles dessinées (coups encaissés)
+    const drawn = this.impacts.filter((impact) => this.drawnHit(impact))
+    if (drawn.length > 0) {
+      gl.useProgram(flat.program)
+      gl.enableVertexAttribArray(flat.attribute)
+      gl.vertexAttribPointer(flat.attribute, 2, gl.FLOAT, false, 0, 0)
+      gl.uniform1f(flat.u.uShadow, 0)
+      gl.uniform1i(flat.u.uTex, HIT_FX.unit)
+      gl.activeTexture(gl.TEXTURE0 + HIT_FX.unit)
+      for (const impact of drawn) {
+        const index = Math.min(HIT_FX.count - 1, Math.floor(impact.age / HIT_FX.frame))
+        gl.bindTexture(gl.TEXTURE_2D, this.hitFx[index])
+        const dir = impact.dir ?? 1
+        const size = HIT_FX.scale * (0.6 + 0.4 * impact.power) * (calm ? 0.8 : 1)
+        const x = (impact.x + PLACEMENT.depth * camera.ox - 0.5) * camera.zoom + 0.5
+        const y = sy - impact.height * (h / CANVAS[1])
+        const ux = unitX / 2
+        const uy = unitY / 2
+        // centre du dessin : décalé du point d'impact, dans le sens de l'onde
+        const cx = x + dir * (HIT_FX.size / 2 - HIT_FX.origin[0]) * size * ux
+        const cy = y - (HIT_FX.size / 2 - HIT_FX.origin[1]) * size * uy
+        gl.uniform1f(flat.u.uAlpha, calm ? 0.7 : 1)
+        // hauteur négative : l'image est envoyée tête en bas ; une largeur négative la retourne vers la gauche
+        gl.uniform4f(flat.u.uRect, cx * 2 - 1, 1 - cy * 2, HIT_FX.size * size * ux * dir, -HIT_FX.size * size * uy)
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+      }
+      gl.uniform1i(flat.u.uTex, REFLECTION_UNIT)
+    }
     const spark = this.spark
-    if (!spark || this.impacts.length === 0) return
+    if (!spark || this.impacts.length === drawn.length) return
     gl.useProgram(spark.program)
     gl.enableVertexAttribArray(spark.attribute)
     gl.vertexAttribPointer(spark.attribute, 2, gl.FLOAT, false, 0, 0)
     for (const impact of this.impacts) {
+      if (this.drawnHit(impact)) continue
       const shape = impact.blast ? IMPACT.blast : IMPACT.spark
       const k = impact.age / shape.seconds
       const x = (impact.x + PLACEMENT.depth * camera.ox - 0.5) * camera.zoom + 0.5
