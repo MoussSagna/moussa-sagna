@@ -135,8 +135,8 @@ interface Step {
   active?: boolean
   vanish?: boolean
   warp?: boolean
-  /** Le coup de cette étape propulse Moussa hors de l'écran. */
-  launch?: boolean
+  /** Le coup de cette étape soulève Moussa (`pop`) ou le propulse hors de l'écran (`fly`). */
+  launch?: 'pop' | 'fly'
 }
 /** Un coup de son enchaînement. */
 interface Move {
@@ -305,8 +305,8 @@ const MOVES: Record<MoveName, Move> = {
       { pose: 'teleportStreak', seconds: 0.04 },
       // uppercut : accroupi, bras armé figé un instant, puis il l'envoie
       { pose: 'upperCrouch', seconds: 0.07 },
-      { pose: 'upperRise', seconds: 0.35, active: true },
-      { pose: 'upperHit', seconds: 0.14, active: true, launch: true },
+      { pose: 'upperRise', seconds: 0.35, active: true, launch: 'pop' },
+      { pose: 'upperHit', seconds: 0.14, active: true, launch: 'fly' },
       { pose: 'upperHit', seconds: 0.4 },
       { pose: 'ultLand1', seconds: 0.08 },
       { pose: 'ultLand2', seconds: 0.08 },
@@ -575,7 +575,7 @@ export class RivalLayer implements Opponent {
     const step = this.moveStep()
     if (this.attackTime < 0 || !step.active || this.landedStep === step) return null
     const move = MOVES[this.move]
-    return { x: this.x - move.reach * pixel, height: move.height, power: move.power, stop: move.stop, launch: step.launch === true }
+    return { x: this.x - move.reach * pixel, height: move.height, power: move.power, stop: move.stop, launch: step.launch }
   }
 
   /** Son coup a touché ou a été paré : il ne touchera plus. Le coup spécial explose à l'impact. */

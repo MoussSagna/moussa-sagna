@@ -13,7 +13,7 @@ const SPRITE_UNIFORMS = ['uRect', 'uTex', 'uUv', 'uAlpha'] as const
 const SPARK_UNIFORMS = ['uRect', 'uK', 'uSeed', 'uPower', 'uTint', 'uGlow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring', 'kickStart', 'kickHit', 'groundCharge', 'groundRise', 'groundPalm', 'koStagger', 'koFall', 'koAir', 'koDown']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring', 'kickStart', 'kickHit', 'groundCharge', 'groundRise', 'groundPalm', 'koStagger', 'koFall', 'koAir', 'koDown', 'launch']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 export const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -56,6 +56,7 @@ const FEET: Record<PoseName, [number, number]> = {
   koStagger: POSES.koStagger.anchor,
   koFall: POSES.koFall.anchor,
   koAir: POSES.koAir.anchor,
+  launch: POSES.launch.anchor,
   koDown: POSES.koDown.anchor,
   groundCharge: POSES.groundCharge.anchor,
   groundRise: POSES.groundRise.anchor,
@@ -86,6 +87,7 @@ const POSE_SCALE: Record<PoseName, number> = {
   groundCharge: 1.27, groundRise: 1.27, groundPalm: 1.27,
   // K.O. : mesuré sur la longueur des baskets ; le dessin au sol a été réduit à 0,85 pour tenir dans la toile
   koStagger: 1.12, koFall: 1.1, koAir: 1.1, koDown: 1.3,
+  launch: 1.05,
   // sortie de fin de round : mesuré sur la longueur de la basket avant
   exitLean: 0.965, exitCrouch: 0.965, exitGround: 0.965, exitSpring: 0.965,
   // coup de pied : mesuré sur le visage (bandeau-menton), comme la rafale de coups de pied
@@ -316,9 +318,19 @@ const KO_DOWN = KO.steps.reduce((sum, step) => sum + step.seconds, 0)
 /**
  * Propulsé par l'attaque ultime de l'adversaire : il part en l'air à toute vitesse et sort par le haut de l'écran
  * (`rise` secondes jusqu'à `height` pixels de la toile), reste hors de l'écran `away` secondes, retombe en `fall`
- * secondes et s'écrase au sol, où il reste jusqu'à `total`. Il recule de `push` pendant la montée.
+ * secondes et s'écrase au sol, où il reste jusqu'à `total`. Il recule de `push` pendant la montée. À pleine vitesse,
+ * son dessin s'étire en hauteur (`stretch`) et des images rémanentes restent sous lui (`ghosts` : retard en
+ * fraction de la hauteur, opacité), comme dans les mangas.
  */
-const LAUNCH = { rise: 0.35, height: 5200, away: 0.6, fall: 0.3, push: 0.06, total: 3.4 }
+const LAUNCH = {
+  rise: 0.32, height: 5200, away: 0.6, fall: 0.3, push: 0.06, total: 3.4, stretch: 0.45,
+  ghosts: [[0.12, 0.4], [0.25, 0.25], [0.4, 0.12]] as [number, number][],
+}
+/**
+ * Soulevé par le premier coup de l'uppercut : il décolle de `height` pixels de la toile en `rise` secondes et reste
+ * suspendu ; si aucun coup ne suit, il retombe en garde au bout de `total` secondes.
+ */
+const POP = { rise: 0.08, height: 90, total: 0.9 }
 const LAUNCH_DOWN = LAUNCH.rise + LAUNCH.away + LAUNCH.fall
 
 /**
@@ -384,8 +396,11 @@ export interface Strike {
   height: number
   power: number
   stop: number
-  /** Vrai si le coup le propulse dans les airs, hors de l'écran (attaque ultime de l'adversaire). */
-  launch?: boolean
+  /**
+   * Le coup le soulève (`pop` : il décolle un peu du sol et y reste suspendu) ou le propulse hors de l'écran (`fly`),
+   * pendant l'attaque ultime de l'adversaire.
+   */
+  launch?: 'pop' | 'fly'
 }
 /** Instant du lancer et durée totale de l'attaque spéciale. */
 const SPECIAL_LAUNCH = SPECIAL.steps.slice(0, SPECIAL.steps.findIndex((step) => step.launch)).reduce((sum, step) => sum + step.seconds, 0)
@@ -450,7 +465,7 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'groundCharge' | 'groundRise' | 'groundPalm' | 'koStagger' | 'koFall' | 'koAir' | 'koDown' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring' | 'kickStart' | 'kickHit'> | 'dash' | 'jump' | 'punch' | 'special' | 'ground' | 'exit' | 'ko' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'groundCharge' | 'groundRise' | 'groundPalm' | 'koStagger' | 'koFall' | 'koAir' | 'koDown' | 'launch' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring' | 'kickStart' | 'kickHit'> | 'dash' | 'jump' | 'punch' | 'special' | 'ground' | 'exit' | 'ko' = 'guard'
   /** Temps écoulé depuis le début de l'attaque spéciale en cours. */
   private specialTime = 0
   /** Boule de feu en vol : position (fraction de la largeur du stage), hauteur au-dessus du sol (pixels de la toile), âge. */
@@ -493,6 +508,10 @@ export class HeroLayer {
   private koFrom = PLACEMENT.x
   /** Vrai si le K.O. en cours est une propulsion hors de l'écran. */
   private launched = false
+  /** Vrai s'il est seulement soulevé (premier coup de l'uppercut), suspendu en attendant le suivant. */
+  private popped = false
+  /** Hauteur de laquelle part la propulsion (celle où il était suspendu). */
+  private launchFrom = 0
   /** Temps écoulé depuis le début de la sortie de fin de round. */
   private exitTime = 0
   /** Les bouffées de fumée, chargées avec les poses. */
@@ -785,8 +804,9 @@ export class HeroLayer {
 
   /** K.O. : il est mis hors de combat, quoi qu'il fasse. `koDone` devient vrai quand il est resté assez au sol. */
   knockOut(): void {
-    if (this.pose === 'ko' || this.pose === 'exit') return
+    if ((this.pose === 'ko' && !this.popped) || this.pose === 'exit') return
     this.launched = false
+    this.popped = false
     this.pose = 'ko'
     this.koTime = 0
     this.koFrom = this.x
@@ -798,13 +818,27 @@ export class HeroLayer {
   }
 
   /** Propulsé dans les airs par l'attaque ultime de l'adversaire : un K.O. qui l'envoie hors de l'écran. */
-  launch(): void {
+  launch(mode: 'pop' | 'fly' = 'fly'): void {
     if (this.pose === 'exit' || (this.pose === 'ko' && this.launched)) return
+    // propulsé depuis la hauteur où le premier coup l'a soulevé
+    this.launchFrom = this.popped ? this.koState().lift : 0
+    const wasPopped = this.popped
     this.knockOut()
     this.pose = 'ko'
     this.koTime = 0
-    this.koFrom = this.x
-    this.launched = true
+    if (!wasPopped || mode === 'pop') this.koFrom = this.x
+    this.launched = mode === 'fly'
+    this.popped = mode === 'pop'
+  }
+
+  /** Vrai pendant la montée de la propulsion : le moteur ajoute des traits de vitesse. */
+  get flying(): boolean {
+    return this.pose === 'ko' && this.launched && this.koTime < LAUNCH.rise + LAUNCH.away
+  }
+
+  /** Vitesse de la montée de la propulsion : 1 au départ, 0 en haut. */
+  private flySpeed(): number {
+    return this.launched && this.pose === 'ko' && this.koTime < LAUNCH.rise ? 1 - this.koTime / LAUNCH.rise : 0
   }
 
   /** Instant où il touche le sol pendant le K.O. en cours. */
@@ -814,26 +848,31 @@ export class HeroLayer {
 
   /** Vrai pendant le K.O. */
   get knockedOut(): boolean {
-    return this.pose === 'ko'
+    return this.pose === 'ko' && !this.popped
   }
 
   /** Vrai à l'instant où il touche le sol, pendant le K.O. */
   get koLanded(): boolean {
-    return this.pose === 'ko' && this.koTime >= this.koDownAt
+    return this.pose === 'ko' && !this.popped && this.koTime >= this.koDownAt
   }
 
   /** Vrai quand le K.O. est fini : il est resté au sol assez longtemps. */
   get koDone(): boolean {
-    return this.pose === 'ko' && this.koTime >= (this.launched ? LAUNCH.total : KO.total)
+    return this.pose === 'ko' && !this.popped && this.koTime >= (this.launched ? LAUNCH.total : KO.total)
   }
 
   /** Dessin du K.O. et hauteur des pieds (pixels de la toile) : en l'air, une courbe qui monte et redescend. */
   private koState(): { name: PoseName; lift: number } {
+    if (this.popped) {
+      const k = Math.min(1, this.koTime / POP.rise)
+      return { name: 'launch', lift: POP.height * (1 - (1 - k) ** 2) }
+    }
     if (this.launched) {
       const t = this.koTime
       // il part très vite puis ralentit en sortant de l'écran ; il retombe en accélérant
-      if (t < LAUNCH.rise) return { name: 'koAir', lift: LAUNCH.height * (1 - (1 - t / LAUNCH.rise) ** 2) }
-      if (t < LAUNCH.rise + LAUNCH.away) return { name: 'koAir', lift: LAUNCH.height }
+      const from = this.launchFrom
+      if (t < LAUNCH.rise) return { name: 'launch', lift: from + (LAUNCH.height - from) * (1 - (1 - t / LAUNCH.rise) ** 2) }
+      if (t < LAUNCH.rise + LAUNCH.away) return { name: 'launch', lift: LAUNCH.height }
       if (t < LAUNCH_DOWN) return { name: 'koAir', lift: LAUNCH.height * (1 - ((t - LAUNCH.rise - LAUNCH.away) / LAUNCH.fall) ** 2) }
       return { name: 'koDown', lift: 0 }
     }
@@ -1076,6 +1115,14 @@ export class HeroLayer {
     }
     if (this.pose === 'ko') {
       this.koTime += frame.delta
+      // soulevé sans coup suivant : il retombe en garde
+      if (this.popped) {
+        if (this.koTime >= POP.total) {
+          this.pose = 'guard'
+          this.popped = false
+        }
+        return
+      }
       // il recule en freinant, sans sortir du stage
       const k = Math.min(1, this.koTime / (this.launched ? LAUNCH.rise : KO.pushSeconds))
       this.x = Math.max(PLACEMENT.minX, this.koFrom - (this.launched ? LAUNCH.push : KO.push) * (1 - (1 - k) ** 2))
@@ -1421,7 +1468,9 @@ export class HeroLayer {
                 ? [scaleAbout(feet, 1 - EXIT.stretch * 0.5 * amplitude, 1 + EXIT.stretch * amplitude)]
               : this.pose === 'dash' && !calm
                 ? [this.dashMatrix(feet)]
-                : null
+                : name === 'launch' && this.flySpeed() > 0 && !calm
+                  ? [scaleAbout(feet, 1 - LAUNCH.stretch * 0.4 * this.flySpeed(), 1 + LAUNCH.stretch * this.flySpeed())]
+                  : null
     const bends = BENDS[name]
     // traînée derrière le personnage : du côté opposé à sa course
     const rushing = this.pose === 'ground' && this.groundTime >= GROUND_RUSH && this.groundStep().rush
@@ -1519,6 +1568,13 @@ export class HeroLayer {
       for (const [delay, alpha] of EXIT.ghosts) {
         const k = Math.max(0, (this.exitTime - delay - EXIT_CROUCH) / EXIT.leap)
         drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * left - 1, 1 - 2 * top, alpha, EXIT.height * k * k)
+      }
+    }
+
+    // propulsé : des images rémanentes restent sous lui pendant qu'il monte
+    if (name === 'launch' && this.flySpeed() > 0 && !calm) {
+      for (const [delay, alpha] of LAUNCH.ghosts) {
+        drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * left - 1, 1 - 2 * top, alpha * this.flySpeed(), Math.max(0, lift - delay * LAUNCH.height))
       }
     }
 

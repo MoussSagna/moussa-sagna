@@ -564,6 +564,18 @@ export const POSES = {
       { name: 'body', parent: -1, pivot: [512, 768], box: [-4, 192, 1033, 1255], atlas: [0, 0] },
     ] as PoseLayer[],
   },
+  launch: {
+    file: 'hero/launch.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [470, 1411] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [36, 87, 916, 1334], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
   punchMidRecover: {
     file: 'hero/punchMidRecover.webp',
     atlasSize: [2048, 1024] as Point,

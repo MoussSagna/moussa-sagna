@@ -24,7 +24,7 @@
 - [ ] Changement de côté : le reporter dans le folio ; décider si Moussa peut aussi passer de l'autre côté (saut par-dessus).
 - [x] Plus de boutons sous la scène : tout se joue au clavier.
 - [x] Adversaire : enchaînement coup de poing (quatre dessins, légère avancée), coup de pied haut (trois dessins), coup de marteau vers le sol (trois dessins), uppercut (trois dessins), puis coup de pied de face pour finir (trois dessins) ; il touche Moussa.
-- [x] Adversaire : attaque ultime (touche N) : mains tendues, énergie qui se forme puis grossit (le combat se fige, la caméra se resserre sur lui et tout le reste s'assombrit), téléportation juste devant Moussa, uppercut (bras armé figé, puis envoi) qui propulse Moussa hors de l'écran et le met K.O., puis il se baisse en trois dessins.
+- [x] Adversaire : attaque ultime (touche N) : mains tendues, énergie qui se forme puis grossit (le combat se fige, la caméra se resserre sur lui et tout le reste s'assombrit), téléportation juste devant Moussa, uppercut en deux coups (le bras armé soulève Moussa, l'envoi le propulse hors de l'écran avec étirement, images rémanentes et traits de vitesse, K.O.), puis il se baisse en trois dessins.
 - [x] Adversaire : suite du coup spécial, un coup de poing chargé, si l'on rappuie quand le coup de pied touche.
 - [x] Adversaire : premier coup spécial (pose, amorçage, coup de pied enveloppé d'énergie violette, retour à l'amorçage), touche M, ou Maj quand on le contrôle.
 - [ ] Adversaire : la suite de son enchaînement ; dashs, coup, recul quand il encaisse ; parade et coup encaissé à refaire au nouveau modèle.

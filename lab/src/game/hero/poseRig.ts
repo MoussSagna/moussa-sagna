@@ -44,6 +44,7 @@ export const BENDS: Record<keyof typeof POSES, Record<string, Bend>> = {
   koStagger: {},
   koFall: {},
   koAir: {},
+  launch: {},
   koDown: {},
   groundCharge: {},
   groundRise: {},

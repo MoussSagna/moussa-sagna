@@ -275,9 +275,10 @@ export class StageEngine {
     if (blow && !this.hero.exiting && !this.hero.knockedOut && this.hero.front(pixel) >= blow.x) {
       target.land()
       const guarded = this.hero.takeHit(blow, pixel)
-      // l'uppercut de l'attaque ultime : s'il n'est pas paré, il propulse Moussa hors de l'écran (K.O.)
+      // l'uppercut de l'attaque ultime : s'il n'est pas paré, le premier coup soulève Moussa, le second le propulse
+      // hors de l'écran (K.O.)
       if (blow.launch && !guarded) {
-        this.hero.launch()
+        this.hero.launch(blow.launch)
         this.koAnnounced = false
       }
       this.stop = blow.stop * (guarded ? 0.5 : 1) * (calm ? 0.5 : 1)
@@ -372,6 +373,8 @@ export class StageEngine {
     this.rival.heroX = this.hero.position
     const target = this.opponent()
     target.update(fight)
+    // propulsé : traits de vitesse verticaux sur tout l'écran
+    this.cinematic.speedLines = this.hero.flying && !calm
     // l'adversaire disparaît au corps à corps : les combattants changent de côté et il réapparaît dans le dos de Moussa
     if (this.rival.takeCross()) {
       const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)

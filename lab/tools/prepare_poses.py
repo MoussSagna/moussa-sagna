@@ -66,7 +66,8 @@ RED_LOGOS = dict(groundCharge=[(770, 1145, 840, 1200)], groundRise=[(775, 1160, 
 # Logos gris ou noirs sur un panneau blanc : dans chaque rectangle, serré autour du logo, les pixels gris ou
 # sombres peu colorés sont repeints d'après le blanc qui les entoure.
 GRAY_LOGOS = dict(koStagger=[(185, 1262, 255, 1320), (825, 1300, 890, 1365)], koFall=[(305, 1250, 375, 1320), (810, 1170, 885, 1235)],
-                  koAir=[(812, 540, 858, 606), (868, 550, 905, 610)], koDown=[(818, 1212, 872, 1265)])
+                  koAir=[(812, 540, 858, 606), (868, 550, 905, 610)], koDown=[(818, 1212, 872, 1265)],
+                  launch=[(222, 1186, 262, 1254), (617, 1176, 648, 1240)])
 FAINT_LOGOS = dict(jumpStart=[[(150, 1228), (188, 1226), (204, 1262), (205, 1296), (150, 1296)]],
                    punchStart=[[(740, 1300), (800, 1300), (800, 1345), (740, 1345)]],
                    punchHit=[[(740, 1288), (800, 1288), (800, 1340), (740, 1340)]])
@@ -94,7 +95,9 @@ SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=
               # sortie de fin de round : calée sur le milieu des deux pieds, qui bougent d'un dessin à l'autre
               exitLean=517, exitCrouch=541, exitGround=496, exitSpring=500,
               # coup de pied : calé sur l'aplomb des hanches, comme la garde, pour que le corps ne saute pas
-              kickStart=465, kickHit=410)
+              kickStart=465, kickHit=410,
+              # propulsé par l'attaque ultime de l'adversaire : calé sur le milieu du corps, comme le K.O. en l'air
+              launch=470)
 # Coups donnés depuis la garde : le haut du corps vient de l'illustration du coup, les jambes restent celles de la
 # garde, pour que les pieds ne bougent pas. Valeur : décalage qui amène la boucle de ceinture du coup sur celle de
 # la garde (557, 693).
@@ -167,7 +170,7 @@ FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png',
              hurt='hero-hurt.png', hurtRecover='hero-hurt-recover.png',
              exitLean='hero-exit-lean.png', exitCrouch='hero-exit-crouch.png', exitGround='hero-exit-ground.png', exitSpring='hero-exit-spring.png',
              kickStart='hero-kick-start.png', kickHit='hero-kick-hit.png',
-             koStagger='hero-ko-stagger.png', koFall='hero-ko-fall.png', koAir='hero-ko-air.png', koDown='hero-ko-down.png',
+             koStagger='hero-ko-stagger.png', koFall='hero-ko-fall.png', koAir='hero-ko-air.png', koDown='hero-ko-down.png', launch='hero-launch.png',
              groundCharge='hero-ground-charge.png', groundRise='hero-ground-rise.png', groundPalm='hero-ground-palm.png',
              punchChain1='hero-punch-chain-1.png', punchChain2='hero-punch-chain-2.png', punchMidHit='hero-punch-mid-hit.png', punchMidRecover='hero-punch-mid-recover.png')
 
