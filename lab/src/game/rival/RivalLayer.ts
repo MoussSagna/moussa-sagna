@@ -401,7 +401,7 @@ const HAMMER = {
     { pose: 'hammerRaise', seconds: 0.3 },
     { pose: 'hammerSwing', seconds: 0.06 },
     { pose: 'hammerHit', seconds: 0.1 },
-    { pose: 'hammerEnd', seconds: 0.8 },
+    { pose: 'hammerEnd', seconds: 1.4 },
   ] as { pose: RivalPose; seconds: number }[],
   fists: (694 - 450) * 1.25,
   target: -150,

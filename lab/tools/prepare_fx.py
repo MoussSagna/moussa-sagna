@@ -47,7 +47,8 @@ def main() -> None:
 
 
 # impact du coup de marteau de l'adversaire : toile commune, pied de la colonne au même point
-HAMMER = dict(width=1024, height=768, ground=(512, 760), tall=700)
+# (assez grande pour rester nette une fois très agrandie à l'écran)
+HAMMER = dict(width=1480, height=1080, ground=(740, 1070), tall=1000)
 
 
 def hammer() -> None:

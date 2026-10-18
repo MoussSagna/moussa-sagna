@@ -115,11 +115,11 @@ const CUT_IN = { file: 'cinematic/cutin.webp', open: 0.14, close: 0.16, height: 
  */
 const RIVAL_CUT_IN = { file: 'cinematic/cutin-rival.webp', colors: ['#14031f', '#4d0d6e', '#0d0214'], height: 1.7, face: 0.28, x: 0.5, fade: 0.25 }
 /**
- * Impact du coup de marteau de l'adversaire : douze dessins (`fx/hammer-N.webp`, toile commune de 1024 × 768, pied
+ * Impact du coup de marteau de l'adversaire : douze dessins (`fx/hammer-N.webp`, toile commune de 1480 × 1080, pied
  * de la colonne en `ground`) qui se suivent, chacun `frame` secondes, par-dessus les combattants. `scale` : taille
  * d'un pixel du dessin, en pixels de la toile des personnages.
  */
-const BLAST = { count: 12, frame: 0.05, ground: [512, 760] as [number, number], scale: 2.8 }
+const BLAST = { count: 12, frame: 0.1, ground: [740, 1070] as [number, number], scale: 3.5 }
 /** Position de l'impact à l'écran : pied de la colonne (fractions de l'écran) et hauteur d'un pixel de la toile des personnages (fraction de la hauteur de l'écran). */
 export type BlastPlace = { x: number; y: number; unit: number }
 const SHOTS_END = SHOTS[SHOTS.length - 1].end
