@@ -110,9 +110,18 @@ const CUT_IN = { file: 'cinematic/cutin.webp', open: 0.14, close: 0.16, height: 
 /**
  * Plan de coupe de l'attaque ultime de l'adversaire : son gros plan (en hauteur), sur une bande violette. `height` :
  * hauteur de l'image en hauteurs de bande ; `face` : fraction de l'image (depuis le haut) placée au milieu de la
- * bande.
+ * bande ; `x` : centre de l'image, en fraction de la largeur de l'écran ; `fade` : part de la largeur de l'image,
+ * à gauche, qui s'estompe (l'illustration y est coupée net).
  */
-const RIVAL_CUT_IN = { file: 'cinematic/cutin-rival.webp', colors: ['#14031f', '#4d0d6e', '#0d0214'], height: 1.7, face: 0.28 }
+const RIVAL_CUT_IN = { file: 'cinematic/cutin-rival.webp', colors: ['#14031f', '#4d0d6e', '#0d0214'], height: 1.7, face: 0.28, x: 0.5, fade: 0.25 }
+/**
+ * Impact du coup de marteau de l'adversaire : douze dessins (`fx/hammer-N.webp`, toile commune de 1024 × 768, pied
+ * de la colonne en `ground`) qui se suivent, chacun `frame` secondes, par-dessus les combattants. `scale` : taille
+ * d'un pixel du dessin, en pixels de la toile des personnages.
+ */
+const BLAST = { count: 12, frame: 0.05, ground: [512, 760] as [number, number], scale: 2.8 }
+/** Position de l'impact à l'écran : pied de la colonne (fractions de l'écran) et hauteur d'un pixel de la toile des personnages (fraction de la hauteur de l'écran). */
+export type BlastPlace = { x: number; y: number; unit: number }
 const SHOTS_END = SHOTS[SHOTS.length - 1].end
 /** Instant à partir duquel le personnage peut jouer, et fin de la cinématique. */
 export const CINEMATIC_FIGHT_AT = TIMELINE.fight[0]
@@ -156,7 +165,11 @@ export class CinematicLayer {
   /** Temps écoulé depuis le début de la mise au point, ou -1 : traits de vitesse qui convergent vers le centre. */
   private focusTime = -1
   private cutInImage: HTMLImageElement | null = null
-  private rivalCutInImage: HTMLImageElement | null = null
+  private rivalCutInImage: HTMLCanvasElement | null = null
+  private blastImages: (HTMLImageElement | null)[] = []
+  private blastTime = -1
+  /** Où dessiner l'impact du coup de marteau, mis à jour par le moteur à chaque image. */
+  blastAt: BlastPlace | null = null
   /** Personnage du plan de coupe en cours. */
   private cutInWho: 'hero' | 'rival' = 'hero'
   /** Traits de vitesse du plan de coupe : hauteur dans la bande, longueur, vitesse. */
@@ -182,7 +195,8 @@ export class CinematicLayer {
   async load(): Promise<boolean> {
     this.images = await Promise.all(SHOTS.map((shot) => loadImage(asset(shot.file))))
     this.cutInImage = await loadImage(asset(CUT_IN.file))
-    this.rivalCutInImage = await loadImage(asset(RIVAL_CUT_IN.file))
+    this.rivalCutInImage = fadeLeft(await loadImage(asset(RIVAL_CUT_IN.file)), RIVAL_CUT_IN.fade)
+    this.blastImages = await Promise.all(Array.from({ length: BLAST.count }, (_, i) => loadImage(asset(`fx/hammer-${i + 1}.webp`))))
     try {
       await Promise.all([document.fonts.load(`100px ${DISPLAY_FONT}`), document.fonts.load(`600 40px ${BODY_FONT}`)])
     } catch {
@@ -234,6 +248,16 @@ export class CinematicLayer {
     if (who === 'hero' ? this.cutInImage : this.rivalCutInImage) this.cutInTime = 0
   }
 
+  /** Impact du coup de marteau de l'adversaire : la colonne d'énergie jaillit à l'endroit donné par `blastAt`. */
+  blast(): void {
+    this.blastTime = 0
+  }
+
+  /** Vrai pendant l'impact du coup de marteau : le moteur tient `blastAt` à jour. */
+  get blasting(): boolean {
+    return this.blastTime >= 0
+  }
+
   /** Affiche « K.O. » par-dessus le stage, le temps de `KO_ANNOUNCE`. */
   showKO(): void {
     this.koTime = 0
@@ -247,6 +271,10 @@ export class CinematicLayer {
     if (this.impactTime >= 0) {
       this.impactTime += delta
       if (this.impactTime >= 0.35) this.impactTime = -1
+    }
+    if (this.blastTime >= 0) {
+      this.blastTime += delta
+      if (this.blastTime >= BLAST.count * BLAST.frame) this.blastTime = -1
     }
     if (this.cutInTime >= 0) {
       this.cutInTime += delta
@@ -267,6 +295,17 @@ export class CinematicLayer {
     const { width: w, height: h } = frame
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, w, h)
+    // l'impact du coup de marteau, devant les combattants
+    const blast = this.blastAt
+    if (this.blastTime >= 0 && blast) {
+      const image = this.blastImages[Math.min(BLAST.count - 1, Math.floor(this.blastTime / BLAST.frame))]
+      if (image) {
+        const size = blast.unit * h * BLAST.scale
+        ctx.globalAlpha = calm ? 0.6 : 1
+        ctx.drawImage(image, blast.x * w - BLAST.ground[0] * size, blast.y * h - BLAST.ground[1] * size, image.width * size, image.height * size)
+        ctx.globalAlpha = 1
+      }
+    }
     if (this.focusTime >= 0) this.drawFocus(ctx, this.focusTime, frame, calm)
     if (this.impactTime >= 0) {
       // blanc d'abord, puis un voile rouge qui s'éteint
@@ -576,11 +615,11 @@ export class CinematicLayer {
     // le gros plan couvre la bande et glisse lentement vers la gauche
     const pan = calm ? 0 : CUT_IN.pan * (0.5 - t / CUT_IN_SECONDS)
     if (rival) {
-      // gros plan en hauteur : le visage et la main tiennent dans la bande ; l'image, coupée à gauche, part du bord
-      // gauche de l'écran
+      // gros plan en hauteur, au milieu de l'écran : le visage et la main tiennent dans la bande ; le bord gauche de
+      // l'illustration, coupé net, s'estompe
       const scale = (h * CUT_IN.height * RIVAL_CUT_IN.height) / image.height
       const top = h / 2 - image.height * scale * RIVAL_CUT_IN.face
-      ctx.drawImage(image, (pan - CUT_IN.pan / 2) * w, top, image.width * scale, image.height * scale)
+      ctx.drawImage(image, w * RIVAL_CUT_IN.x - (image.width * scale) / 2 + pan * w, top, image.width * scale, image.height * scale)
     } else {
       const scale = Math.max(w / image.width, (h * CUT_IN.height * 1.25) / image.height) * 1.08
       ctx.drawImage(image, w / 2 - (image.width * scale) / 2 + pan * w, h / 2 - (image.height * scale) / 2, image.width * scale, image.height * scale)
@@ -638,4 +677,23 @@ export class CinematicLayer {
     ctx.fillStyle = `rgba(${rgb}, ${Math.min(1, alpha)})`
     ctx.fillRect(0, 0, w, h)
   }
+}
+
+/** Copie de l'image dont la part `fade` de gauche s'estompe vers la transparence. */
+function fadeLeft(image: HTMLImageElement | null, fade: number): HTMLCanvasElement | null {
+  if (!image) return null
+  const canvas = document.createElement('canvas')
+  canvas.width = image.width
+  canvas.height = image.height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.drawImage(image, 0, 0)
+  const ramp = ctx.createLinearGradient(0, 0, image.width * fade, 0)
+  ramp.addColorStop(0, 'rgba(0, 0, 0, 0)')
+  ramp.addColorStop(1, 'rgba(0, 0, 0, 1)')
+  ctx.globalCompositeOperation = 'destination-in'
+  ctx.fillStyle = ramp
+  // le dégradé reste opaque au-delà de `fade` : un seul remplissage (« destination-in » efface tout ce qu'il ne couvre pas)
+  ctx.fillRect(0, 0, image.width, image.height)
+  return canvas
 }

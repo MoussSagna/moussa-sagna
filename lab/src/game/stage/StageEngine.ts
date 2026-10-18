@@ -348,6 +348,17 @@ export class StageEngine {
       camera.oy += Math.cos(time * 83) * this.shake * SHAKE.amplitude * 0.6
     }
     const info: FrameInfo = { time, delta, width: this.size.width, height: this.size.height }
+    // impact du coup de marteau de l'adversaire : dessiné par la cinématique, devant les combattants, au même endroit
+    // du stage qu'eux (même caméra, secousse comprise)
+    if (this.cinematic.blasting) {
+      const view = this.mirrored ? -camera.ox : camera.ox
+      const x = (this.rival.hammerX + PLACEMENT.depth * view - 0.5) * camera.zoom + 0.5
+      this.cinematic.blastAt = {
+        x: this.mirrored ? 1 - x : x,
+        y: (PLACEMENT.y + PLACEMENT.depth * camera.oy - 0.5) * camera.zoom + 0.5,
+        unit: (PLACEMENT.scale * camera.zoom) / CANVAS[1],
+      }
+    }
 
     // cinématique d'entrée : tant que ses plans recouvrent l'écran, le stage n'est pas dessiné ; quand ils se
     // terminent, le travelling d'ouverture du stage commence
@@ -401,6 +412,7 @@ export class StageEngine {
       this.stop = CUT_IN_SECONDS
     }
     if (this.rival.takeHammerImpact()) {
+      this.cinematic.blast()
       this.cinematic.impactFlash()
       this.shake = Math.max(this.shake, 3.5)
     }

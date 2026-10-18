@@ -645,6 +645,12 @@ export class RivalLayer implements Opponent {
     return cut
   }
 
+  /** Position sur le stage (fraction de l'écran) où frappent ses poings pendant le coup de marteau. */
+  get hammerX(): number {
+    const [heroX, pixel] = this.diveTarget
+    return heroX + HAMMER.target * pixel
+  }
+
   /** Vrai une seule fois, quand le coup de marteau frappe : le moteur fait trembler l'écran. */
   takeHammerImpact(): boolean {
     const impact = this.hammerImpact

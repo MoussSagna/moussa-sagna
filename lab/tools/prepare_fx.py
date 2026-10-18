@@ -7,6 +7,7 @@ bouffées là où une colonne entière est vide, et écrit chacune dans public/a
 petite à la plus grande. Affiche leur taille, reprise dans SMOKE (src/game/hero/HeroLayer.ts).
 Lit aussi ../art/fx-ground-special.png (planche d'effets déjà détourée) et l'écrit telle quelle dans
 public/assets/fx/ground-special.webp ; les rectangles de chaque effet sont dans FX (HeroLayer.ts).
+Et les douze dessins de l'impact du coup de marteau de l'adversaire (../art/fx-hammer-N.png), voir `hammer`.
 """
 import numpy as np
 from PIL import Image
@@ -41,6 +42,39 @@ def main() -> None:
     sheet = Image.open(ART / 'fx-ground-special.png').convert('RGBA')
     sheet.save(OUT / 'ground-special.webp', lossless=True, quality=100, method=6)
     print(f'ground-special : {sheet.width} x {sheet.height}')
+
+    hammer()
+
+
+# impact du coup de marteau de l'adversaire : toile commune, pied de la colonne au même point
+HAMMER = dict(width=1024, height=768, ground=(512, 760), tall=700)
+
+
+def hammer() -> None:
+    """Les douze dessins de l'impact du coup de marteau (../art/fx-hammer-N.png, en hauteur ou en largeur, à des
+    échelles différentes) : détourés, ramenés à la même hauteur de colonne (`tall`, sans dépasser la largeur de la
+    toile) et posés avec le pied de la colonne lumineuse en `ground`, dans public/assets/fx/hammer-N.webp."""
+    for index in range(1, 13):
+        rgb = np.asarray(Image.open(ART / f'fx-hammer-{index}.png').convert('RGB')).copy()
+        art = key_green(rgb)
+        art[art[..., 3] == 0] = 0
+        solid = art[..., 3] > 0
+        ys, xs = np.where(solid)
+        x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
+        # pied de la colonne : le milieu des pixels presque blancs du bas
+        low = art[y1 - (y1 - y0) // 4:y1]
+        white = (low[..., :3].min(axis=2) > 225) & (low[..., 3] > 200)
+        foot = int(np.median(np.where(white)[1])) if white.any() else (x0 + x1) // 2
+        k = HAMMER['tall'] / (y1 - y0)
+        half = max(foot - x0, x1 - foot)
+        k = min(k, (HAMMER['width'] / 2 - 4) / half)
+        crop = Image.fromarray(art[y0:y1, x0:x1])
+        crop = crop.resize((max(1, round(crop.width * k)), max(1, round(crop.height * k))), Image.LANCZOS)
+        canvas = Image.new('RGBA', (HAMMER['width'], HAMMER['height']), (0, 0, 0, 0))
+        gx, gy = HAMMER['ground']
+        canvas.paste(crop, (round(gx - (foot - x0) * k), gy - crop.height))
+        canvas.save(OUT / f'hammer-{index}.webp', quality=90, method=6)
+        print(f'hammer-{index} : échelle {k:.2f}, {(OUT / f"hammer-{index}.webp").stat().st_size / 1024:.0f} Ko')
 
 
 if __name__ == '__main__':
