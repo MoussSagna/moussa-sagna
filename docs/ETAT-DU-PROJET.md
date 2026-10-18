@@ -2,7 +2,7 @@
 
 Ce fichier sert à reprendre le travail dans une nouvelle conversation sans rien perdre. Il dit où en est le projet, comment Moussa et Claude travaillent ensemble, et ce qui reste à faire. À mettre à jour à chaque fusion dans `main`.
 
-Dernière mise à jour : 16 octobre 2026, après la fusion de `controle-adversaire-2` dans `main` (adversaire : nouvelle garde, lévitation, téléportations, passage dans le dos, contrôle aux flèches).
+Dernière mise à jour : 18 octobre 2026, après la fusion de `coup-adversaire` dans `main` (adversaire : enchaînement, coup spécial et sa suite, attaque ultime complète ; Moussa propulsé, écrasé au sol et qui se relève).
 
 ## Pour reprendre dans une nouvelle conversation
 
@@ -48,7 +48,11 @@ Touches : flèches ou ZQSD, J attaque, L boule de feu, I attaque spéciale au so
 - Attaque spéciale au sol : mise au point figée avec zoom, ruée, rafale de dix coups au hasard, trois coups lourds qui font trembler l'écran, plan de coupe, charge, frappe de la paume, gros impact.
 - Mannequin et adversaire original : impacts, arrêt sur image, étincelles, secousse ; l'adversaire encaisse et peut parer.
 - Adversaire (nouveau modèle aux proportions de Moussa) : il se déplace en lévitation au ras du sol (un dessin par sens, une pose de passage, sans fondu), garde seul ses distances, ou se joue aux flèches. Dash avant et arrière en téléportation, à la manière de Doom ; au corps à corps, la téléportation le fait passer dans le dos de Moussa et les combattants changent de côté en restant face à face (affichage retourné en miroir, commandes dans le sens de l'écran).
-- Coups reçus et parés par Moussa.
+- Coups de l'adversaire (case « Contrôler l'adversaire » : Entrée enchaîne, Maj coup spécial ; touches globales K attaque, M coup spécial, N attaque ultime) :
+  - enchaînement de cinq coups, qui n'avance que si le coup touche, annulable à tout moment par le coup spécial ;
+  - coup spécial (coup de pied avec traînée d'énergie, explosion et secousse), et sa suite en coup de poing si l'on rappuie quand il touche ;
+  - attaque ultime : mise au point sur lui pendant qu'il charge, téléportation devant Moussa, uppercut en deux coups (Moussa soulevé puis propulsé hors de l'écran), charge et envol à toute vitesse (traînée de super vitesse, impact au sol, forte secousse), Moussa retombe et rebondit, l'adversaire retombe sur lui d'un coup de poing, plan de coupe sur son gros plan (bande violette), coup de marteau à deux mains avec une immense colonne d'énergie au premier plan et une secousse verticale, puis bond en arrière pendant que Moussa se relève et reprend sa garde.
+- Coups reçus et parés par Moussa (sans recul).
 - Fin de round (il se baisse et disparaît dans la fumée) et K.O. (quatre dessins, « K.O. », round suivant).
 
 ## Ce que le folio a repris
@@ -57,11 +61,11 @@ Touches : flèches ou ZQSD, J attaque, L boule de feu, I attaque spéciale au so
 
 Pas encore repris (demande du travail de rendu dans Phaser) : boule de feu, attaque spéciale au sol et ses effets, effet de vitesse des dashs, mannequin, impacts, adversaire en combat (avec sa lévitation, ses téléportations et le changement de côté), coups reçus, fin de round, K.O.
 
-Les fusions du 16 octobre ne touchent que l'adversaire, absent de l'arène du folio : il n'y avait rien à reprendre pour Moussa (le seul ajout, `HeroLayer.mirror`, sert au changement de côté). Le folio garde ses boutons sous l'arène : le lab les a retirés, mais sur le site ils servent au tactile.
+Les fusions du 16 et du 18 octobre ne touchent que l'adversaire, absent de l'arène du folio : il n'y avait rien à reprendre pour Moussa (`HeroLayer.mirror` sert au changement de côté ; les nouvelles poses de Moussa, propulsé, écrasé au sol et relevé, ne servent qu'à l'attaque ultime de l'adversaire). Le folio garde ses boutons sous l'arène : le lab les a retirés, mais sur le site ils servent au tactile.
 
 ## Limites connues et prochaines pistes
 
-- **Adversaire** : sa parade et son coup encaissé sont encore dessinés sur l'ancien modèle (ils détonnent à côté de la nouvelle garde). Son enchaînement a cinq coups (coup de poing, coup de pied haut, coup de marteau vers le sol, uppercut, coup de pied de face, à chaque nouvel appui), il lui manque la suite ; il ne se téléporte que si un joueur le contrôle. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié).
+- **Adversaire** : sa parade et son coup encaissé sont encore dessinés sur l'ancien modèle (ils détonnent à côté de la nouvelle garde). Il ne se téléporte et n'attaque seul que si un joueur le contrôle (ou avec les touches K, M, N). Son attaque ultime ne retire pas encore de vie : il n'y a pas de barres de vie. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié).
 - **Changement de côté** : seul l'adversaire peut passer dans le dos de Moussa ; Moussa se retourne d'un coup, sans animation de demi-tour.
 - **Prochaine grosse étape possible** : faire entrer l'adversaire dans l'arène du folio (affichage, lévitation, téléportations, changement de côté), puis les coups qui touchent.
 - **K.O.** : pas d'animation pour se relever ; il réapparaît en garde.
