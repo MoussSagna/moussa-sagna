@@ -576,6 +576,42 @@ export const POSES = {
       { name: 'body', parent: -1, pivot: [512, 768], box: [36, 87, 916, 1334], atlas: [0, 0] },
     ] as PoseLayer[],
   },
+  slamFall: {
+    file: 'hero/slamFall.webp',
+    atlasSize: [1024, 1024] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [520, 1236] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [18, 396, 1010, 850], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  slamDown: {
+    file: 'hero/slamDown.webp',
+    atlasSize: [1024, 1024] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [500, 1509] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [4, 854, 1012, 665], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  slamBounce: {
+    file: 'hero/slamBounce.webp',
+    atlasSize: [1024, 1024] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [490, 1505] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [79, 865, 924, 649], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
   punchMidRecover: {
     file: 'hero/punchMidRecover.webp',
     atlasSize: [2048, 1024] as Point,

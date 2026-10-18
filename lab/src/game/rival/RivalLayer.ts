@@ -460,6 +460,8 @@ export class RivalLayer implements Opponent {
   private focusTaken = false
   /** Vrai quand il vient de s'envoler hors de l'écran, jusqu'à ce que le moteur le prenne en compte. */
   private tookOff = false
+  /** Vrai une fois envolé : il reste hors de l'écran jusqu'au round suivant. */
+  private away = false
   /** Vrai dès que la téléportation de l'attaque ultime en cours a eu lieu. */
   private warped = false
   /** Coup en cours de l'enchaînement, et vrai si le joueur a demandé le suivant. */
@@ -532,6 +534,7 @@ export class RivalLayer implements Opponent {
     this.burstTime = Infinity
     this.ghostTime = Infinity
     this.crossing = false
+    this.away = false
     this.settle()
   }
 
@@ -569,7 +572,7 @@ export class RivalLayer implements Opponent {
     return this.attackTime >= 0 && this.moveStep().takeoff === true
   }
 
-  /** Vrai une seule fois, quand il vient de s'envoler hors de l'écran : pour la démo, on passe au round suivant. */
+  /** Vrai une seule fois, quand il vient de s'envoler hors de l'écran : le moteur renvoie Moussa au sol. */
   takeTakeoff(): boolean {
     const took = this.tookOff
     this.tookOff = false
@@ -686,7 +689,7 @@ export class RivalLayer implements Opponent {
 
   /** Vrai pendant la téléportation, quand il n'est plus visible. */
   private get vanished(): boolean {
-    return (this.teleportTime >= 0 && this.teleportStep() === null) || (this.attackTime >= 0 && this.moveStep().vanish === true)
+    return this.away || (this.teleportTime >= 0 && this.teleportStep() === null) || (this.attackTime >= 0 && this.moveStep().vanish === true)
   }
 
   /** Le dessin de l'étape en cours de la téléportation, ou `null` quand il est invisible. */
@@ -702,6 +705,7 @@ export class RivalLayer implements Opponent {
   update(frame: FrameInfo): void {
     this.burstTime += frame.delta
     this.ghostTime += frame.delta
+    if (this.away) return
     if (this.teleportTime >= 0) {
       const before = this.teleportTime
       this.teleportTime += frame.delta
@@ -749,9 +753,13 @@ export class RivalLayer implements Opponent {
         this.startMove(move.next)
       } else if (this.attackTime >= moveTotal(move)) {
         // envolé hors de l'écran : le moteur passe au round suivant
-        if (move.steps.some((step) => step.takeoff)) this.tookOff = true
         this.attackTime = -1
         this.pose = 'guard'
+        if (move.steps.some((step) => step.takeoff)) {
+          this.tookOff = true
+          this.away = true
+          this.pose = 'ultFly'
+        }
       } else {
         this.pose = this.moveStep().pose
       }

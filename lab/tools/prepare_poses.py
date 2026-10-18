@@ -67,7 +67,11 @@ RED_LOGOS = dict(groundCharge=[(770, 1145, 840, 1200)], groundRise=[(775, 1160, 
 # sombres peu colorés sont repeints d'après le blanc qui les entoure.
 GRAY_LOGOS = dict(koStagger=[(185, 1262, 255, 1320), (825, 1300, 890, 1365)], koFall=[(305, 1250, 375, 1320), (810, 1170, 885, 1235)],
                   koAir=[(812, 540, 858, 606), (868, 550, 905, 610)], koDown=[(818, 1212, 872, 1265)],
-                  launch=[(222, 1186, 262, 1254), (617, 1176, 648, 1240)])
+                  launch=[(222, 1186, 262, 1254), (617, 1176, 648, 1240)],
+                  slamFall=[(850, 510, 886, 596), (812, 1060, 900, 1100)], slamDown=[(800, 940, 826, 990), (845, 1400, 910, 1438)],
+                  slamBounce=[(822, 1178, 890, 1225), (790, 1410, 855, 1445)])
+# Logos clairs sur le col noir de la basket : dans chaque rectangle, les pixels clairs sont repeints d'après le noir qui les entoure.
+DARK_LOGOS = dict(slamFall=[(875, 985, 925, 1020)], slamDown=[(855, 1352, 885, 1380)], slamBounce=[(855, 1135, 880, 1158), (796, 1365, 818, 1386)])
 FAINT_LOGOS = dict(jumpStart=[[(150, 1228), (188, 1226), (204, 1262), (205, 1296), (150, 1296)]],
                    punchStart=[[(740, 1300), (800, 1300), (800, 1345), (740, 1345)]],
                    punchHit=[[(740, 1288), (800, 1288), (800, 1340), (740, 1340)]])
@@ -97,7 +101,9 @@ SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=
               # coup de pied : calé sur l'aplomb des hanches, comme la garde, pour que le corps ne saute pas
               kickStart=465, kickHit=410,
               # propulsé par l'attaque ultime de l'adversaire : calé sur le milieu du corps, comme le K.O. en l'air
-              launch=470)
+              launch=470,
+              # écrasé au sol par l'attaque ultime : calé sur le milieu du corps
+              slamFall=520, slamDown=500, slamBounce=490)
 # Coups donnés depuis la garde : le haut du corps vient de l'illustration du coup, les jambes restent celles de la
 # garde, pour que les pieds ne bougent pas. Valeur : décalage qui amène la boucle de ceinture du coup sur celle de
 # la garde (557, 693).
@@ -171,13 +177,21 @@ FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png',
              exitLean='hero-exit-lean.png', exitCrouch='hero-exit-crouch.png', exitGround='hero-exit-ground.png', exitSpring='hero-exit-spring.png',
              kickStart='hero-kick-start.png', kickHit='hero-kick-hit.png',
              koStagger='hero-ko-stagger.png', koFall='hero-ko-fall.png', koAir='hero-ko-air.png', koDown='hero-ko-down.png', launch='hero-launch.png',
+             slamFall='hero-slam-fall.png', slamDown='hero-slam-down.png', slamBounce='hero-slam-bounce.png',
              groundCharge='hero-ground-charge.png', groundRise='hero-ground-rise.png', groundPalm='hero-ground-palm.png',
              punchChain1='hero-punch-chain-1.png', punchChain2='hero-punch-chain-2.png', punchMidHit='hero-punch-mid-hit.png', punchMidRecover='hero-punch-mid-recover.png')
 
 
 def load(name: str) -> np.ndarray:
     """Charge une illustration, efface les logos des baskets et retire le fond vert."""
-    rgb = np.asarray(Image.open(ART / FILES[name]).convert('RGB')).copy()
+    image = Image.open(ART / FILES[name]).convert('RGB')
+    # illustration en largeur (personnage allongé) : réduite à la largeur de la toile et posée en bas
+    if image.size == (H, W):
+        # le fond ajouté reprend le vert de l'illustration, pour être détouré avec lui
+        canvas = Image.new('RGB', (W, H), image.getpixel((4, 4)))
+        canvas.paste(image.resize((W, W * W // H), Image.LANCZOS), (0, H - W * W // H))
+        image = canvas
+    rgb = np.asarray(image).copy()
     assert rgb.shape[:2] == (H, W), name
     for points in LOGOS.get(name, []):
         zone = poly(points)
@@ -196,6 +210,11 @@ def load(name: str) -> np.ndarray:
         mark = (zone.max(axis=2) < 215) & (zone.max(axis=2) - zone.min(axis=2) < 45)
         mask = np.zeros(rgb.shape[:2], np.uint8)
         mask[y0:y1, x0:x1][mark] = 255
+        mask = cv2.dilate(mask, np.ones((3, 3), np.uint8))
+        rgb = cv2.inpaint(rgb, mask, 4, cv2.INPAINT_TELEA)
+    for x0, y0, x1, y1 in DARK_LOGOS.get(name, []):
+        mask = np.zeros(rgb.shape[:2], np.uint8)
+        mask[y0:y1, x0:x1][rgb[y0:y1, x0:x1].max(axis=2) > 120] = 255
         mask = cv2.dilate(mask, np.ones((3, 3), np.uint8))
         rgb = cv2.inpaint(rgb, mask, 4, cv2.INPAINT_TELEA)
     for points in FAINT_LOGOS.get(name, []):

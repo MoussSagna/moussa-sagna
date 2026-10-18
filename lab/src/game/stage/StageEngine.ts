@@ -167,6 +167,15 @@ export class StageEngine {
   }
 
   /** Retourne ou remet à l'endroit l'affichage des combattants. */
+  /** Passe au round suivant : les deux combattants reviennent en garde à leur place de départ. */
+  private nextRound(): void {
+    this.round += 1
+    this.hero.reenter()
+    this.rival.reset()
+    this.setMirrored(false)
+    this.cinematic.startRound(this.round)
+  }
+
   private setMirrored(mirrored: boolean): void {
     this.mirrored = mirrored
     for (const canvas of this.fighters) canvas.style.transform = mirrored ? 'scaleX(-1)' : ''
@@ -375,14 +384,12 @@ export class StageEngine {
     target.update(fight)
     // l'adversaire décolle : forte secousse de l'écran
     if (this.rival.flying) this.shake = Math.max(this.shake, 3.5)
-    // pour la démo : dès qu'il s'est envolé hors de l'écran, le round suivant commence
-    if (this.rival.takeTakeoff()) {
-      this.round += 1
-      this.hero.reenter()
-      this.rival.reset()
-      this.setMirrored(false)
-      this.cinematic.startRound(this.round)
-    }
+    // envolé hors de l'écran, il renvoie Moussa au sol : Moussa s'écrase (forte secousse) et rebondit ;
+    // pour la démo, le round suivant commence à la fin du rebond (tout de suite si Moussa n'était pas propulsé)
+    const tookOff = this.rival.takeTakeoff()
+    if (tookOff && !this.hero.slam()) this.nextRound()
+    if (this.hero.takeSlamImpact()) this.shake = Math.max(this.shake, 3.5)
+    if (this.hero.slamDone) this.nextRound()
     // l'adversaire disparaît au corps à corps : les combattants changent de côté et il réapparaît dans le dos de Moussa
     if (this.rival.takeCross()) {
       const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)
