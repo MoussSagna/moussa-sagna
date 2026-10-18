@@ -106,6 +106,13 @@ export const CUT_IN_SECONDS = 1.05
 /** Mise au point du début de l'attaque spéciale : durée pendant laquelle le jeu est figé. */
 export const FOCUS_SECONDS = 0.8
 const CUT_IN = { file: 'cinematic/cutin.webp', open: 0.14, close: 0.16, height: 0.6, pan: 0.05 }
+/** Plan de coupe de l'attaque ultime de l'adversaire : son gros plan, sur une bande violette. */
+/**
+ * Plan de coupe de l'attaque ultime de l'adversaire : son gros plan (en hauteur), sur une bande violette. `height` :
+ * hauteur de l'image en hauteurs de bande ; `face` : fraction de l'image (depuis le haut) placée au milieu de la
+ * bande.
+ */
+const RIVAL_CUT_IN = { file: 'cinematic/cutin-rival.webp', colors: ['#14031f', '#4d0d6e', '#0d0214'], height: 1.7, face: 0.28 }
 const SHOTS_END = SHOTS[SHOTS.length - 1].end
 /** Instant à partir duquel le personnage peut jouer, et fin de la cinématique. */
 export const CINEMATIC_FIGHT_AT = TIMELINE.fight[0]
@@ -149,6 +156,9 @@ export class CinematicLayer {
   /** Temps écoulé depuis le début de la mise au point, ou -1 : traits de vitesse qui convergent vers le centre. */
   private focusTime = -1
   private cutInImage: HTMLImageElement | null = null
+  private rivalCutInImage: HTMLImageElement | null = null
+  /** Personnage du plan de coupe en cours. */
+  private cutInWho: 'hero' | 'rival' = 'hero'
   /** Traits de vitesse du plan de coupe : hauteur dans la bande, longueur, vitesse. */
   private streaks = Array.from({ length: 26 }, () => ({ y: Math.random(), length: 0.08 + Math.random() * 0.25, speed: 1.5 + Math.random() * 2.5, x: Math.random() }))
   /** Numéro du round annoncé. */
@@ -172,6 +182,7 @@ export class CinematicLayer {
   async load(): Promise<boolean> {
     this.images = await Promise.all(SHOTS.map((shot) => loadImage(asset(shot.file))))
     this.cutInImage = await loadImage(asset(CUT_IN.file))
+    this.rivalCutInImage = await loadImage(asset(RIVAL_CUT_IN.file))
     try {
       await Promise.all([document.fonts.load(`100px ${DISPLAY_FONT}`), document.fonts.load(`600 40px ${BODY_FONT}`)])
     } catch {
@@ -217,9 +228,10 @@ export class CinematicLayer {
     this.impactTime = 0
   }
 
-  /** Lance le plan de coupe de la frappe au sol. */
-  cutIn(): void {
-    if (this.cutInImage) this.cutInTime = 0
+  /** Lance le plan de coupe : celui de la frappe au sol de Moussa, ou celui de l'attaque ultime de l'adversaire. */
+  cutIn(who: 'hero' | 'rival' = 'hero'): void {
+    this.cutInWho = who
+    if (who === 'hero' ? this.cutInImage : this.rivalCutInImage) this.cutInTime = 0
   }
 
   /** Affiche « K.O. » par-dessus le stage, le temps de `KO_ANNOUNCE`. */
@@ -519,7 +531,8 @@ export class CinematicLayer {
    * glisse lentement, des traits de vitesse et des bords rouges, puis elle se referme.
    */
   private drawCutIn(ctx: CanvasRenderingContext2D, t: number, frame: FrameInfo, calm: boolean): void {
-    const image = this.cutInImage
+    const rival = this.cutInWho === 'rival'
+    const image = rival ? this.rivalCutInImage : this.cutInImage
     if (!image) return
     const { width: w, height: h, delta } = frame
     const opening = easeOut(clamp(t / CUT_IN.open))
@@ -542,9 +555,10 @@ export class CinematicLayer {
     band()
     ctx.clip()
     const fill = ctx.createLinearGradient(0, 0, w, 0)
-    fill.addColorStop(0, '#2a0306')
-    fill.addColorStop(0.55, '#7a0a10')
-    fill.addColorStop(1, '#1a0204')
+    const colors = rival ? RIVAL_CUT_IN.colors : ['#2a0306', '#7a0a10', '#1a0204']
+    fill.addColorStop(0, colors[0])
+    fill.addColorStop(0.55, colors[1])
+    fill.addColorStop(1, colors[2])
     ctx.fillStyle = fill
     ctx.fillRect(0, 0, w, h)
     // traits de vitesse qui filent vers la gauche, derrière le personnage
@@ -560,9 +574,17 @@ export class CinematicLayer {
     }
     ctx.stroke()
     // le gros plan couvre la bande et glisse lentement vers la gauche
-    const scale = Math.max(w / image.width, (h * CUT_IN.height * 1.25) / image.height) * 1.08
     const pan = calm ? 0 : CUT_IN.pan * (0.5 - t / CUT_IN_SECONDS)
-    ctx.drawImage(image, w / 2 - (image.width * scale) / 2 + pan * w, h / 2 - (image.height * scale) / 2, image.width * scale, image.height * scale)
+    if (rival) {
+      // gros plan en hauteur : le visage et la main tiennent dans la bande ; l'image, coupée à gauche, part du bord
+      // gauche de l'écran
+      const scale = (h * CUT_IN.height * RIVAL_CUT_IN.height) / image.height
+      const top = h / 2 - image.height * scale * RIVAL_CUT_IN.face
+      ctx.drawImage(image, (pan - CUT_IN.pan / 2) * w, top, image.width * scale, image.height * scale)
+    } else {
+      const scale = Math.max(w / image.width, (h * CUT_IN.height * 1.25) / image.height) * 1.08
+      ctx.drawImage(image, w / 2 - (image.width * scale) / 2 + pan * w, h / 2 - (image.height * scale) / 2, image.width * scale, image.height * scale)
+    }
     ctx.restore()
     // bords de la bande : un trait rouge et un trait blanc
     ctx.save()

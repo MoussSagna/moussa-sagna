@@ -395,6 +395,15 @@ export class StageEngine {
       this.shake = Math.max(this.shake, 3.5)
       this.hero.pin()
     }
+    // puis le plan de coupe sur l'adversaire (combat figé), et le coup de marteau : éclair et forte secousse
+    if (this.rival.takeHammerCutIn()) {
+      this.cinematic.cutIn('rival')
+      this.stop = CUT_IN_SECONDS
+    }
+    if (this.rival.takeHammerImpact()) {
+      this.cinematic.impactFlash()
+      this.shake = Math.max(this.shake, 3.5)
+    }
     if (this.rival.diveDone || (this.hero.slamDone && !this.rival.diving)) this.nextRound()
     // l'adversaire disparaît au corps à corps : les combattants changent de côté et il réapparaît dans le dos de Moussa
     if (this.rival.takeCross()) {

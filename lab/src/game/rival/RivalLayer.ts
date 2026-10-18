@@ -78,6 +78,12 @@ const POSES = {
   ultFly: { file: 'rival/ult-fly.webp', ground: [560, 1060], scale: 1.35 },
   // il retombe en frappant du poing vers le sol : calé sur la botte arrière, poing vers (200, 1250)
   ultLand: { file: 'rival/ult-land.webp', ground: [685, 1386], scale: 1.3 },
+  // coup de marteau à deux mains de la fin de l'attaque ultime : calés sur la botte arrière ; l'échelle ramène l'oreille
+  // à sa taille dans la garde
+  hammerRaise: { file: 'rival/hammer-raise.webp', ground: [697, 1476], scale: 1.35 },
+  hammerSwing: { file: 'rival/hammer-swing.webp', ground: [678, 1306], scale: 1.25 },
+  hammerHit: { file: 'rival/hammer-hit.webp', ground: [694, 1303], scale: 1.25 },
+  hammerEnd: { file: 'rival/hammer-end.webp', ground: [686, 1317], scale: 1.25 },
   // traînée de super vitesse de l'envol : la pointe du bas posée au sol, assez grande pour monter jusqu'en haut de l'écran
   fxStreak: { file: 'rival/fx-streak.webp', ground: [512, 1530], scale: 2 },
   // impact au sol du décollage (onze dessins fournis par Moussa) : le centre du bas posé là où il s'envole
@@ -384,8 +390,27 @@ const GROUND_FX_FRAME = 0.055
  * secondes après l'impact. `fist` : du poing au point posé au sol, en pixels de la toile ; `target` : de Moussa
  * (milieu du corps) à l'endroit où le poing frappe.
  */
-const DIVE = { hold: 0.7, fade: 0.3, fist: (685 - 200) * 1.3, target: -100 }
+const DIVE = { hold: 0.35, fade: 0.3, fist: (685 - 200) * 1.3, target: -100 }
+/**
+ * Coup de marteau final, après le plan de coupe : les dessins dans l'ordre et leur durée ; le coup frappe au début
+ * de `hammerHit`. `fists` : des poings au point posé au sol dans `hammerHit`, en pixels de la toile ; `target` : de
+ * Moussa (milieu du corps) à l'endroit où frappent les poings.
+ */
+const HAMMER = {
+  steps: [
+    { pose: 'hammerRaise', seconds: 0.3 },
+    { pose: 'hammerSwing', seconds: 0.06 },
+    { pose: 'hammerHit', seconds: 0.1 },
+    { pose: 'hammerEnd', seconds: 0.8 },
+  ] as { pose: RivalPose; seconds: number }[],
+  fists: (694 - 450) * 1.25,
+  target: -150,
+}
 const TAKEOFF_SECONDS = MOVES.ultimate.steps.find((step) => step.takeoff)?.seconds ?? 1
+/** Instants, depuis le début de la chute sur Moussa, du plan de coupe, du coup de marteau et de la fin. */
+const DIVE_CUT_IN = TAKEOFF_SECONDS + DIVE.hold
+const HAMMER_IMPACT = DIVE_CUT_IN + HAMMER.steps[0].seconds + HAMMER.steps[1].seconds
+const DIVE_END = DIVE_CUT_IN + HAMMER.steps.reduce((sum, step) => sum + step.seconds, 0)
 const moveTotal = (move: Move) => move.steps.reduce((sum, step) => sum + step.seconds, 0)
 /** Fin des images actives d'un coup : c'est là que part le coup suivant de l'enchaînement. */
 const moveActiveEnd = (move: Move) => {
@@ -475,6 +500,12 @@ export class RivalLayer implements Opponent {
   private diveTime = -1
   /** Vrai quand son poing vient de frapper en retombant, jusqu'à ce que le moteur le prenne en compte. */
   private diveImpact = false
+  /** Vrai quand le plan de coupe du coup de marteau doit commencer, jusqu'à ce que le moteur le prenne en compte. */
+  private hammerCutIn = false
+  /** Vrai quand le coup de marteau vient de frapper, jusqu'à ce que le moteur le prenne en compte. */
+  private hammerImpact = false
+  /** Position de Moussa et taille d'un pixel de la toile au moment où il retombe sur lui. */
+  private diveTarget: [number, number] = [0, 0]
   /** Vrai dès que la téléportation de l'attaque ultime en cours a eu lieu. */
   private warped = false
   /** Coup en cours de l'enchaînement, et vrai si le joueur a demandé le suivant. */
@@ -603,7 +634,22 @@ export class RivalLayer implements Opponent {
     this.diveTime = 0
     this.pose = 'ultLand'
     this.x = Math.min(RANGE.maxX, heroX + (DIVE.target + DIVE.fist) * pixel)
+    this.diveTarget = [heroX, pixel]
     return true
+  }
+
+  /** Vrai une seule fois, quand il est resté un instant sur son coup de poing : le moteur lance le plan de coupe. */
+  takeHammerCutIn(): boolean {
+    const cut = this.hammerCutIn
+    this.hammerCutIn = false
+    return cut
+  }
+
+  /** Vrai une seule fois, quand le coup de marteau frappe : le moteur fait trembler l'écran. */
+  takeHammerImpact(): boolean {
+    const impact = this.hammerImpact
+    this.hammerImpact = false
+    return impact
   }
 
   /** Vrai une seule fois, quand son poing frappe Moussa en retombant : le moteur fait trembler l'écran. */
@@ -618,9 +664,9 @@ export class RivalLayer implements Opponent {
     return this.diveTime >= 0
   }
 
-  /** Vrai quand il est resté assez longtemps sur son coup, après être retombé. */
+  /** Vrai quand le coup de marteau est fini. */
   get diveDone(): boolean {
-    return this.diveTime >= TAKEOFF_SECONDS + DIVE.hold
+    return this.diveTime >= DIVE_END
   }
 
   /** Vrai pendant l'attaque ultime : le moteur assombrit le décor et Moussa. */
@@ -754,6 +800,21 @@ export class RivalLayer implements Opponent {
       const before = this.diveTime
       this.diveTime += frame.delta
       if (before < TAKEOFF_SECONDS && this.diveTime >= TAKEOFF_SECONDS) this.diveImpact = true
+      // plan de coupe, puis coup de marteau à deux mains : il se place pour que ses poings tombent sur Moussa
+      if (before < DIVE_CUT_IN && this.diveTime >= DIVE_CUT_IN) {
+        this.hammerCutIn = true
+        const [heroX, pixel] = this.diveTarget
+        this.x = Math.min(RANGE.maxX, heroX + (HAMMER.target + HAMMER.fists) * pixel)
+      }
+      if (before < HAMMER_IMPACT && this.diveTime >= HAMMER_IMPACT) this.hammerImpact = true
+      if (this.diveTime >= DIVE_CUT_IN) {
+        let end = DIVE_CUT_IN
+        for (const step of HAMMER.steps) {
+          end += step.seconds
+          this.pose = step.pose
+          if (this.diveTime < end) break
+        }
+      }
       return
     }
     if (this.teleportTime >= 0) {

@@ -69,13 +69,14 @@ def main() -> None:
 
 
 def cut_in() -> None:
-    """Le gros plan du plan de coupe : fond vert retiré, transparence gardée."""
+    """Les gros plans des plans de coupe (Moussa, puis l'adversaire) : fond vert retiré, transparence gardée."""
     from prepare_poses import key_green
-    rgb = np.asarray(Image.open(ART / 'cinematic-cutin.png').convert('RGB')).copy()
-    art = key_green(rgb)
-    art[art[..., 3] == 0] = 0
-    Image.fromarray(art).save(OUT / 'cutin.webp', lossless=True, quality=100, method=6)
-    print(f'cutin : {art.shape[1]} x {art.shape[0]}, {(OUT / "cutin.webp").stat().st_size / 1024:.0f} Ko')
+    for name in ['cutin', 'cutin-rival']:
+        rgb = np.asarray(Image.open(ART / f'cinematic-{name}.png').convert('RGB')).copy()
+        art = key_green(rgb)
+        art[art[..., 3] == 0] = 0
+        Image.fromarray(art).save(OUT / f'{name}.webp', lossless=True, quality=100, method=6)
+        print(f'{name} : {art.shape[1]} x {art.shape[0]}, {(OUT / (name + ".webp")).stat().st_size / 1024:.0f} Ko')
 
 
 if __name__ == '__main__':
