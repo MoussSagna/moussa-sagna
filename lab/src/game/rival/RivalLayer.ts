@@ -417,7 +417,7 @@ const HAMMER = {
 }
 const TAKEOFF_SECONDS = MOVES.ultimate.steps.find((step) => step.takeoff)?.seconds ?? 1
 /**
- * Bond en arrière après le coup final : il s'accroupit, saute en arrière d'une distance de dash (`TELEPORT.distance`)
+ * Bond en arrière après le coup final : il s'accroupit, saute en arrière d'un peu plus qu'un dash (`distance`)
  * en montant jusqu'à `height` pixels de la toile pendant les dessins en l'air (`air`), puis se réceptionne et se
  * redresse. Les dessins dans l'ordre et leur durée.
  */
@@ -425,15 +425,17 @@ const HOP = {
   steps: [
     { pose: 'hop1', seconds: 0.08 },
     { pose: 'hop2', seconds: 0.08 },
-    { pose: 'hop3', seconds: 0.12 },
-    { pose: 'hop4', seconds: 0.12 },
-    { pose: 'hop5', seconds: 0.12 },
+    { pose: 'hop3', seconds: 0.17 },
+    { pose: 'hop4', seconds: 0.17 },
+    { pose: 'hop5', seconds: 0.17 },
     { pose: 'hop6', seconds: 0.1 },
     { pose: 'hop7', seconds: 0.1 },
     { pose: 'hop8', seconds: 0.15 },
   ] as { pose: RivalPose; seconds: number }[],
   air: ['hop3', 'hop4', 'hop5'] as RivalPose[],
-  height: 260,
+  height: 300,
+  // un peu plus loin qu'un dash
+  distance: 0.3,
 }
 const HOP_AIR_START = HOP.steps[0].seconds + HOP.steps[1].seconds
 const HOP_AIR = HOP.steps.filter((step) => HOP.air.includes(step.pose)).reduce((sum, step) => sum + step.seconds, 0)
@@ -845,7 +847,7 @@ export class RivalLayer implements Opponent {
     if (this.hopTime >= 0) {
       this.hopTime += frame.delta
       const k = Math.max(0, Math.min(1, (this.hopTime - HOP_AIR_START) / HOP_AIR))
-      this.x = Math.min(RANGE.maxX, this.hopFrom + TELEPORT.distance * k * (2 - k))
+      this.x = Math.min(RANGE.maxX, this.hopFrom + HOP.distance * k * (2 - k))
       if (this.hopTime >= HOP_TOTAL) {
         this.hopTime = -1
         this.pose = 'guard'
