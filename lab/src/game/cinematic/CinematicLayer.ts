@@ -207,13 +207,6 @@ export class CinematicLayer {
     return this.time >= 0 && this.time < CINEMATIC_FIGHT_AT
   }
 
-  /** Vrai tant que Moussa est propulsé dans les airs : des traits de vitesse filent vers le bas sur tout l'écran. */
-  speedLines = false
-  /** Intensité des traits de vitesse, de 0 à 1 : ils apparaissent et s'éteignent en douceur. */
-  private speedLevel = 0
-  /** Traits de vitesse : position horizontale et verticale (fractions de l'écran), longueur, vitesse, épaisseur. */
-  private launchStreaks = Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random(), length: 0.15 + Math.random() * 0.35, speed: 3 + Math.random() * 4, width: 1 + Math.random() * 3 }))
-
   /** Mise au point du début de l'attaque spéciale. */
   focus(): void {
     this.focusTime = 0
@@ -235,16 +228,6 @@ export class CinematicLayer {
   }
 
   update(delta: number): void {
-    this.speedLevel += ((this.speedLines ? 1 : 0) - this.speedLevel) * Math.min(1, delta * (this.speedLines ? 20 : 6))
-    if (this.speedLevel > 0.01) {
-      for (const streak of this.launchStreaks) {
-        streak.y += streak.speed * delta
-        if (streak.y > 1 + streak.length) {
-          streak.y = -Math.random() * 0.3
-          streak.x = Math.random()
-        }
-      }
-    }
     if (this.focusTime >= 0) {
       this.focusTime += delta
       if (this.focusTime >= FOCUS_SECONDS) this.focusTime = -1
@@ -272,21 +255,6 @@ export class CinematicLayer {
     const { width: w, height: h } = frame
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, w, h)
-    // traits de vitesse verticaux, à la manière des mangas, pendant que Moussa est propulsé
-    if (this.speedLevel > 0.01 && !calm) {
-      ctx.save()
-      ctx.strokeStyle = '#fff'
-      ctx.lineCap = 'round'
-      for (const streak of this.launchStreaks) {
-        ctx.globalAlpha = 0.55 * this.speedLevel
-        ctx.lineWidth = streak.width * (h / 720)
-        ctx.beginPath()
-        ctx.moveTo(streak.x * w, (streak.y - streak.length) * h)
-        ctx.lineTo(streak.x * w, streak.y * h)
-        ctx.stroke()
-      }
-      ctx.restore()
-    }
     if (this.focusTime >= 0) this.drawFocus(ctx, this.focusTime, frame, calm)
     if (this.impactTime >= 0) {
       // blanc d'abord, puis un voile rouge qui s'éteint

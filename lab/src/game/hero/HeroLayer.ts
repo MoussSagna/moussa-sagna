@@ -318,14 +318,11 @@ const KO_DOWN = KO.steps.reduce((sum, step) => sum + step.seconds, 0)
 /**
  * Propulsé par l'attaque ultime de l'adversaire : il part en l'air à toute vitesse et sort par le haut de l'écran
  * (`rise` secondes jusqu'à `height` pixels de la toile), reste hors de l'écran `away` secondes, retombe en `fall`
- * secondes et s'écrase au sol, où il reste jusqu'à `total`. Il recule de `push` pendant la montée. À pleine vitesse,
- * son dessin s'étire en hauteur (`stretch`) et des images rémanentes restent sous lui (`ghosts` : retard en
- * fraction de la hauteur, opacité), comme dans les mangas.
+ * secondes et s'écrase au sol, où il reste jusqu'à `total`. Il recule de `push` pendant la montée.
  */
 const LAUNCH = {
   // il reste hors de l'écran longtemps : l'adversaire s'envole à sa poursuite et le round suivant commence avant
-  rise: 0.32, height: 5200, away: 4, fall: 0.3, push: 0.06, total: 6.8, stretch: 0.45,
-  ghosts: [[0.12, 0.4], [0.25, 0.25], [0.4, 0.12]] as [number, number][],
+  rise: 0.32, height: 5200, away: 4, fall: 0.3, push: 0.06, total: 6.8,
 }
 /**
  * Soulevé par le premier coup de l'uppercut : il décolle de `height` pixels de la toile en `rise` secondes et reste
@@ -830,16 +827,6 @@ export class HeroLayer {
     if (!wasPopped || mode === 'pop') this.koFrom = this.x
     this.launched = mode === 'fly'
     this.popped = mode === 'pop'
-  }
-
-  /** Vrai pendant la montée de la propulsion : le moteur ajoute des traits de vitesse. */
-  get flying(): boolean {
-    return this.pose === 'ko' && this.launched && this.koTime < LAUNCH.rise + 0.25
-  }
-
-  /** Vitesse de la montée de la propulsion : 1 au départ, 0 en haut. */
-  private flySpeed(): number {
-    return this.launched && this.pose === 'ko' && this.koTime < LAUNCH.rise ? 1 - this.koTime / LAUNCH.rise : 0
   }
 
   /** Instant où il touche le sol pendant le K.O. en cours. */
@@ -1471,9 +1458,7 @@ export class HeroLayer {
                 ? [scaleAbout(feet, 1 - EXIT.stretch * 0.5 * amplitude, 1 + EXIT.stretch * amplitude)]
               : this.pose === 'dash' && !calm
                 ? [this.dashMatrix(feet)]
-                : name === 'launch' && this.flySpeed() > 0 && !calm
-                  ? [scaleAbout(feet, 1 - LAUNCH.stretch * 0.4 * this.flySpeed(), 1 + LAUNCH.stretch * this.flySpeed())]
-                  : null
+                : null
     const bends = BENDS[name]
     // traînée derrière le personnage : du côté opposé à sa course
     const rushing = this.pose === 'ground' && this.groundTime >= GROUND_RUSH && this.groundStep().rush
@@ -1571,13 +1556,6 @@ export class HeroLayer {
       for (const [delay, alpha] of EXIT.ghosts) {
         const k = Math.max(0, (this.exitTime - delay - EXIT_CROUCH) / EXIT.leap)
         drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * left - 1, 1 - 2 * top, alpha, EXIT.height * k * k)
-      }
-    }
-
-    // propulsé : des images rémanentes restent sous lui pendant qu'il monte
-    if (name === 'launch' && this.flySpeed() > 0 && !calm) {
-      for (const [delay, alpha] of LAUNCH.ghosts) {
-        drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * left - 1, 1 - 2 * top, alpha * this.flySpeed(), Math.max(0, lift - delay * LAUNCH.height))
       }
     }
 

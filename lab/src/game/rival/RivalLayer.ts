@@ -70,12 +70,12 @@ const POSES = {
   ultCharge2: { file: 'rival/ult-charge-2.webp', ground: [624, 1351], scale: 1.35 },
   // après l'uppercut de l'attaque ultime (mêmes dessins que l'uppercut de l'enchaînement), il se baisse en trois dessins
   // puis il libère son énergie (de face), se baisse en la chargeant et s'envole ; calés sur la botte arrière
-  ultPower: { file: 'rival/ult-power.webp', ground: [597, 1399], scale: 1 },
-  ultCrouch1: { file: 'rival/ult-crouch-1.webp', ground: [612, 1376], scale: 1.05 },
-  ultCrouch2: { file: 'rival/ult-crouch-2.webp', ground: [602, 1237], scale: 1.05 },
-  ultCrouch3: { file: 'rival/ult-crouch-3.webp', ground: [597, 1286], scale: 1.05 },
+  ultPower: { file: 'rival/ult-power.webp', ground: [670, 1407], scale: 1.3 },
+  ultCrouch1: { file: 'rival/ult-crouch-1.webp', ground: [670, 1382], scale: 1.3 },
+  ultCrouch2: { file: 'rival/ult-crouch-2.webp', ground: [660, 1243], scale: 1.3 },
+  ultCrouch3: { file: 'rival/ult-crouch-3.webp', ground: [655, 1292], scale: 1.3 },
   // l'envol : `ground` sous ses bottes, pour qu'il parte du sol
-  ultFly: { file: 'rival/ult-fly.webp', ground: [560, 1060], scale: 1.05 },
+  ultFly: { file: 'rival/ult-fly.webp', ground: [560, 1060], scale: 1.35 },
   // effets du coup spécial (planche fournie par Moussa) : leur cœur lumineux est calé sur la semelle du coup de pied.
   // La traînée grandit en trois dessins ; l'explosion et l'anneau éclatent quand le coup touche.
   fxTrail1: { file: 'rival/fx-trail-1.webp', ground: [745, 1716], scale: 1 },
@@ -139,8 +139,7 @@ interface Step {
   active?: boolean
   vanish?: boolean
   warp?: boolean
-  /** Il charge son énergie (l'écran tremble légèrement) ; il s'envole hors de l'écran. */
-  charge?: boolean
+  /** Il s'envole hors de l'écran (l'écran tremble). */
   takeoff?: boolean
   /** Le coup de cette étape soulève Moussa (`pop`) ou le propulse hors de l'écran (`fly`). */
   launch?: 'pop' | 'fly'
@@ -315,16 +314,16 @@ const MOVES: Record<MoveName, Move> = {
       { pose: 'upperRise', seconds: 0.35, active: true, launch: 'pop' },
       { pose: 'upperHit', seconds: 0.14, active: true, launch: 'fly' },
       { pose: 'upperHit', seconds: 0.4 },
-      // il libère son énergie, se baisse en la chargeant (l'écran tremble), puis s'envole à toute vitesse
-      { pose: 'ultPower', seconds: 0.45, charge: true },
-      { pose: 'ultCrouch1', seconds: 0.12, charge: true },
-      { pose: 'ultCrouch2', seconds: 0.12, charge: true },
-      { pose: 'ultCrouch3', seconds: 0.12, charge: true },
-      { pose: 'ultCrouch2', seconds: 0.1, charge: true },
-      { pose: 'ultCrouch3', seconds: 0.1, charge: true },
-      { pose: 'ultCrouch2', seconds: 0.08, charge: true },
-      { pose: 'ultCrouch3', seconds: 0.08, charge: true },
-      { pose: 'ultFly', seconds: 0.5, takeoff: true },
+      // il libère son énergie, se baisse en la chargeant, puis s'envole en un éclair (l'écran tremble)
+      { pose: 'ultPower', seconds: 0.45 },
+      { pose: 'ultCrouch1', seconds: 0.12 },
+      { pose: 'ultCrouch2', seconds: 0.12 },
+      { pose: 'ultCrouch3', seconds: 0.12 },
+      { pose: 'ultCrouch2', seconds: 0.1 },
+      { pose: 'ultCrouch3', seconds: 0.1 },
+      { pose: 'ultCrouch2', seconds: 0.08 },
+      { pose: 'ultCrouch3', seconds: 0.08 },
+      { pose: 'ultFly', seconds: 0.12, takeoff: true },
     ],
     advance: 0,
     advanceFrom: 0,
@@ -544,11 +543,7 @@ export class RivalLayer implements Opponent {
     this.startMove('ultimate')
   }
 
-  /** Vrai pendant qu'il charge son énergie (l'écran tremble) ; pendant son envol (traits de vitesse). */
-  get charging(): boolean {
-    return this.attackTime >= 0 && this.moveStep().charge === true
-  }
-
+  /** Vrai pendant son envol : le moteur fait trembler l'écran. */
   get flying(): boolean {
     return this.attackTime >= 0 && this.moveStep().takeoff === true
   }
@@ -833,10 +828,10 @@ export class RivalLayer implements Opponent {
 
   /** Hauteur de vol du dessin `pose` à cet instant, en pixels de la toile : montée, puis flottement. */
   private lift(pose: RivalPose, amplitude: number): number {
-    // l'envol de l'attaque ultime : il part du sol et accélère jusqu'à sortir par le haut de l'écran
+    // l'envol de l'attaque ultime : il quitte l'écran par le haut presque instantanément
     if (pose === 'ultFly' && this.attackTime >= 0) {
       const k = Math.max(0, (this.attackTime - TAKEOFF_START) / TAKEOFF_SECONDS)
-      return TAKEOFF.height * k * k
+      return TAKEOFF.height * k
     }
     if (!isFloatPose(pose)) return 0
     const bob = Math.sin((this.floatTime * 2 * Math.PI) / FLOAT.period) * FLOAT.bob * amplitude
