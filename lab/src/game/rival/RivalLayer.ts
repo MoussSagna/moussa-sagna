@@ -78,6 +78,18 @@ const POSES = {
   ultFly: { file: 'rival/ult-fly.webp', ground: [560, 1060], scale: 1.35 },
   // traînée de super vitesse de l'envol : la pointe du bas posée au sol, assez grande pour monter jusqu'en haut de l'écran
   fxStreak: { file: 'rival/fx-streak.webp', ground: [512, 1530], scale: 2 },
+  // impact au sol du décollage (onze dessins fournis par Moussa) : le centre du bas posé là où il s'envole
+  fxGround1: { file: 'rival/fx-ground-1.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround2: { file: 'rival/fx-ground-2.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround3: { file: 'rival/fx-ground-3.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround4: { file: 'rival/fx-ground-4.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround5: { file: 'rival/fx-ground-5.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround6: { file: 'rival/fx-ground-6.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround7: { file: 'rival/fx-ground-7.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround8: { file: 'rival/fx-ground-8.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround9: { file: 'rival/fx-ground-9.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround10: { file: 'rival/fx-ground-10.webp', ground: [512, 1500], scale: 1.5 },
+  fxGround11: { file: 'rival/fx-ground-11.webp', ground: [512, 1500], scale: 1.5 },
   // effets du coup spécial (planche fournie par Moussa) : leur cœur lumineux est calé sur la semelle du coup de pied.
   // La traînée grandit en trois dessins ; l'explosion et l'anneau éclatent quand le coup touche.
   fxTrail1: { file: 'rival/fx-trail-1.webp', ground: [745, 1716], scale: 1 },
@@ -329,7 +341,7 @@ const MOVES: Record<MoveName, Move> = {
       { pose: 'ultCrouch3', seconds: 0.08 },
       { pose: 'ultFly', seconds: 0.12, takeoff: true },
       // il est parti : la traînée de super vitesse reste un instant et s'estompe
-      { pose: 'ultFly', seconds: 0.3, vanish: true, trail: true },
+      { pose: 'ultFly', seconds: 0.34, vanish: true, trail: true },
     ],
     advance: 0,
     advanceFrom: 0,
@@ -361,6 +373,9 @@ const TAKEOFF_START = (() => {
   }
   return start
 })()
+/** Impact au sol du décollage : les onze dessins se suivent, chacun `frame` secondes, à partir du décollage. */
+const GROUND_FX = ['fxGround1', 'fxGround2', 'fxGround3', 'fxGround4', 'fxGround5', 'fxGround6', 'fxGround7', 'fxGround8', 'fxGround9', 'fxGround10', 'fxGround11'] as const
+const GROUND_FX_FRAME = 0.04
 const TAKEOFF_SECONDS = MOVES.ultimate.steps.find((step) => step.takeoff)?.seconds ?? 1
 const moveTotal = (move: Move) => move.steps.reduce((sum, step) => sum + step.seconds, 0)
 /** Fin des images actives d'un coup : c'est là que part le coup suivant de l'enchaînement. */
@@ -935,6 +950,11 @@ export class RivalLayer implements Opponent {
       else if (step.trail) {
         const k = Math.min(1, (this.attackTime - TAKEOFF_START - TAKEOFF_SECONDS) / step.seconds)
         drawPose('fxStreak', strength * (1 - k) * (1 - k))
+      }
+      // l'impact au sol, par-dessus : il éclate au décollage et retombe en onze dessins
+      if (this.move === 'ultimate') {
+        const index = Math.floor((this.attackTime - TAKEOFF_START) / GROUND_FX_FRAME)
+        if (index >= 0 && index < GROUND_FX.length) drawPose(GROUND_FX[index], strength)
       }
     }
     // à l'impact : l'anneau et l'explosion éclatent sur Moussa, puis s'estompent
