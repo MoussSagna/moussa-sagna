@@ -62,7 +62,8 @@ LOGOS = dict(
 # rouges et leur contour sombre sont repeints d'après leur voisinage.
 RED_LOGOS = dict(groundCharge=[(770, 1145, 840, 1200)], groundRise=[(775, 1160, 840, 1210)], groundPalm=[(770, 1140, 840, 1195)],
                  kickStart=[(420, 1312, 498, 1374), (640, 726, 684, 786)],
-                 kickHit=[(316, 1308, 373, 1354), (876, 390, 910, 420)])
+                 kickHit=[(316, 1308, 373, 1354), (876, 390, 910, 420)],
+                 hurtGut=[(735, 1285, 800, 1322), (118, 1255, 150, 1292)])
 # Logos gris ou noirs sur un panneau blanc : dans chaque rectangle, serré autour du logo, les pixels gris ou
 # sombres peu colorés sont repeints d'après le blanc qui les entoure.
 GRAY_LOGOS = dict(koStagger=[(185, 1262, 255, 1320), (825, 1300, 890, 1365)], koFall=[(305, 1250, 375, 1320), (810, 1170, 885, 1235)],
@@ -94,7 +95,7 @@ SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=
               specialCharge=526, specialThrow=534, specialRecover=518,
               specialIn1=524, specialIn2=524, specialIn3=524,
               # coup encaissé : calé sur le pied avant
-              hurt=524, hurtRecover=524,
+              hurt=524, hurtRecover=524, hurtGut=540,
               # rafale de coups de pied : calée sur le pied arrière de la garde, qui sert d'appui (dessins 1,17 fois plus petits)
               # frappe au sol : calée sur le milieu des pieds
               groundCharge=515, groundRise=509, groundPalm=496,
@@ -179,7 +180,7 @@ FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png',
              punchHeavyStart='hero-punch-heavy-start.png', punchHeavyHit='hero-punch-heavy-hit.png', punchHeavyRecover='hero-punch-heavy-recover.png',
              specialIn1='hero-special-in-1.png', specialIn2='hero-special-in-2.png', specialIn3='hero-special-in-3.png',
              specialCharge='hero-special-charge.png', specialThrow='hero-special-throw.png', specialRecover='hero-special-recover.png',
-             hurt='hero-hurt.png', hurtRecover='hero-hurt-recover.png',
+             hurt='hero-hurt.png', hurtRecover='hero-hurt-recover.png', hurtGut='hero-hurt-gut.png',
              exitLean='hero-exit-lean.png', exitCrouch='hero-exit-crouch.png', exitGround='hero-exit-ground.png', exitSpring='hero-exit-spring.png',
              kickStart='hero-kick-start.png', kickHit='hero-kick-hit.png',
              koStagger='hero-ko-stagger.png', koFall='hero-ko-fall.png', koAir='hero-ko-air.png', koDown='hero-ko-down.png', launch='hero-launch.png',

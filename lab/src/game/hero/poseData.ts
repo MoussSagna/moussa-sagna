@@ -408,6 +408,18 @@ export const POSES = {
       { name: 'body', parent: -1, pivot: [512, 768], box: [2, 58, 1010, 1359], atlas: [0, 0] },
     ] as PoseLayer[],
   },
+  hurtGut: {
+    file: 'hero/hurtGut.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [540, 1381] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [40, 211, 941, 1180], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
   groundCharge: {
     file: 'hero/groundCharge.webp',
     atlasSize: [1024, 1024] as Point,

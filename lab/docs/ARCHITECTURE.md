@@ -257,6 +257,8 @@ Toucher conditionne aussi la suite de l'enchaînement :
 - Le mannequin n'a qu'un dessin de coup reçu, le même pour un coup léger au buste et un uppercut à la tête, et la zone de frappe est une simple distance : un coup porté en sautant ou accroupi toucherait de la même façon.
 - Les dashs sont une pose fixe qui glisse : rien ne bouge dans le dessin pendant le déplacement. Le premier des deux appuis lance brièvement la pose intermédiaire de la marche avant que le dash parte.
 
+Quand Moussa encaisse un coup, il alterne deux dessins d'un coup à l'autre : le coup encaissé habituel (`hurt` puis `hurtRecover`), et plié au ventre (`hurtGut`, `HeroLayer.gut`).
+
 ## L'interface de combat
 
 `HudLayer` (`src/game/hud/`) tient et dessine les barres, à la manière de Street Fighter 6, Moussa à gauche et l'adversaire à droite. Elle se dessine sur la toile de la cinématique (`CinematicLayer.hud`), sous les annonces et les plans de coupe, et seulement quand les plans de l'intro ne couvrent plus l'écran.
