@@ -500,6 +500,8 @@ export class RivalLayer implements Opponent {
   private diveTime = -1
   /** Vrai quand son poing vient de frapper en retombant, jusqu'à ce que le moteur le prenne en compte. */
   private diveImpact = false
+  /** Vrai quand le coup final vient de finir, jusqu'à ce que le moteur le prenne en compte. */
+  private finished = false
   /** Vrai quand le plan de coupe du coup de marteau doit commencer, jusqu'à ce que le moteur le prenne en compte. */
   private hammerCutIn = false
   /** Vrai quand le coup de marteau vient de frapper, jusqu'à ce que le moteur le prenne en compte. */
@@ -580,6 +582,7 @@ export class RivalLayer implements Opponent {
     this.crossing = false
     this.away = false
     this.diveTime = -1
+    this.finished = false
     this.settle()
   }
 
@@ -670,9 +673,11 @@ export class RivalLayer implements Opponent {
     return this.diveTime >= 0
   }
 
-  /** Vrai quand le coup de marteau est fini. */
-  get diveDone(): boolean {
-    return this.diveTime >= DIVE_END
+  /** Vrai une seule fois, quand le coup de marteau est fini et qu'il repart à sa place : Moussa peut se relever. */
+  takeFinish(): boolean {
+    const finished = this.finished
+    this.finished = false
+    return finished
   }
 
   /** Vrai pendant l'attaque ultime : le moteur assombrit le décor et Moussa. */
@@ -813,6 +818,14 @@ export class RivalLayer implements Opponent {
         this.x = Math.min(RANGE.maxX, heroX + (HAMMER.target + HAMMER.fists) * pixel)
       }
       if (before < HAMMER_IMPACT && this.diveTime >= HAMMER_IMPACT) this.hammerImpact = true
+      // coup fini : il se téléporte en arrière, comme pour un dash arrière, et le combat reprend
+      if (this.diveTime >= DIVE_END) {
+        this.diveTime = -1
+        this.pose = 'guard'
+        this.finished = true
+        this.teleport(1)
+        return
+      }
       if (this.diveTime >= DIVE_CUT_IN) {
         let end = DIVE_CUT_IN
         for (const step of HAMMER.steps) {

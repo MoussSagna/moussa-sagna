@@ -69,9 +69,13 @@ GRAY_LOGOS = dict(koStagger=[(185, 1262, 255, 1320), (825, 1300, 890, 1365)], ko
                   koAir=[(812, 540, 858, 606), (868, 550, 905, 610)], koDown=[(818, 1212, 872, 1265)],
                   launch=[(222, 1186, 262, 1254), (617, 1176, 648, 1240)],
                   slamFall=[(850, 510, 886, 596), (812, 1060, 900, 1100)], slamDown=[(800, 940, 826, 990), (845, 1400, 910, 1438)],
-                  slamBounce=[(822, 1178, 890, 1225), (790, 1410, 855, 1445)])
+                  slamBounce=[(822, 1178, 890, 1225), (790, 1410, 855, 1445)],
+                  getupKneel=[(745, 1235, 820, 1295)], getupRise=[(695, 1335, 770, 1392)],
+                  getupGuard=[(135, 1345, 168, 1390), (695, 1335, 790, 1394)])
 # Logos clairs sur le col noir de la basket : dans chaque rectangle, les pixels clairs sont repeints d'après le noir qui les entoure.
-DARK_LOGOS = dict(slamFall=[(875, 985, 925, 1020)], slamDown=[(855, 1352, 885, 1380)], slamBounce=[(855, 1135, 880, 1158), (796, 1365, 818, 1386)])
+DARK_LOGOS = dict(slamFall=[(875, 985, 925, 1020)], slamDown=[(855, 1352, 885, 1380)], slamBounce=[(855, 1135, 880, 1158), (796, 1365, 818, 1386)],
+                  getupSit=[(782, 1170, 810, 1195), (892, 1115, 925, 1142)], getupKneel=[(828, 1178, 860, 1204)],
+                  getupRise=[(215, 1272, 245, 1300), (778, 1278, 808, 1302)], getupGuard=[(202, 1288, 232, 1312), (800, 1285, 825, 1310)])
 FAINT_LOGOS = dict(jumpStart=[[(150, 1228), (188, 1226), (204, 1262), (205, 1296), (150, 1296)]],
                    punchStart=[[(740, 1300), (800, 1300), (800, 1345), (740, 1345)]],
                    punchHit=[[(740, 1288), (800, 1288), (800, 1340), (740, 1340)]])
@@ -103,7 +107,9 @@ SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=
               # propulsé par l'attaque ultime de l'adversaire : calé sur le milieu du corps, comme le K.O. en l'air
               launch=470,
               # écrasé au sol par l'attaque ultime : calé sur le milieu du corps
-              slamFall=520, slamDown=500, slamBounce=490)
+              slamFall=520, slamDown=500, slamBounce=490,
+              # il se relève : calé sur le milieu des appuis (fesses et basket, genou et basket, puis les deux pieds)
+              getupSit=600, getupKneel=560, getupRise=540, getupGuard=540)
 # Coups donnés depuis la garde : le haut du corps vient de l'illustration du coup, les jambes restent celles de la
 # garde, pour que les pieds ne bougent pas. Valeur : décalage qui amène la boucle de ceinture du coup sur celle de
 # la garde (557, 693).
@@ -178,6 +184,7 @@ FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png',
              kickStart='hero-kick-start.png', kickHit='hero-kick-hit.png',
              koStagger='hero-ko-stagger.png', koFall='hero-ko-fall.png', koAir='hero-ko-air.png', koDown='hero-ko-down.png', launch='hero-launch.png',
              slamFall='hero-slam-fall.png', slamDown='hero-slam-down.png', slamBounce='hero-slam-bounce.png',
+             getupSit='hero-getup-sit.png', getupKneel='hero-getup-kneel.png', getupRise='hero-getup-rise.png', getupGuard='hero-getup-guard.png',
              groundCharge='hero-ground-charge.png', groundRise='hero-ground-rise.png', groundPalm='hero-ground-palm.png',
              punchChain1='hero-punch-chain-1.png', punchChain2='hero-punch-chain-2.png', punchMidHit='hero-punch-mid-hit.png', punchMidRecover='hero-punch-mid-recover.png')
 

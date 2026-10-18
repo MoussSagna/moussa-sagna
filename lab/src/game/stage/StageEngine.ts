@@ -24,6 +24,12 @@ const INTRO_MS = 3600
 /** Secousse de la caméra à l'impact : amplitude (fraction d'écran) pour un coup de pleine puissance, et vitesse d'extinction. */
 const SHAKE = { amplitude: 0.006, decay: 16 }
 /**
+ * Secousse verticale de l'impact du coup de marteau de l'adversaire : l'écran rebondit de haut en bas `frequency`
+ * fois par seconde, de moins en moins fort, pendant `seconds` (la durée de l'explosion). `amplitude` : décalage de
+ * la caméra au début.
+ */
+const QUAKE = { seconds: 1.2, frequency: 7, amplitude: 0.07 }
+/**
  * Mise au point du début de l'attaque spéciale : la caméra zoome de `zoom` et se recentre vers le personnage
  * (`pull` : part du chemin parcouru, pour ne pas montrer le bord du décor), le temps de `FOCUS_SECONDS`.
  * `height` : hauteur visée, en fraction de l'écran (le haut du corps du personnage baissé).
@@ -81,6 +87,8 @@ export class StageEngine {
   private frozen = 0
   /** Secousse de la caméra, de 0 à 1 ; elle s'éteint d'elle-même. */
   private shake = 0
+  /** Temps écoulé depuis le début de la secousse verticale, ou -1. */
+  private quake = -1
   private weather: WeatherLayer
   private canvases: HTMLCanvasElement[]
   /** Plans assombris pendant la frappe au sol. */
@@ -169,6 +177,7 @@ export class StageEngine {
   /** Retourne ou remet à l'endroit l'affichage des combattants. */
   /** Passe au round suivant : les deux combattants reviennent en garde à leur place de départ. */
   private nextRound(): void {
+    this.quake = -1
     this.round += 1
     this.hero.reenter()
     this.rival.reset()
@@ -347,6 +356,12 @@ export class StageEngine {
       camera.ox += Math.sin(time * 97) * this.shake * SHAKE.amplitude
       camera.oy += Math.cos(time * 83) * this.shake * SHAKE.amplitude * 0.6
     }
+    if (this.quake >= 0) {
+      this.quake += delta
+      const k = this.quake / QUAKE.seconds
+      if (k >= 1) this.quake = -1
+      else if (!calm) camera.oy += Math.sin(2 * Math.PI * QUAKE.frequency * this.quake) * QUAKE.amplitude * (1 - k) ** 2
+    }
     const info: FrameInfo = { time, delta, width: this.size.width, height: this.size.height }
     // impact du coup de marteau de l'adversaire : dessiné par la cinématique, devant les combattants, au même endroit
     // du stage qu'eux (même caméra, secousse comprise)
@@ -414,9 +429,12 @@ export class StageEngine {
     if (this.rival.takeHammerImpact()) {
       this.cinematic.blast()
       this.cinematic.impactFlash()
-      this.shake = Math.max(this.shake, 3.5)
+      this.quake = 0
     }
-    if (this.rival.diveDone || (this.hero.slamDone && !this.rival.diving)) this.nextRound()
+    // coup final terminé : l'adversaire repart à sa place et Moussa se relève, le combat reprend
+    if (this.rival.takeFinish()) this.hero.standUp()
+    // (sans coup de poing de l'adversaire, pour la démo : round suivant)
+    if (this.hero.slamDone && !this.rival.diving) this.nextRound()
     // l'adversaire disparaît au corps à corps : les combattants changent de côté et il réapparaît dans le dos de Moussa
     if (this.rival.takeCross()) {
       const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)

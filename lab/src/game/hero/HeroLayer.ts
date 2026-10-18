@@ -13,7 +13,7 @@ const SPRITE_UNIFORMS = ['uRect', 'uTex', 'uUv', 'uAlpha'] as const
 const SPARK_UNIFORMS = ['uRect', 'uK', 'uSeed', 'uPower', 'uTint', 'uGlow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring', 'kickStart', 'kickHit', 'groundCharge', 'groundRise', 'groundPalm', 'koStagger', 'koFall', 'koAir', 'koDown', 'launch', 'slamFall', 'slamDown', 'slamBounce']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring', 'kickStart', 'kickHit', 'groundCharge', 'groundRise', 'groundPalm', 'koStagger', 'koFall', 'koAir', 'koDown', 'launch', 'slamFall', 'slamDown', 'slamBounce', 'getupSit', 'getupKneel', 'getupRise', 'getupGuard']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 export const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -60,6 +60,10 @@ const FEET: Record<PoseName, [number, number]> = {
   slamFall: POSES.slamFall.anchor,
   slamDown: POSES.slamDown.anchor,
   slamBounce: POSES.slamBounce.anchor,
+  getupSit: POSES.getupSit.anchor,
+  getupKneel: POSES.getupKneel.anchor,
+  getupRise: POSES.getupRise.anchor,
+  getupGuard: POSES.getupGuard.anchor,
   koDown: POSES.koDown.anchor,
   groundCharge: POSES.groundCharge.anchor,
   groundRise: POSES.groundRise.anchor,
@@ -93,6 +97,8 @@ const POSE_SCALE: Record<PoseName, number> = {
   launch: 1.05,
   // écrasé au sol : mesuré sur la longueur des baskets ; les deux dessins en largeur ont été réduits aux deux tiers
   slamFall: 1.34, slamDown: 1.75, slamBounce: 1.75,
+  // il se relève : mesuré sur la longueur de la basket avant (vue par la semelle quand il est assis)
+  getupSit: 1.15, getupKneel: 1.12, getupRise: 1.12, getupGuard: 1.1,
   // sortie de fin de round : mesuré sur la longueur de la basket avant
   exitLean: 0.965, exitCrouch: 0.965, exitGround: 0.965, exitSpring: 0.965,
   // coup de pied : mesuré sur le visage (bandeau-menton), comme la rafale de coups de pied
@@ -345,6 +351,20 @@ const LAUNCH_DOWN = LAUNCH.rise + LAUNCH.away + LAUNCH.fall
 const SLAM = { x: 0.45, from: 3000, fall: 0.14, down: 0.12, bounce: 0.15, height: 150, hang: 0.6, wait: 0.25 }
 const SLAM_BOUNCE = SLAM.fall + SLAM.down
 const SLAM_TOTAL = SLAM_BOUNCE + SLAM.bounce + SLAM.hang
+/**
+ * Il se relève après le coup final de l'adversaire : il reste au sol `delay` secondes, puis s'assoit, se met à genou,
+ * se redresse et reprend une garde de passage avant la garde habituelle. Durée de chaque dessin, en secondes.
+ */
+const GETUP = {
+  delay: 0.8,
+  steps: [
+    { pose: 'getupSit', seconds: 0.4 },
+    { pose: 'getupKneel', seconds: 0.35 },
+    { pose: 'getupRise', seconds: 0.35 },
+    { pose: 'getupGuard', seconds: 0.3 },
+  ] as { pose: PoseName; seconds: number }[],
+}
+const GETUP_TOTAL = GETUP.delay + GETUP.steps.reduce((sum, step) => sum + step.seconds, 0)
 
 /**
  * Fumée du bond : les bouffées dessinées (`tools/prepare_fx.py`), de la plus petite à la plus grande, avec leur
@@ -531,6 +551,8 @@ export class HeroLayer {
   private slamImpact = false
   /** Vrai quand le coup de poing de l'adversaire l'a recloué au sol pendant le rebond. */
   private pinned = false
+  /** Temps écoulé depuis qu'il a commencé à se relever, ou -1. */
+  private getupTime = -1
   /** Temps écoulé depuis le début de la sortie de fin de round. */
   private exitTime = 0
   /** Les bouffées de fumée, chargées avec les poses. */
@@ -828,6 +850,7 @@ export class HeroLayer {
     this.popped = false
     this.slamTime = -1
     this.pinned = false
+    this.getupTime = -1
     this.pose = 'ko'
     this.koTime = 0
     this.koFrom = this.x
@@ -886,9 +909,14 @@ export class HeroLayer {
     this.throwPebbles()
   }
 
-  /** Vrai quand le rebond est fini : il est resté suspendu près du sol. */
+  /** Vrai quand le rebond est fini et que personne ne l'a recloué au sol. */
   get slamDone(): boolean {
-    return this.slamTime >= SLAM_TOTAL
+    return this.slamTime >= SLAM_TOTAL && !this.pinned
+  }
+
+  /** Recloué au sol par l'attaque ultime de l'adversaire : il se relève, puis reprend sa garde et la main. */
+  standUp(): void {
+    if (this.pose === 'ko' && this.pinned && this.getupTime < 0) this.getupTime = 0
   }
 
   /** Instant où il touche le sol pendant le K.O. en cours. */
@@ -916,6 +944,15 @@ export class HeroLayer {
     if (this.popped) {
       const k = Math.min(1, this.koTime / POP.rise)
       return { name: 'launch', lift: POP.height * (1 - (1 - k) ** 2) }
+    }
+    if (this.getupTime >= 0) {
+      let end = GETUP.delay
+      if (this.getupTime < end) return { name: 'slamDown', lift: 0 }
+      for (const step of GETUP.steps) {
+        end += step.seconds
+        if (this.getupTime < end) return { name: step.pose, lift: 0 }
+      }
+      return { name: 'getupGuard', lift: 0 }
     }
     if (this.slamTime >= 0) {
       if (this.pinned) return { name: 'slamDown', lift: 0 }
@@ -965,6 +1002,7 @@ export class HeroLayer {
     this.popped = false
     this.slamTime = -1
     this.pinned = false
+    this.getupTime = -1
     this.slide = null
     this.x = PLACEMENT.x
     this.fireball = null
@@ -1180,6 +1218,19 @@ export class HeroLayer {
     }
     if (this.pose === 'ko') {
       this.koTime += frame.delta
+      // relevé : il reprend la garde et la main
+      if (this.getupTime >= 0) {
+        this.getupTime += frame.delta
+        if (this.getupTime >= GETUP_TOTAL) {
+          this.pose = 'guard'
+          this.launched = false
+          this.popped = false
+          this.slamTime = -1
+          this.pinned = false
+          this.getupTime = -1
+        }
+        return
+      }
       if (this.slamTime >= 0) {
         const before = this.slamTime
         this.slamTime += frame.delta
