@@ -265,6 +265,8 @@ Quand un coup touche (ceux de Moussa comme ceux de l'adversaire), l'étincelle e
 
 `LoadingScreen` (`src/components/`) recouvre la scène au lancement : fond partagé en rouge et violet, Moussa et Shigaraki face à face, « VS », leurs noms, une astuce de jeu qui change, et une jauge qui suit le vrai chargement des images (`onLoadProgress`, dans `src/game/gl.ts`, compte les images demandées et arrivées par `loadImage` ; la jauge ne recule jamais et attend que `StageEngine.run` ait tout chargé pour atteindre 100 %). Les noms (« Mouss, combattant » et « Shigaraki, le boss final ») sont en bas, sous les visages. Une fois tout chargé, la jauge reste pleine un instant (« Fight! », `AUTO_START_MS`), puis la partie se lance d'elle-même : la cinématique démarre derrière l'écran, qui s'efface par-dessus dans un éclair (le stage n'apparaît jamais entre les deux) et `App` lance la cinématique d'entrée (`replayIntro`), qui ne part plus toute seule au chargement. Tant qu'il est affiché, les touches du jeu sont ignorées.
 
+Les attaques ultimes s'annulent en combo. Pour Moussa, la frappe au sol (I) demandée pendant un coup part dès que le coup a touché, à la place de sa récupération (`groundQueued`, comme l'attaque spéciale). Pour Shigaraki, l'attaque ultime (N) demandée pendant un coup de son enchaînement ou pendant son coup spécial part dès la fin des images actives (`ultimateQueued`).
+
 ## L'interface de combat
 
 `HudLayer` (`src/game/hud/`) tient et dessine les barres, à la manière de Street Fighter 6, Moussa à gauche et l'adversaire à droite. Elle se dessine sur la toile de la cinématique (`CinematicLayer.hud`), sous les annonces et les plans de coupe, et seulement quand les plans de l'intro ne couvrent plus l'écran.

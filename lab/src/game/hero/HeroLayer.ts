@@ -523,6 +523,8 @@ export class HeroLayer {
   private punchLanded = false
   /** Vrai si l'attaque spéciale a été demandée pendant le coup en cours : elle annulera sa récupération s'il touche. */
   private specialQueued = false
+  /** Vrai si la frappe au sol a été demandée pendant un coup : elle partira dès qu'il aura touché. */
+  private groundQueued = false
   /** Impacts en cours : position, hauteur au-dessus du sol, âge, et s'il s'agit d'une explosion. */
   private impacts: { x: number; height: number; age: number; power: number; blast: boolean; guard?: boolean; seed: number; dir?: number }[] = []
   /** Les dessins de l'étincelle d'un coup qui touche. */
@@ -703,6 +705,7 @@ export class HeroLayer {
     if (!free) return
     // juste après un coup, l'appui poursuit l'enchaînement ; sinon il repart du coup léger
     const next = this.sincePunch < CHAIN_GRACE && this.punchLanded ? CHAIN[this.punchStrength] : undefined
+    this.groundQueued = false
     this.pose = 'punch'
     this.punchStrength = next ?? 'light'
     this.punchTime = 0
@@ -1047,8 +1050,21 @@ export class HeroLayer {
 
   /** Lance la seconde attaque spéciale, la frappe au sol. Possible depuis la garde ou la marche. */
   groundSpecial(): void {
+    // pendant un coup, elle part dès que le coup a touché, à la place de sa récupération (annulation en combo)
+    if (this.pose === 'punch') {
+      this.groundQueued = true
+      return
+    }
     const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
     if (!free) return
+    this.startGround()
+  }
+
+  /** Lance la frappe au sol. */
+  private startGround(): void {
+    this.groundQueued = false
+    this.punchQueued = false
+    this.specialQueued = false
     this.pose = 'ground'
     this.groundTime = 0
     this.groundLanded = false
@@ -1347,6 +1363,11 @@ export class HeroLayer {
       const move = PUNCHES[this.punchStrength]
       const next = CHAIN[this.punchStrength]
       const cancellable = this.punchLanded && this.punchTime >= move.startup + move.active
+      if (cancellable && this.groundQueued) {
+        // l'attaque ultime (frappe au sol) remplace la récupération du coup
+        this.startGround()
+        return
+      }
       if (cancellable && this.specialQueued) {
         // l'attaque spéciale remplace la récupération du coup
         this.pose = 'special'

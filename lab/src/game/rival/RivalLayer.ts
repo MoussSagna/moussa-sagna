@@ -54,10 +54,10 @@ const POSES = {
   pushChamber: { file: 'rival/push-chamber.webp', ground: [408, 1332], scale: 1.4 },
   pushHit: { file: 'rival/push-hit.webp', ground: [399, 1373], scale: 1.4 },
   // coup spécial : pose, amorçage, amorçage chargé d'énergie, coup de pied ; calés sur la botte d'appui
-  specialStance: { file: 'rival/special-stance.webp', ground: [576, 1395], scale: 1.3 },
-  specialChamber: { file: 'rival/special-chamber.webp', ground: [344, 1365], scale: 1.3 },
-  specialCharge: { file: 'rival/special-charge.webp', ground: [434, 1333], scale: 1.3 },
-  specialKick: { file: 'rival/special-kick.webp', ground: [469, 1289], scale: 1.3 },
+  specialStance: { file: 'rival/special-stance.webp', ground: [576, 1395], scale: 1.5 },
+  specialChamber: { file: 'rival/special-chamber.webp', ground: [344, 1365], scale: 1.5 },
+  specialCharge: { file: 'rival/special-charge.webp', ground: [434, 1333], scale: 1.5 },
+  specialKick: { file: 'rival/special-kick.webp', ground: [469, 1289], scale: 1.7 },
   // suite du coup spécial : coup de poing chargé (garde, armé, poing qui part, poing tendu) ; calés 150 à 280 px en
   // arrière de la botte arrière, sinon son corps chevauche Moussa à la distance du coup de pied
   special2Ready: { file: 'rival/special2-ready.webp', ground: [362, 1316], scale: 1.15 },
@@ -116,9 +116,9 @@ const POSES = {
   fxGround11: { file: 'rival/fx-ground-11.webp', ground: [512, 1500], scale: 1.5 },
   // effets du coup spécial (planche fournie par Moussa) : leur cœur lumineux est calé sur la semelle du coup de pied.
   // La traînée grandit en trois dessins ; l'explosion et l'anneau éclatent quand le coup touche.
-  fxTrail1: { file: 'rival/fx-trail-1.webp', ground: [745, 1716], scale: 1 },
-  fxTrail2: { file: 'rival/fx-trail-2.webp', ground: [745, 1716], scale: 1 },
-  fxTrail3: { file: 'rival/fx-trail-3.webp', ground: [745, 1716], scale: 1 },
+  fxTrail1: { file: 'rival/fx-trail-1.webp', ground: [745, 1716], scale: 1.3 },
+  fxTrail2: { file: 'rival/fx-trail-2.webp', ground: [745, 1716], scale: 1.3 },
+  fxTrail3: { file: 'rival/fx-trail-3.webp', ground: [745, 1716], scale: 1.3 },
   fxBurst: { file: 'rival/fx-burst.webp', ground: [1057, 1716], scale: 1 },
   fxRing: { file: 'rival/fx-ring.webp', ground: [1057, 1716], scale: 1 },
   // parade : il lève la main (passage), puis se protège le front de l'avant-bras ; les jambes ne bougent pas
@@ -582,6 +582,8 @@ export class RivalLayer implements Opponent {
   private queued = false
   /** Vrai si le coup spécial a été demandé pendant un coup de l'enchaînement, pour l'annuler. */
   private specialQueued = false
+  /** Vrai si l'attaque ultime a été demandée pendant un coup : elle remplacera la suite du coup. */
+  private ultimateQueued = false
   /** Sens de la téléportation en cours : -1 vers Moussa, 1 en s'éloignant. */
   private teleportDirection = -1
   /** Vrai quand il vient de disparaître au corps à corps : le moteur fait changer les combattants de côté. */
@@ -702,7 +704,17 @@ export class RivalLayer implements Opponent {
 
   /** Attaque ultime : possible seulement en garde ou en lévitation. */
   ultimate(): void {
-    if (this.attackTime >= 0 || this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    // pendant un coup (enchaînement ou coup spécial), elle part dès la fin des images actives : annulation en combo
+    if (this.attackTime >= 0) {
+      if (this.move !== 'ultimate') this.ultimateQueued = true
+      return
+    }
+    if (this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    this.startUltimate()
+  }
+
+  private startUltimate(): void {
+    this.ultimateQueued = false
     this.settle()
     this.focusTaken = false
     this.startMove('ultimate')
@@ -808,6 +820,7 @@ export class RivalLayer implements Opponent {
     this.attackFrom = this.x
     this.queued = false
     this.specialQueued = false
+    this.ultimateQueued = false
     this.warped = false
     this.landedStep = null
     this.pose = MOVES[move].steps[0].pose
@@ -1000,7 +1013,10 @@ export class RivalLayer implements Opponent {
       const [min] = this.bounds(this.pixel(frame))
       const target = this.attackFrom - move.advance * (1 - (1 - k) ** 2)
       this.x = Math.max(Math.min(this.x, min), target)
-      if (this.specialQueued && this.attackTime >= moveActiveEnd(move)) {
+      if (this.ultimateQueued && this.move !== 'ultimate' && this.attackTime >= moveActiveEnd(move)) {
+        // l'attaque ultime annule la suite du coup en cours
+        this.startUltimate()
+      } else if (this.specialQueued && this.attackTime >= moveActiveEnd(move)) {
         // le coup spécial annule la suite du coup en cours
         this.startMove('special')
       } else if (move.next && this.queued && this.attackTime >= moveActiveEnd(move)) {
