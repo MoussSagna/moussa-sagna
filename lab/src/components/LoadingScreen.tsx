@@ -8,6 +8,9 @@ interface Props {
   onStart: () => void
 }
 
+/** Délai entre la jauge pleine et le lancement de la partie, en millisecondes. */
+const AUTO_START_MS = 900
+
 /** Astuces affichées pendant le chargement, une à la fois. */
 const TIPS = [
   'J enchaîne les coups : léger, moyen, fort, puis le coup de pied.',
@@ -20,7 +23,7 @@ const TIPS = [
 /**
  * Écran de chargement, à la manière des jeux de combat : les deux combattants face à face sur un fond partagé en
  * rouge et violet, « VS » au centre, et une jauge qui suit le vrai chargement des images du jeu. Une fois tout
- * chargé, Entrée (ou un clic) lance la partie.
+ * chargé, la partie se lance d'elle-même.
  */
 export function LoadingScreen({ ready, onStart }: Props) {
   const [progress, setProgress] = useState(0)
@@ -54,16 +57,11 @@ export function LoadingScreen({ ready, onStart }: Props) {
     window.setTimeout(onStart, 450)
   }
 
+  // tout est chargé : la jauge reste pleine un instant, puis la partie se lance d'elle-même
   useEffect(() => {
     if (!ready) return
-    const key = (event: KeyboardEvent) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault()
-        start()
-      }
-    }
-    window.addEventListener('keydown', key)
-    return () => window.removeEventListener('keydown', key)
+    const timer = window.setTimeout(start, AUTO_START_MS)
+    return () => window.clearTimeout(timer)
   })
 
   return (
@@ -71,7 +69,6 @@ export function LoadingScreen({ ready, onStart }: Props) {
       className={`loading absolute inset-0 z-10 overflow-hidden bg-ink ${ready ? 'is-ready' : ''} ${leaving ? 'is-leaving' : ''}`}
       role="dialog"
       aria-label="Chargement du jeu"
-      onClick={start}
     >
       <div className="loading-bg absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${asset('loading/bg.webp')})` }} />
       <div className="loading-shade absolute inset-0" />
@@ -83,16 +80,16 @@ export function LoadingScreen({ ready, onStart }: Props) {
         VS
       </div>
 
-      <div className="loading-name loading-name-hero pointer-events-none absolute top-[6%] left-[4%] flex flex-col">
-        <span className="font-display text-[clamp(18px,4.2vw,64px)] leading-none text-line uppercase italic">Moussa Sagna</span>
-        <span className="font-body text-[clamp(10px,1.3vw,20px)] font-bold tracking-[0.3em] text-blood uppercase italic">Développeur frontend</span>
+      <div className="loading-name loading-name-hero pointer-events-none absolute bottom-[5%] left-[4%] flex flex-col">
+        <span className="font-display text-[clamp(18px,4.2vw,64px)] leading-none text-line uppercase italic">Mouss</span>
+        <span className="font-body text-[clamp(10px,1.3vw,20px)] font-bold tracking-[0.3em] text-blood uppercase italic">Combattant</span>
       </div>
-      <div className="loading-name loading-name-rival pointer-events-none absolute top-[6%] right-[4%] flex flex-col items-end text-right">
+      <div className="loading-name loading-name-rival pointer-events-none absolute right-[4%] bottom-[5%] flex flex-col items-end text-right">
         <span className="font-display text-[clamp(18px,4.2vw,64px)] leading-none text-line uppercase italic">Shigaraki</span>
         <span className="font-body text-[clamp(10px,1.3vw,20px)] font-bold tracking-[0.3em] text-violet uppercase italic">Le boss final</span>
       </div>
 
-      <div className="loading-panel absolute inset-x-[22%] bottom-[7%] flex flex-col items-center gap-[0.6em] text-[clamp(10px,1.25vw,19px)]">
+      <div className="loading-panel absolute inset-x-[27%] bottom-[7%] flex flex-col items-center gap-[0.6em] text-[clamp(10px,1.25vw,19px)]">
         <div className="flex w-full items-baseline justify-between font-body font-bold tracking-[0.25em] uppercase italic">
           <span className="loading-status flex items-center gap-[0.6em]" aria-live="polite">
             <span className="loading-spinner" aria-hidden="true" />
@@ -112,12 +109,7 @@ export function LoadingScreen({ ready, onStart }: Props) {
           <div className="loading-fill absolute inset-y-0 left-0" style={{ width: `${value * 100}%` }} />
         </div>
         {ready ? (
-          <button type="button" className="loading-start font-display text-[1.7em] whitespace-nowrap leading-none tracking-[0.06em] text-line uppercase italic" onClick={(event) => {
-              event.stopPropagation()
-              start()
-            }}>
-            Appuie sur Entrée
-          </button>
+          <p className="loading-start m-0 font-display text-[1.7em] leading-none tracking-[0.06em] whitespace-nowrap text-line uppercase italic">Fight!</p>
         ) : (
           <p key={tip} className="loading-tip m-0 text-center font-body text-muted">
             {TIPS[tip]}
