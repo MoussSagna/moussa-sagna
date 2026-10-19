@@ -7,7 +7,7 @@
 
 export type HudSide = 'hero' | 'rival'
 
-const NAMES: Record<HudSide, string> = { hero: 'MOUSSA', rival: '???' }
+const NAMES: Record<HudSide, string> = { hero: 'MOUSSA', rival: 'SHIGARAKI' }
 const DISPLAY_FONT = 'Anton, Impact, sans-serif'
 const BODY_FONT = '"Barlow Semi Condensed", "Arial Narrow", sans-serif'
 

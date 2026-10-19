@@ -49,12 +49,33 @@ interface TextureOptions {
   mipmap?: boolean
 }
 
+/** Images demandées et images arrivées (chargées ou introuvables), pour l'écran de chargement. */
+const loading = { started: 0, done: 0, listeners: new Set<(done: number, started: number) => void>() }
+
+/** S'abonne à l'avancée du chargement des images ; retourne la fonction qui désabonne. */
+export function onLoadProgress(listener: (done: number, started: number) => void): () => void {
+  loading.listeners.add(listener)
+  listener(loading.done, loading.started)
+  return () => loading.listeners.delete(listener)
+}
+
+const notify = () => {
+  for (const listener of loading.listeners) listener(loading.done, loading.started)
+}
+
 /** Charge et décode une image. Résout `null` si elle est introuvable. */
 export function loadImage(src: string): Promise<HTMLImageElement | null> {
+  loading.started += 1
+  notify()
   return new Promise((resolve) => {
     const image = new Image()
-    image.onload = () => resolve(image)
-    image.onerror = () => resolve(null)
+    const finish = (result: HTMLImageElement | null) => {
+      loading.done += 1
+      notify()
+      resolve(result)
+    }
+    image.onload = () => finish(image)
+    image.onerror = () => finish(null)
     image.src = src
   })
 }

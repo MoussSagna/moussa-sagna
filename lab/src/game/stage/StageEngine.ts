@@ -131,13 +131,15 @@ export class StageEngine {
     this.canvases = [canvases.backdrop, canvases.dummy, canvases.rival, canvases.hero, canvases.weather, canvases.cinematic]
   }
 
-  /** Charge les images puis lance la boucle. Résout `false` si le décor animé est indisponible. */
+  /**
+   * Charge les images puis lance la boucle. Résout `false` si le décor animé est indisponible. La cinématique
+   * d'entrée ne part pas toute seule : l'écran de chargement la lance (`replayIntro`) quand le joueur démarre.
+   */
   async run(): Promise<boolean> {
     this.root.addEventListener('pointermove', this.onPointerMove)
     this.root.addEventListener('pointerleave', this.onPointerLeave)
     this.raf = requestAnimationFrame(this.frame)
     const [backdrop] = await Promise.all([this.backdrop.load(), this.hero.load(), this.dummy.load(), this.rival.load(), this.cinematic.load()])
-    this.cinematic.start()
     return backdrop
   }
 

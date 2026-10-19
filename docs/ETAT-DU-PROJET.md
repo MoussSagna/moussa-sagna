@@ -40,6 +40,8 @@ Toute nouvelle pose demande aussi une échelle dans `POSE_SCALE` (`lab/src/game/
 
 Touches : flèches ou ZQSD, J attaque, L boule de feu, I attaque spéciale au sol, O K.O., P fin de round, K le mannequin attaque, Échap passe l'intro. Plus de boutons sous la scène. La case « Contrôler l'adversaire » donne les flèches à l'adversaire (← avance, deux appuis rapides vers Moussa le téléportent, dans son dos au corps à corps, → recule (deux appuis rapides : téléportation en arrière), ↓ pare, Entrée frappe) ; Moussa se joue alors avec Q D, S, Z, Espace et les touches d'attaque.
 
+- Écran de chargement : Moussa face à Shigaraki (l'adversaire, nommé ainsi le 19 octobre), « VS », jauge du vrai chargement, puis Entrée pour lancer la partie et la cinématique.
+- Barres de vie, de super et de drive (quatre blocs), K.O. de l'adversaire quand sa vie tombe à zéro.
 - Stage Tokyo Underground animé (pluie, pétales, néons, reflets).
 - Cinématique d'entrée en six plans (Moussa puis l'adversaire), « Face your destiny », « Round 1 », « Fight! ».
 - Garde, marche, dashs, accroupi, parade, sauts (sur place, avant, arrière).

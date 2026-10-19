@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { asset } from '../game/gl'
 import { StageEngine } from '../game/stage/StageEngine'
 import type { StageOptions } from '../game/types'
@@ -43,10 +43,14 @@ interface Props {
   /** Change de valeur à chaque attaque ultime demandée pour l'adversaire. */
   rivalUltimate: number
   onUnavailable?: () => void
+  /** Appelé quand toutes les images du moteur sont chargées. */
+  onReady?: () => void
+  /** Affiché par-dessus la scène (l'écran de chargement). */
+  children?: ReactNode
 }
 
 /** L'écran du stage : décor animé, personnage en garde, météo et carton de titre. */
-export function StageScreen({ options, introKey, walk, crouch, block, rivalWalk, rivalBlock, rivalDash, dash, jump, attack, special, special2, knockOut, endRound, dummyAttack, rivalSpecial, rivalUltimate, onUnavailable }: Props) {
+export function StageScreen({ options, introKey, walk, crouch, block, rivalWalk, rivalBlock, rivalDash, dash, jump, attack, special, special2, knockOut, endRound, dummyAttack, rivalSpecial, rivalUltimate, onUnavailable, onReady, children }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLCanvasElement>(null)
   const dummy = useRef<HTMLCanvasElement>(null)
@@ -75,14 +79,16 @@ export function StageScreen({ options, introKey, walk, crouch, block, rivalWalk,
     engine.current = instance
     let cancelled = false
     instance.run().then((ok) => {
-      if (!ok && !cancelled) onUnavailable?.()
+      if (cancelled) return
+      if (!ok) onUnavailable?.()
+      onReady?.()
     })
     return () => {
       cancelled = true
       instance.destroy()
       engine.current = null
     }
-  }, [onUnavailable])
+  }, [onUnavailable, onReady])
 
   useEffect(() => {
     if (engine.current) engine.current.options = options
@@ -216,6 +222,7 @@ export function StageScreen({ options, introKey, walk, crouch, block, rivalWalk,
           Passer <span className="font-body text-[13px] normal-case not-italic opacity-70">(Échap)</span>
         </button>
       )}
+      {children}
     </div>
   )
 }

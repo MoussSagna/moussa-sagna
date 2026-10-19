@@ -1,0 +1,129 @@
+import { useEffect, useRef, useState } from 'react'
+import { asset, onLoadProgress } from '../game/gl'
+
+interface Props {
+  /** Vrai quand le moteur a fini de charger toutes ses images. */
+  ready: boolean
+  /** Le joueur lance la partie : l'écran s'efface et la cinématique d'entrée commence. */
+  onStart: () => void
+}
+
+/** Astuces affichées pendant le chargement, une à la fois. */
+const TIPS = [
+  'J enchaîne les coups : léger, moyen, fort, puis le coup de pied.',
+  'L lance la boule de feu, I déclenche la frappe au sol.',
+  'Maintiens Espace pour parer : chaque parade coûte un peu de drive.',
+  'Deux appuis rapides sur une flèche font un dash.',
+  'Shigaraki lit tes mouvements. Garde tes distances.',
+]
+
+/**
+ * Écran de chargement, à la manière des jeux de combat : les deux combattants face à face sur un fond partagé en
+ * rouge et violet, « VS » au centre, et une jauge qui suit le vrai chargement des images du jeu. Une fois tout
+ * chargé, Entrée (ou un clic) lance la partie.
+ */
+export function LoadingScreen({ ready, onStart }: Props) {
+  const [progress, setProgress] = useState(0)
+  const [tip, setTip] = useState(0)
+  const [leaving, setLeaving] = useState(false)
+  const shown = useRef(0)
+  const started = useRef(false)
+
+  // la jauge suit les images arrivées ; elle ne recule jamais et attend la fin du chargement pour atteindre 100 %
+  useEffect(
+    () =>
+      onLoadProgress((done, started) => {
+        const k = started > 0 ? done / started : 0
+        shown.current = Math.max(shown.current, Math.min(0.97, k))
+        setProgress(shown.current)
+      }),
+    [],
+  )
+  const value = ready ? 1 : progress
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setTip((current) => (current + 1) % TIPS.length), 3200)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  const start = () => {
+    if (!ready || started.current) return
+    started.current = true
+    setLeaving(true)
+    // l'écran s'efface, puis la partie commence
+    window.setTimeout(onStart, 450)
+  }
+
+  useEffect(() => {
+    if (!ready) return
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        start()
+      }
+    }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  })
+
+  return (
+    <div
+      className={`loading absolute inset-0 z-10 overflow-hidden bg-ink ${ready ? 'is-ready' : ''} ${leaving ? 'is-leaving' : ''}`}
+      role="dialog"
+      aria-label="Chargement du jeu"
+      onClick={start}
+    >
+      <div className="loading-bg absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${asset('loading/bg.webp')})` }} />
+      <div className="loading-shade absolute inset-0" />
+
+      <img className="loading-fighter loading-hero absolute bottom-0 left-[3%] h-[96%] w-auto" src={asset('loading/hero.webp')} alt="Moussa" draggable={false} />
+      <img className="loading-fighter loading-rival absolute right-[3%] bottom-0 h-[96%] w-auto" src={asset('loading/rival.webp')} alt="Shigaraki" draggable={false} />
+
+      <div className="loading-vs pointer-events-none absolute top-[30%] left-1/2 font-display leading-none italic" aria-hidden="true">
+        VS
+      </div>
+
+      <div className="loading-name loading-name-hero pointer-events-none absolute top-[6%] left-[4%] flex flex-col">
+        <span className="font-display text-[clamp(18px,4.2vw,64px)] leading-none text-line uppercase italic">Moussa Sagna</span>
+        <span className="font-body text-[clamp(10px,1.3vw,20px)] font-bold tracking-[0.3em] text-blood uppercase italic">Développeur frontend</span>
+      </div>
+      <div className="loading-name loading-name-rival pointer-events-none absolute top-[6%] right-[4%] flex flex-col items-end text-right">
+        <span className="font-display text-[clamp(18px,4.2vw,64px)] leading-none text-line uppercase italic">Shigaraki</span>
+        <span className="font-body text-[clamp(10px,1.3vw,20px)] font-bold tracking-[0.3em] text-violet uppercase italic">Le boss final</span>
+      </div>
+
+      <div className="loading-panel absolute inset-x-[22%] bottom-[7%] flex flex-col items-center gap-[0.6em] text-[clamp(10px,1.25vw,19px)]">
+        <div className="flex w-full items-baseline justify-between font-body font-bold tracking-[0.25em] uppercase italic">
+          <span className="loading-status flex items-center gap-[0.6em]" aria-live="polite">
+            <span className="loading-spinner" aria-hidden="true" />
+            {ready ? 'Prêt' : 'Chargement'}
+            {!ready && <span className="loading-dots" aria-hidden="true" />}
+          </span>
+          <span className="tabular-nums">{Math.round(value * 100)} %</span>
+        </div>
+        <div
+          className="loading-bar relative h-[0.9em] w-full"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(value * 100)}
+          aria-label="Chargement des images du jeu"
+        >
+          <div className="loading-fill absolute inset-y-0 left-0" style={{ width: `${value * 100}%` }} />
+        </div>
+        {ready ? (
+          <button type="button" className="loading-start font-display text-[1.7em] whitespace-nowrap leading-none tracking-[0.06em] text-line uppercase italic" onClick={(event) => {
+              event.stopPropagation()
+              start()
+            }}>
+            Appuie sur Entrée
+          </button>
+        ) : (
+          <p key={tip} className="loading-tip m-0 text-center font-body text-muted">
+            {TIPS[tip]}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}

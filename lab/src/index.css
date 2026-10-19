@@ -110,3 +110,197 @@ body {
     animation-duration: 0.01ms;
   }
 }
+
+/* ---------- Écran de chargement ---------- */
+.loading {
+  cursor: default;
+}
+.loading.is-ready {
+  cursor: pointer;
+}
+.loading-bg {
+  animation: loading-drift 18s ease-in-out infinite alternate;
+}
+.loading-shade {
+  background:
+    radial-gradient(ellipse at 50% 45%, transparent 35%, rgb(8 6 13 / 0.75) 100%),
+    linear-gradient(to top, rgb(8 6 13 / 0.92) 0%, transparent 34%);
+}
+.loading-fighter {
+  filter: drop-shadow(0 0 18px rgb(0 0 0 / 0.6));
+  user-select: none;
+}
+.loading-hero {
+  filter: drop-shadow(0 0 22px rgb(232 38 45 / 0.45));
+  animation: loading-in-left 0.7s cubic-bezier(0.2, 0.9, 0.2, 1) both, loading-breathe 3.6s ease-in-out 0.7s infinite;
+}
+.loading-rival {
+  filter: drop-shadow(0 0 22px rgb(139 107 255 / 0.5));
+  animation: loading-in-right 0.7s cubic-bezier(0.2, 0.9, 0.2, 1) 0.1s both, loading-breathe 3.6s ease-in-out 1.6s infinite;
+}
+.loading-vs {
+  font-size: clamp(48px, 11vw, 170px);
+  translate: -50% 0;
+  background: linear-gradient(100deg, var(--color-blood) 0 48%, #fff 48% 52%, var(--color-violet) 52% 100%);
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 0.025em #fff;
+  filter: drop-shadow(0 0.04em 0 #000) drop-shadow(0 0 0.2em rgb(255 255 255 / 0.35));
+  animation: loading-vs 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 0.55s both;
+}
+.loading-name {
+  text-shadow: 0.05em 0.05em 0 #000;
+  animation: loading-fade 0.5s ease-out 0.8s both;
+}
+.loading-panel {
+  animation: loading-fade 0.5s ease-out 0.4s both;
+}
+.loading-bar {
+  transform: skewX(-24deg);
+  background: rgb(8 6 13 / 0.8);
+  outline: 2px solid rgb(244 239 233 / 0.85);
+  outline-offset: 2px;
+}
+.loading-fill {
+  background: linear-gradient(90deg, var(--color-blood), var(--color-sakura) 55%, var(--color-violet));
+  box-shadow: 0 0 14px rgb(255 143 192 / 0.6);
+  transition: width 0.25s ease-out;
+}
+.loading-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: loading-sheen 1.3s linear infinite;
+}
+.loading-spinner {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  border: 2px solid var(--color-line);
+  border-right-color: transparent;
+  rotate: 45deg;
+  animation: loading-spin 0.9s linear infinite;
+}
+.is-ready .loading-spinner {
+  border-color: var(--color-blood);
+  background: var(--color-blood);
+  animation: none;
+}
+.loading-dots::after {
+  content: '';
+  animation: loading-dots 1.2s steps(4) infinite;
+}
+.loading-tip {
+  animation: loading-fade 0.4s ease-out both;
+}
+.loading-start {
+  background: none;
+  border: 0;
+  padding: 0.1em 0.3em;
+  cursor: pointer;
+  text-shadow: 0.06em 0.06em 0 var(--color-blood);
+  animation: loading-blink 1.1s ease-in-out infinite;
+}
+.loading.is-leaving {
+  animation: loading-out 0.45s ease-in forwards;
+}
+
+@keyframes loading-in-left {
+  from {
+    transform: translateX(-60%);
+    opacity: 0;
+  }
+}
+@keyframes loading-in-right {
+  from {
+    transform: translateX(60%);
+    opacity: 0;
+  }
+}
+@keyframes loading-breathe {
+  50% {
+    transform: translateY(-0.8%) scale(1.008);
+  }
+}
+@keyframes loading-vs {
+  from {
+    scale: 2.6;
+    opacity: 0;
+  }
+}
+@keyframes loading-fade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@keyframes loading-drift {
+  to {
+    transform: scale(1.06);
+  }
+}
+@keyframes loading-sheen {
+  from {
+    background-position: -60% 0;
+  }
+  to {
+    background-position: 160% 0;
+  }
+}
+@keyframes loading-spin {
+  to {
+    rotate: 405deg;
+  }
+}
+@keyframes loading-dots {
+  0% {
+    content: '';
+  }
+  25% {
+    content: '.';
+  }
+  50% {
+    content: '..';
+  }
+  75% {
+    content: '...';
+  }
+}
+@keyframes loading-blink {
+  50% {
+    opacity: 0.45;
+  }
+}
+@keyframes loading-out {
+  0% {
+    filter: brightness(1);
+  }
+  30% {
+    filter: brightness(3);
+  }
+  100% {
+    filter: brightness(3);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-bg,
+  .loading-hero,
+  .loading-rival,
+  .loading-vs,
+  .loading-name,
+  .loading-panel,
+  .loading-tip,
+  .loading-start,
+  .loading-fill::after,
+  .loading-spinner {
+    animation: none;
+  }
+  .loading.is-leaving {
+    animation: loading-out 0.2s linear forwards;
+  }
+}

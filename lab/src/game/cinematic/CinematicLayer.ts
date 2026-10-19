@@ -75,7 +75,7 @@ const SHOTS: Shot[] = [
     file: 'cinematic/rival-turn.webp',
     end: 15.1,
     enter: 'flash',
-    card: { title: '???', subtitle: 'LE BOSS FINAL', side: 'right' },
+    card: { title: 'SHIGARAKI', subtitle: 'LE BOSS FINAL', side: 'right' },
     from: [0.42, 0.34, 1.18],
     to: [0.46, 0.36, 1.04],
     lanterns: [[26, 631, 90], [140, 533, 120], [1380, 638, 48], [1457, 651, 34], [1552, 551, 100]],

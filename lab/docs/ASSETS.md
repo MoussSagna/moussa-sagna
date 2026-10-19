@@ -92,3 +92,7 @@ Une estimation automatique de la profondeur a été essayée et donnait un résu
 - Recompresser un atlas avec perte ou modifier `poseData.ts` à la main.
 - Mélanger des poses dessinées sous des angles différents : le personnage saute à chaque changement d'état.
 - Utiliser des planches de frames générées par IA telles quelles : les poses diffèrent trop d'une image à l'autre et l'animation tremble.
+
+## Écran de chargement
+
+`tools/prepare_loading.py` lit `../art/loading-bg.png` (le fond, 1672 × 941), `loading-hero.png` et `loading-rival.png` (Moussa et Shigaraki en pied sur fond vert), efface les logos des baskets de Moussa (`RED_LOGOS`, `LIGHT_LOGOS`), retire le fond vert, recadre et écrit `public/assets/loading/bg.webp`, `hero.webp` et `rival.webp`.

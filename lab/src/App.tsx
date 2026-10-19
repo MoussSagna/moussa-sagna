@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { LoadingScreen } from './components/LoadingScreen'
 import { StageScreen } from './components/StageScreen'
 import type { StageOptions } from './game/types'
 
@@ -41,6 +42,14 @@ const DOUBLE_TAP_MS = 260
 function App() {
   const [options, setOptions] = useState<StageOptions>({ rain: true, petals: true, calm: prefersCalm, opponent: 'rival' })
   const [introKey, setIntroKey] = useState(0)
+  /** Écran de chargement : les images sont-elles chargées, et le joueur a-t-il lancé la partie ? */
+  const [loaded, setLoaded] = useState(false)
+  const [started, setStarted] = useState(false)
+  const onReady = useCallback(() => setLoaded(true), [])
+  const onStart = useCallback(() => {
+    setStarted(true)
+    setIntroKey((key) => key + 1)
+  }, [])
   const [walk, setWalk] = useState(0)
   const [crouch, setCrouch] = useState(false)
   const [block, setBlock] = useState(false)
@@ -106,6 +115,8 @@ function App() {
       setBlock(guard)
     }
     const down = (event: KeyboardEvent) => {
+      // tant que l'écran de chargement est affiché, les touches sont à lui
+      if (!started) return
       const key = event.key.toLowerCase()
       // adversaire contrôlé : les flèches sont à lui (↑ ne fait rien, il ne saute pas)
       if (rivalControl && (ARROWS.has(key) || key === 'enter' || key === 'shift')) {
@@ -190,12 +201,14 @@ function App() {
       // en changeant de mode, plus rien n'est tenu
       release()
     }
-  }, [tap, rivalControl])
+  }, [tap, rivalControl, started])
 
   return (
     <main className="mx-auto flex max-w-[1500px] flex-col gap-3.5 px-4 pt-4 pb-8">
       <h1 className="sr-only">Moussa Sagna, développeur frontend</h1>
-      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} block={block} rivalWalk={rivalWalk} rivalBlock={rivalBlock} rivalDash={rivalDash} dash={dash} jump={jump} attack={attack} special={special} special2={special2} endRound={endRound} knockOut={knockOut} dummyAttack={dummyAttack} rivalSpecial={rivalSpecial} rivalUltimate={rivalUltimate} onUnavailable={onUnavailable} />
+      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} block={block} rivalWalk={rivalWalk} rivalBlock={rivalBlock} rivalDash={rivalDash} dash={dash} jump={jump} attack={attack} special={special} special2={special2} endRound={endRound} knockOut={knockOut} dummyAttack={dummyAttack} rivalSpecial={rivalSpecial} rivalUltimate={rivalUltimate} onUnavailable={onUnavailable} onReady={onReady}>
+        {!started && <LoadingScreen ready={loaded} onStart={onStart} />}
+      </StageScreen>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-muted">
         <button
