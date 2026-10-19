@@ -54,16 +54,16 @@ const POSES = {
   pushChamber: { file: 'rival/push-chamber.webp', ground: [408, 1332], scale: 1.4 },
   pushHit: { file: 'rival/push-hit.webp', ground: [399, 1373], scale: 1.4 },
   // coup spécial : pose, amorçage, amorçage chargé d'énergie, coup de pied ; calés sur la botte d'appui
-  specialStance: { file: 'rival/special-stance.webp', ground: [576, 1395], scale: 1.5 },
-  specialChamber: { file: 'rival/special-chamber.webp', ground: [344, 1365], scale: 1.5 },
-  specialCharge: { file: 'rival/special-charge.webp', ground: [434, 1333], scale: 1.5 },
-  specialKick: { file: 'rival/special-kick.webp', ground: [469, 1289], scale: 1.7 },
+  specialStance: { file: 'rival/special-stance.webp', ground: [576, 1395], scale: 1.3 },
+  specialChamber: { file: 'rival/special-chamber.webp', ground: [344, 1365], scale: 1.3 },
+  specialCharge: { file: 'rival/special-charge.webp', ground: [434, 1333], scale: 1.3 },
+  specialKick: { file: 'rival/special-kick.webp', ground: [469, 1289], scale: 1.3 },
   // suite du coup spécial : coup de poing chargé (garde, armé, poing qui part, poing tendu) ; calés 150 à 280 px en
   // arrière de la botte arrière, sinon son corps chevauche Moussa à la distance du coup de pied
-  special2Ready: { file: 'rival/special2-ready.webp', ground: [362, 1316], scale: 1.15 },
-  special2Cock: { file: 'rival/special2-cock.webp', ground: [368, 1360], scale: 1.15 },
-  special2Punch: { file: 'rival/special2-punch.webp', ground: [401, 1305], scale: 1.15 },
-  special2Hit: { file: 'rival/special2-hit.webp', ground: [453, 1302], scale: 1.15 },
+  special2Ready: { file: 'rival/special2-ready.webp', ground: [362, 1316], scale: 1.35 },
+  special2Cock: { file: 'rival/special2-cock.webp', ground: [368, 1360], scale: 1.35 },
+  special2Punch: { file: 'rival/special2-punch.webp', ground: [401, 1305], scale: 1.35 },
+  special2Hit: { file: 'rival/special2-hit.webp', ground: [453, 1302], scale: 1.35 },
   // attaque ultime : mains tendues, puis énergie qui grossit entre ses mains ; calés sur la botte arrière
   ultReady: { file: 'rival/ult-ready.webp', ground: [631, 1459], scale: 1.1 },
   ultCharge1: { file: 'rival/ult-charge-1.webp', ground: [664, 1466], scale: 1.1 },
@@ -116,9 +116,9 @@ const POSES = {
   fxGround11: { file: 'rival/fx-ground-11.webp', ground: [512, 1500], scale: 1.5 },
   // effets du coup spécial (planche fournie par Moussa) : leur cœur lumineux est calé sur la semelle du coup de pied.
   // La traînée grandit en trois dessins ; l'explosion et l'anneau éclatent quand le coup touche.
-  fxTrail1: { file: 'rival/fx-trail-1.webp', ground: [745, 1716], scale: 1.3 },
-  fxTrail2: { file: 'rival/fx-trail-2.webp', ground: [745, 1716], scale: 1.3 },
-  fxTrail3: { file: 'rival/fx-trail-3.webp', ground: [745, 1716], scale: 1.3 },
+  fxTrail1: { file: 'rival/fx-trail-1.webp', ground: [745, 1716], scale: 1 },
+  fxTrail2: { file: 'rival/fx-trail-2.webp', ground: [745, 1716], scale: 1 },
+  fxTrail3: { file: 'rival/fx-trail-3.webp', ground: [745, 1716], scale: 1 },
   fxBurst: { file: 'rival/fx-burst.webp', ground: [1057, 1716], scale: 1 },
   fxRing: { file: 'rival/fx-ring.webp', ground: [1057, 1716], scale: 1 },
   // parade : il lève la main (passage), puis se protège le front de l'avant-bras ; les jambes ne bougent pas
