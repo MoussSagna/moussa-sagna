@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { StageScreen } from './components/StageScreen'
+import { sound } from './game/audio/sound'
 import type { StageOptions } from './game/types'
 
 const prefersCalm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -41,6 +42,7 @@ const DOUBLE_TAP_MS = 260
 function App() {
   const [options, setOptions] = useState<StageOptions>({ rain: true, petals: true, calm: prefersCalm, opponent: 'rival' })
   const [introKey, setIntroKey] = useState(0)
+  const [soundOn, setSoundOn] = useState(true)
   const [walk, setWalk] = useState(0)
   const [crouch, setCrouch] = useState(false)
   const [block, setBlock] = useState(false)
@@ -229,6 +231,14 @@ function App() {
         <Toggle label="L'adversaire pare" checked={options.rivalBlocks === true} onChange={() => setOptions((current) => ({ ...current, rivalBlocks: !current.rivalBlocks }))} />
         <Toggle label="L'adversaire se déplace" checked={options.rivalMoves !== false} onChange={() => setOptions((current) => ({ ...current, rivalMoves: current.rivalMoves === false }))} />
         <Toggle label="Réduire les mouvements" checked={options.calm} onChange={() => toggle('calm')} />
+        <Toggle
+          label="Son (sons provisoires)"
+          checked={soundOn}
+          onChange={() => {
+            sound.setEnabled(!soundOn)
+            setSoundOn(!soundOn)
+          }}
+        />
       </div>
       <p className="m-0 text-[15px] text-muted">
         Maintiens <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">←</kbd>{' '}

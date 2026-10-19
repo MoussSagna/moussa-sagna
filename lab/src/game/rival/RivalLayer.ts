@@ -1,4 +1,5 @@
 import { asset, createProgram, loadImage, uploadTexture, uniforms } from '../gl'
+import { sound } from '../audio/sound'
 import { PLACEMENT } from '../hero/HeroLayer'
 import type { Strike } from '../hero/HeroLayer'
 import { CANVAS } from '../hero/poseData'
@@ -811,6 +812,8 @@ export class RivalLayer implements Opponent {
     this.warped = false
     this.landedStep = null
     this.pose = MOVES[move].steps[0].pose
+    // l'attaque ultime a ses propres sons (mise au point, téléportation, envol)
+    if (move !== 'ultimate') sound.whoosh(Math.min(1, MOVES[move].power / 1.4))
   }
 
   /** L'étape en cours du coup. */
@@ -858,6 +861,7 @@ export class RivalLayer implements Opponent {
     this.teleportTime = 0
     this.teleportDirection = Math.sign(direction) || -1
     this.pose = 'teleportCrouch'
+    sound.teleport()
   }
 
   /** Vrai une seule fois, quand il vient de disparaître pour passer dans le dos de Moussa. */
@@ -949,6 +953,7 @@ export class RivalLayer implements Opponent {
         this.hopTime = 0
         this.hopFrom = this.x
         this.pose = 'hop1'
+        sound.dash()
         return
       }
       if (this.diveTime >= DIVE_CUT_IN) {
@@ -989,6 +994,7 @@ export class RivalLayer implements Opponent {
       // téléportation de l'attaque ultime : il laisse une image rémanente et réapparaît juste devant Moussa
       if (this.moveStep().warp && !this.warped) {
         this.warped = true
+        sound.teleport()
         this.ghostX = this.x
         this.ghostTime = 0
         const [min] = this.bounds(this.pixel(frame))

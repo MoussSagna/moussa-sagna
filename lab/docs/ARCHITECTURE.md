@@ -270,6 +270,18 @@ Quand un coup touche (ceux de Moussa comme ceux de l'adversaire), l'étincelle e
 - **Drive**, juste sous la super : quatre blocs. Une parade en coûte ; la jauge se recharge seule après un instant ; vide, elle passe en surchauffe (« BURNOUT », grise) jusqu'à être pleine. Réglages dans `HUD`.
 - **K.O.** : à zéro, Moussa tombe K.O. (le K.O. habituel) ; s'il tombe à zéro pendant l'attaque ultime, il reste au sol à la fin au lieu de se relever. L'adversaire à zéro : « K.O. », il bascule en arrière, décolle un peu, retombe et reste allongé (`RivalLayer.knockOut`, `KO_FALL` : `ko1` à `ko5`, secousse quand il touche le sol), puis round suivant (`DAMAGE.koSeconds`). Les vies reviennent au plein à chaque round ; le super est gardé.
 
+## Le son
+
+`src/game/audio/sound.ts` (objet `sound`) joue les effets, les annonces et la musique, tous synthétisés à la volée avec la Web Audio API : ce sont des sons provisoires, sans fichier. Le contexte audio naît au premier appui sur une touche ou au premier clic (les navigateurs bloquent le son avant). Trois volumes : effets, musique (et pluie), voix ; la case « Son » coupe tout (`setEnabled`).
+
+- Coups dans le vide (`whoosh`, plus fort pour un coup fort) : au départ de chaque coup de Moussa (`HeroLayer`) et de l'adversaire (`RivalLayer.startMove`, sauf l'attaque ultime).
+- Coup qui touche (`hit`, selon la puissance) et parade (`block`) : dans `StageEngine.resolveHits`, dans les deux sens.
+- Explosions (`explosion`, de 0,6 à 3) : boule de feu, coup spécial de l'adversaire, frappe au sol, retombée de Moussa, coup de marteau (`CinematicLayer.blast`).
+- Charges (`charge`) : boule de feu, frappe au sol, attaque ultime ; mise au point (`focus`) et plan de coupe (`cutIn`) dans `CinematicLayer` ; téléportation (`teleport`), dash, saut et bond (`dash`), envol (`takeoff`), chutes au sol (`thud`).
+- Annonces (`announce`) : « Round n », « Fight! », « K.O. », avec la voix de synthèse du navigateur et un coup de gong ; la musique de combat (`startMusic`, boucle de batterie, basse et arpège) part avec « Fight! » ; la pluie (`setRain`) suit l'option « Pluie ».
+
+Pour remplacer un son provisoire par un vrai fichier, il suffit de changer le corps de la méthode correspondante : les appels restent les mêmes.
+
 ## Ajouter un plan
 
 1. Créer une classe avec `load(): Promise<boolean>` et `draw(frame, camera, …)`.

@@ -1,4 +1,5 @@
 import { asset, createProgram, loadImage, uploadTexture, uniforms } from '../gl'
+import { sound } from '../audio/sound'
 import type { Camera, FrameInfo } from '../types'
 import { CANVAS, POSES } from './poseData'
 import { BENDS, GAIT, WALK_SPEED, guardMatrices, heldMatrix, scaleAbout, walkMatrices } from './poseRig'
@@ -416,6 +417,8 @@ const IMPACT = { spark: { seconds: 0.24, radius: 420 }, blast: { seconds: 0.42, 
  * c'est Moussa qui encaisse.
  */
 const HIT_FX = { count: 8, frame: 0.035, size: 448, origin: [96, 224] as [number, number], scale: 2.6, unit: 7 }
+/** Force du souffle de chaque coup (`sound.whoosh`). */
+const PUNCH_SOUND = { light: 0.3, medium: 0.55, heavy: 1, kick: 0.8 } as Record<string, number>
 const HIT_FX_SECONDS = HIT_FX.count * HIT_FX.frame
 
 /**
@@ -665,6 +668,7 @@ export class HeroLayer {
     if (!free || direction === 0) return
     this.pose = 'dash'
     this.dashing = { direction: Math.sign(direction), from: this.x, time: 0 }
+    sound.dash()
   }
 
   /** L'atlas d'une pose, envoyé à la carte graphique s'il n'y est pas ; les moins récemment utilisés sont libérés. */
@@ -705,6 +709,7 @@ export class HeroLayer {
     const next = this.sincePunch < CHAIN_GRACE && this.punchLanded ? CHAIN[this.punchStrength] : undefined
     this.pose = 'punch'
     this.punchStrength = next ?? 'light'
+    sound.whoosh(PUNCH_SOUND[this.punchStrength] ?? 0.5)
     this.punchTime = 0
     this.punchQueued = false
     this.punchLanded = false
@@ -841,6 +846,7 @@ export class HeroLayer {
     if (!free || this.fireball) return
     this.pose = 'special'
     this.specialTime = 0
+    sound.charge(SPECIAL_LAUNCH, true)
   }
 
   /**
@@ -1157,6 +1163,7 @@ export class HeroLayer {
     const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
     if (!free) return
     this.pose = 'jump'
+    sound.dash()
     this.jumpTime = 0
     this.jumping = { direction: Math.sign(direction), from: this.x }
   }
@@ -1335,6 +1342,7 @@ export class HeroLayer {
         const grown = POSE_SCALE[step.pose]
         const hands = step.hands ?? feet
         this.fireball = { x: this.x + (hands[0] - feet[0]) * grown * pixel, height: (feet[1] - hands[1]) * grown, age: 0 }
+        sound.fireball()
       }
       if (this.specialTime < SPECIAL_TOTAL) return
       this.pose = 'guard'
@@ -1351,6 +1359,7 @@ export class HeroLayer {
         // l'attaque spéciale remplace la récupération du coup
         this.pose = 'special'
         this.specialTime = 0
+        sound.charge(SPECIAL_LAUNCH, true)
         this.specialQueued = false
         this.punchQueued = false
         this.sincePunch = Infinity
@@ -1359,6 +1368,7 @@ export class HeroLayer {
       if (next && this.punchQueued && cancellable) {
         // le coup suivant remplace la récupération de celui-ci
         this.punchStrength = next
+        sound.whoosh(PUNCH_SOUND[next] ?? 0.5)
         this.punchTime = 0
         this.punchQueued = false
         this.punchLanded = false

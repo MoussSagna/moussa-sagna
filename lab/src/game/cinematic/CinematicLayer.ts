@@ -1,4 +1,5 @@
 import { asset, loadImage } from '../gl'
+import { sound } from '../audio/sound'
 import type { FrameInfo } from '../types'
 
 /**
@@ -237,6 +238,7 @@ export class CinematicLayer {
   /** Mise au point du début de l'attaque spéciale. */
   focus(): void {
     this.focusTime = 0
+    sound.focus()
   }
 
   /** Éclair d'impact de la frappe au sol. */
@@ -248,11 +250,13 @@ export class CinematicLayer {
   cutIn(who: 'hero' | 'rival' = 'hero'): void {
     this.cutInWho = who
     if (who === 'hero' ? this.cutInImage : this.rivalCutInImage) this.cutInTime = 0
+    sound.cutIn()
   }
 
   /** Impact du coup de marteau de l'adversaire : la colonne d'énergie jaillit à l'endroit donné par `blastAt`. */
   blast(): void {
     this.blastTime = 0
+    sound.explosion(3)
   }
 
   /** Vrai pendant l'impact du coup de marteau : le moteur tient `blastAt` à jour. */
@@ -263,6 +267,7 @@ export class CinematicLayer {
   /** Affiche « K.O. » par-dessus le stage, le temps de `KO_ANNOUNCE`. */
   showKO(): void {
     this.koTime = 0
+    sound.announce('K. O.')
   }
 
   update(delta: number): void {
@@ -287,7 +292,15 @@ export class CinematicLayer {
       if (this.koTime >= KO_ANNOUNCE[1]) this.koTime = -1
     }
     if (this.time < 0) return
+    const before = this.time
     this.time += delta
+    // annonces à voix haute, et la musique de combat part avec « Fight »
+    const crossed = (at: number) => before < at && this.time >= at
+    if (crossed(TIMELINE.round[0])) sound.announce(`Round ${this.round}`)
+    if (crossed(TIMELINE.fight[0])) {
+      sound.announce('Fight!')
+      sound.startMusic()
+    }
     if (this.time >= END) this.time = -1
   }
 
