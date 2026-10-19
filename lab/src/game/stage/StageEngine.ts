@@ -1,5 +1,4 @@
 import { CUT_IN_SECONDS, FOCUS_SECONDS, CinematicLayer } from '../cinematic/CinematicLayer'
-import { sound } from '../audio/sound'
 import { HudLayer } from '../hud/HudLayer'
 import { DummyLayer } from '../dummy/DummyLayer'
 import { HeroLayer, PLACEMENT } from '../hero/HeroLayer'
@@ -95,8 +94,6 @@ export class StageEngine {
   private frozen = 0
   /** Secousse de la caméra, de 0 à 1 ; elle s'éteint d'elle-même. */
   private shake = 0
-  /** Vrai à l'image précédente si l'adversaire s'envolait : le son de l'envol part au début. */
-  private wasFlying = false
   /** Barres de vie, de super et de drive. */
   private hud = new HudLayer()
   private hudRound = 1
@@ -313,8 +310,6 @@ export class StageEngine {
       }
       this.stop = strike.stop * (guarded ? 0.5 : 1) * (calm ? 0.5 : 1)
       this.shake = Math.max(this.shake, strike.power * (guarded ? 0.4 : 1))
-      if (guarded) sound.block()
-      else sound.hit(strike.power)
       return guarded
     }
     const punch = this.hero.strike(pixel)
@@ -326,8 +321,6 @@ export class StageEngine {
     if (blow && !this.hero.exiting && !this.hero.knockedOut && this.hero.front(pixel) >= blow.x) {
       target.land()
       const guarded = this.hero.takeHit(blow, pixel)
-      if (guarded) sound.block()
-      else sound.hit(blow.power)
       if (guarded) this.hud.block('hero', blow.power)
       else if (this.koWait < 0) {
         this.hud.damage('hero', blow.power * DAMAGE.perPower, blow.power)
@@ -346,7 +339,6 @@ export class StageEngine {
     const ball = this.hero.fireballStrike(pixel)
     if (ball && ball.x >= surface) {
       this.hero.burst(surface, react(ball))
-      sound.explosion(0.6)
     }
   }
 
@@ -452,22 +444,15 @@ export class StageEngine {
     target.update(fight)
     // l'adversaire décolle : forte secousse de l'écran
     if (this.rival.flying) this.shake = Math.max(this.shake, 3.5)
-    if (this.rival.flying && !this.wasFlying) sound.takeoff()
-    this.wasFlying = this.rival.flying
     // envolé hors de l'écran, il renvoie Moussa au sol : Moussa s'écrase (forte secousse) et rebondit ; pendant
     // le rebond, l'adversaire retombe sur lui d'un coup de poing qui le recloue au sol (même secousse). Pour la
     // démo, le round suivant commence quand il est resté sur son coup (tout de suite si Moussa n'était pas propulsé)
     const tookOff = this.rival.takeTakeoff()
     if (tookOff && !this.hero.slam()) this.nextRound()
-    if (this.hero.takeSlamImpact()) {
-      this.shake = Math.max(this.shake, 3.5)
-      sound.thud(1.4)
-      sound.explosion(0.8)
-    }
+    if (this.hero.takeSlamImpact()) this.shake = Math.max(this.shake, 3.5)
     if (this.hero.slamHanging) this.rival.dive(this.hero.position, (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width))
     if (this.rival.takeDiveImpact()) {
       this.hud.damage('hero', DAMAGE.dive, 1.2)
-      sound.hit(1.8)
       this.shake = Math.max(this.shake, 3.5)
       this.hero.pin()
     }
@@ -510,12 +495,10 @@ export class StageEngine {
       this.focusTime = 0
       this.focusOn = 'hero'
       this.stop = FOCUS_SECONDS
-      sound.charge(FOCUS_SECONDS + CUT_IN_SECONDS, false)
     }
     // attaque ultime de l'adversaire : quand son énergie grossit, le combat se fige et la caméra se resserre sur lui
     if (this.rival.takeFocus()) {
       this.hud.useSuper('rival')
-      sound.charge(FOCUS_SECONDS + 0.4, false)
       this.cinematic.focus()
       this.focusTime = 0
       this.focusOn = 'rival'
@@ -528,7 +511,6 @@ export class StageEngine {
     }
     // à l'impact : un éclair sur tout l'écran et une secousse plus forte que d'habitude
     if (this.hero.takeGroundImpact()) {
-      sound.explosion(1.6)
       this.cinematic.impactFlash()
       this.shake = 2.2
     }
@@ -559,7 +541,6 @@ export class StageEngine {
       // il touche le sol : la caméra tremble et « K.O. » s'affiche
       this.koAnnounced = true
       this.shake = 1
-      sound.thud(1)
       this.cinematic.showKO()
     }
     if (this.hero.koDone) {
@@ -579,17 +560,9 @@ export class StageEngine {
     }
     if (!stopped) this.resolveHits(info, calm)
     // le coup spécial de l'adversaire : forte secousse de l'écran à l'impact, comme la frappe au sol de Moussa
-    if (this.rival.takeImpact()) {
-      this.shake = 2.2
-      sound.explosion(0.9)
-    }
+    if (this.rival.takeImpact()) this.shake = 2.2
     // l'adversaire K.O. touche le sol
-    if (this.rival.takeKoLanding()) {
-      this.shake = Math.max(this.shake, 1.6)
-      sound.thud(1.2)
-    }
-    // pluie : son doux en continu quand elle tombe
-    sound.setRain(this.options.rain && !this.cinematic.covering)
+    if (this.rival.takeKoLanding()) this.shake = Math.max(this.shake, 1.6)
     // un seul des deux est affiché
     this.opponentCanvases.dummy.style.visibility = target === this.dummy ? 'visible' : 'hidden'
     this.opponentCanvases.rival.style.visibility = target === this.rival ? 'visible' : 'hidden'
