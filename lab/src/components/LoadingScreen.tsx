@@ -6,6 +6,8 @@ interface Props {
   ready: boolean
   /** Le joueur lance la partie : l'écran s'efface et la cinématique d'entrée commence. */
   onStart: () => void
+  /** L'écran a fini de s'effacer : il peut être retiré. */
+  onDone: () => void
 }
 
 /** Délai entre la jauge pleine et le lancement de la partie, en millisecondes. */
@@ -25,7 +27,7 @@ const TIPS = [
  * rouge et violet, « VS » au centre, et une jauge qui suit le vrai chargement des images du jeu. Une fois tout
  * chargé, la partie se lance d'elle-même.
  */
-export function LoadingScreen({ ready, onStart }: Props) {
+export function LoadingScreen({ ready, onStart, onDone }: Props) {
   const [progress, setProgress] = useState(0)
   const [tip, setTip] = useState(0)
   const [leaving, setLeaving] = useState(false)
@@ -53,8 +55,9 @@ export function LoadingScreen({ ready, onStart }: Props) {
     if (!ready || started.current) return
     started.current = true
     setLeaving(true)
-    // l'écran s'efface, puis la partie commence
-    window.setTimeout(onStart, 450)
+    // la cinématique démarre tout de suite, derrière l'écran, qui s'efface par-dessus : le stage n'apparaît jamais
+    onStart()
+    window.setTimeout(onDone, 450)
   }
 
   // tout est chargé : la jauge reste pleine un instant, puis la partie se lance d'elle-même

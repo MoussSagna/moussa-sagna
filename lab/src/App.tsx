@@ -46,6 +46,9 @@ function App() {
   const [loaded, setLoaded] = useState(false)
   const [started, setStarted] = useState(false)
   const onReady = useCallback(() => setLoaded(true), [])
+  /** Vrai une fois l'écran de chargement effacé. */
+  const [loadingGone, setLoadingGone] = useState(false)
+  const onLoadingDone = useCallback(() => setLoadingGone(true), [])
   const onStart = useCallback(() => {
     setStarted(true)
     setIntroKey((key) => key + 1)
@@ -207,7 +210,7 @@ function App() {
     <main className="mx-auto flex max-w-[1500px] flex-col gap-3.5 px-4 pt-4 pb-8">
       <h1 className="sr-only">Moussa Sagna, développeur frontend</h1>
       <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} block={block} rivalWalk={rivalWalk} rivalBlock={rivalBlock} rivalDash={rivalDash} dash={dash} jump={jump} attack={attack} special={special} special2={special2} endRound={endRound} knockOut={knockOut} dummyAttack={dummyAttack} rivalSpecial={rivalSpecial} rivalUltimate={rivalUltimate} onUnavailable={onUnavailable} onReady={onReady}>
-        {!started && <LoadingScreen ready={loaded} onStart={onStart} />}
+        {!loadingGone && <LoadingScreen ready={loaded} onStart={onStart} onDone={onLoadingDone} />}
       </StageScreen>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-muted">
