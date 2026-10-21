@@ -67,7 +67,7 @@ Les fusions du 16 et du 18 octobre ne touchent que l'adversaire, absent de l'ar�
 
 ## Limites connues et prochaines pistes
 
-- **Adversaire** : son coup encaissé est encore dessiné sur l'ancien modèle (il détonne à côté de la nouvelle garde). Il ne se téléporte et n'attaque seul que si un joueur le contrôle (ou avec les touches K, M, N). Son attaque ultime ne retire pas encore de vie : il n'y a pas de barres de vie. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié).
+- **Adversaire** : Il ne se téléporte et n'attaque seul que si un joueur le contrôle (ou avec les touches K, M, N). Son attaque ultime ne retire pas encore de vie : il n'y a pas de barres de vie. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié).
 - **Changement de côté** : seul l'adversaire peut passer dans le dos de Moussa ; Moussa se retourne d'un coup, sans animation de demi-tour.
 - **Prochaine grosse étape possible** : faire entrer l'adversaire dans l'arène du folio (affichage, lévitation, téléportations, changement de côté), puis les coups qui touchent.
 - **K.O.** : pas d'animation pour se relever ; il réapparaît en garde.

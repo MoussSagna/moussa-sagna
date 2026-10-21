@@ -124,8 +124,8 @@ const POSES = {
   // parade : il lève la main (passage), puis se protège le front de l'avant-bras ; les jambes ne bougent pas
   blockStep: { file: 'rival/block-step.webp', ground: [560, 1469], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [559, 1471], scale: 1.1 },
-  hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
-  hurtRecover: { file: 'rival/hurt-recover.webp', ground: [564, 1472], scale: 0.9 },
+  hurt: { file: 'rival/hurt.webp', ground: [511, 1463], scale: 1.1 },
+  hurtRecover: { file: 'rival/hurt-recover.webp', ground: [491, 1399], scale: 1.1 },
 } satisfies Record<string, { file: string; ground: Point; scale: number }>
 type RivalPose = keyof typeof POSES
 const POSE_NAMES = Object.keys(POSES) as RivalPose[]
