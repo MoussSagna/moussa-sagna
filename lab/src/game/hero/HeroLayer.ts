@@ -16,7 +16,7 @@ type PoseName = keyof typeof POSES
 const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'hurtGut', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring', 'kickStart', 'kickHit', 'groundCharge', 'groundRise', 'groundPalm', 'koStagger', 'koFall', 'koAir', 'koDown', 'launch', 'slamFall', 'slamDown', 'slamBounce', 'getupSit', 'getupKneel', 'getupRise', 'getupGuard']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
-export const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.15, maxX: 0.84 }
+export const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.45, depth: 0.42, minX: 0.15, maxX: 0.84 }
 
 /** Point de la toile posé sur le sol : le milieu des appuis de la garde. Les autres poses s'y alignent. */
 const GROUND_POINT = POSES.guard.anchor
@@ -123,10 +123,11 @@ const BLOCK_STEP_SECONDS = 0.05
 const JUMP = {
   start: 0.07,
   /** Montée puis retombée : la retombée est plus courte, le personnage tombe plus vite qu'il ne monte. */
-  rise: 0.3,
-  fall: 0.22,
+  rise: 0.36,
+  fall: 0.26,
   land: 0.1,
-  height: 600,
+  // assez haut pour passer par-dessus l'adversaire
+  height: 1000,
   tuck: 0.26,
   /** Déformation du dessin : tassement à l'impulsion et à la réception, étirement à pleine vitesse. */
   squash: 0.09,
@@ -135,12 +136,8 @@ const JUMP = {
    * Sauts avant et arrière : distance parcourue en vol (fraction de la largeur de l'écran) et inclinaison du
    * corps dans le sens du saut (pixels de décalage en haut du corps). Le saut arrière va moins loin.
    */
-  forward: 0.17,
+  forward: 0.24,
   back: 0.13,
-  /** Saut avant par-dessus l'adversaire : possible si le point d'arrivée, dans son dos, est à moins de `crossReach`. */
-  crossReach: 0.4,
-  /** Hauteur d'un saut par-dessus l'adversaire (pixels de la toile) : plus haut, pour passer au-dessus de sa tête. */
-  crossHeight: 900,
   lean: 55,
 }
 
@@ -595,11 +592,8 @@ export class HeroLayer {
   /** Temps écoulé depuis le début du saut en cours. */
   private jumpTime = 0
   /** Saut en cours : sens (1 avant, -1 arrière, 0 vertical) et position de départ. */
-  private jumping = { direction: 0, from: PLACEMENT.x, distance: 0, cross: false }
-  /**
-   * Position de l'adversaire qu'on peut franchir d'un saut (l'adversaire, pas le mannequin), ou `null`. Mise à jour
-   * par le moteur à chaque image, avec `wall`.
-   */
+  private jumping = { direction: 0, from: PLACEMENT.x, cross: false }
+  /** Position de l'adversaire qu'on peut franchir d'un saut (l'adversaire, pas le mannequin), ou `null`. */
   crossable: number | null = null
   /** L'atlas de chaque pose. Un seul est lié à la fois, celui de la pose affichée. */
   private images = new Map<PoseName, HTMLImageElement>()
@@ -1184,24 +1178,19 @@ export class HeroLayer {
     this.pose = 'jump'
     this.jumpTime = 0
     const dir = Math.sign(direction)
-    let distance = dir > 0 ? JUMP.forward : JUMP.back
-    // saut avant assez près de l'adversaire : il passe par-dessus et retombe dans son dos, à la même distance que
-    // devant lui (le moteur fait changer les combattants de côté quand il le franchit)
-    let cross = false
-    if (dir > 0 && this.crossable !== null) {
-      const gap = this.crossable - this.wall
-      const over = this.crossable + gap - this.x
-      if (over <= JUMP.crossReach) {
-        cross = true
-        distance = Math.max(distance, over)
-      }
-    }
-    this.jumping = { direction: dir, from: this.x, distance, cross }
+    // saut avant qui retombe au-delà de l'adversaire : il passe par-dessus lui au lieu d'être arrêté
+    const cross = dir > 0 && this.crossable !== null && this.x + JUMP.forward > this.crossable
+    this.jumping = { direction: dir, from: this.x, cross }
   }
 
   /** Vrai pendant un saut qui passe par-dessus l'adversaire. */
   get crossing(): boolean {
     return this.pose === 'jump' && this.jumping.cross
+  }
+
+  /** Vrai pendant un saut. */
+  get airborne(): boolean {
+    return this.pose === 'jump'
   }
 
   /** Avancée du vol, de 0 au décollage à 1 à l'atterrissage ; le corps garde une vitesse horizontale constante. */
@@ -1232,7 +1221,7 @@ export class HeroLayer {
     const stretch = JUMP.stretch * speed * speed
     return {
       name: rising && t / JUMP.rise < JUMP.tuck ? 'jumpRise' : 'jumpPeak',
-      lift: (this.jumping.cross ? JUMP.crossHeight : JUMP.height) * (1 - speed * speed),
+      lift: JUMP.height * (1 - speed * speed),
       sx: 1 - stretch * 0.6,
       sy: 1 + stretch,
     }
@@ -1420,10 +1409,10 @@ export class HeroLayer {
     if (this.pose === 'jump') {
       this.jumpTime += frame.delta
       // saut avant ou arrière : le corps avance pendant tout le vol, sans franchir le bord ni l'adversaire
-      const { direction, from, distance, cross } = this.jumping
+      const { direction, from } = this.jumping
       if (direction !== 0) {
-        // par-dessus l'adversaire, il n'est pas arrêté par lui (seulement par les bords du stage)
-        const limit = cross ? 1 - PLACEMENT.minX : this.limit()
+        const distance = direction > 0 ? JUMP.forward : JUMP.back
+        const limit = this.jumping.cross ? 1 - PLACEMENT.minX : this.limit()
         this.x = Math.max(PLACEMENT.minX, Math.min(limit, from + direction * distance * this.jumpFlight()))
       }
       if (this.jumpTime < JUMP.start + JUMP.rise + JUMP.fall + JUMP.land) return

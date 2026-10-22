@@ -896,15 +896,7 @@ export class RivalLayer implements Opponent {
     return this.heroX
   }
 
-  /** Vrai une fois K.O. (au sol) : on ne peut plus le franchir d'un saut. */
-  get knockedDown(): boolean {
-    return this.koTime >= 0
-  }
-
-  /**
-   * Moussa est passé dans son dos d'un saut : le moteur a retourné l'affichage, il change de repère sans bouger à
-   * l'écran (Moussa, encore en l'air, retombe ensuite dans son dos à la bonne distance).
-   */
+  /** Moussa est passé dans son dos d'un saut : l'affichage est retourné, il change de repère sans bouger à l'écran. */
   flipSide(heroX: number): void {
     const flip = (x: number) => 1 - x
     this.x = flip(this.x)
@@ -913,6 +905,19 @@ export class RivalLayer implements Opponent {
     this.hopFrom = flip(this.hopFrom)
     this.koFrom = flip(this.koFrom)
     this.heroX = heroX
+  }
+
+  /** Repoussé de `distance` (Moussa lui est retombé dessus), sans dépasser le bord ; retourne la distance parcourue. */
+  pushBack(distance: number): number {
+    const x = Math.min(RANGE.maxX, this.x + distance)
+    const moved = x - this.x
+    this.x = x
+    return moved
+  }
+
+  /** Vrai une fois K.O. (au sol) : on ne peut plus le franchir d'un saut. */
+  get knockedDown(): boolean {
+    return this.koTime >= 0
   }
 
   /** Vrai pendant la téléportation, quand il n'est plus visible. */
