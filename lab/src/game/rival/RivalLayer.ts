@@ -515,6 +515,8 @@ export class RivalLayer implements Opponent {
   x = RivalLayer.START_X
   readonly surface = 310
   readonly gap = 760
+  /** Sa tête, en pixels de la toile derrière son point d'appui : Moussa est dans son dos quand son corps l'a dépassée. */
+  readonly head = 55
   private gl: WebGLRenderingContext | null
   private layer: { program: WebGLProgram; attribute: number; u: Record<(typeof LAYER_UNIFORMS)[number], WebGLUniformLocation | null> } | null = null
   private flat: { program: WebGLProgram; attribute: number; u: Record<(typeof FLAT_UNIFORMS)[number], WebGLUniformLocation | null> } | null = null
