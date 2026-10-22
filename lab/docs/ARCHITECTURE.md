@@ -257,6 +257,25 @@ Toucher conditionne aussi la suite de l'enchaînement :
 - Le mannequin n'a qu'un dessin de coup reçu, le même pour un coup léger au buste et un uppercut à la tête, et la zone de frappe est une simple distance : un coup porté en sautant ou accroupi toucherait de la même façon.
 - Les dashs sont une pose fixe qui glisse : rien ne bouge dans le dessin pendant le déplacement. Le premier des deux appuis lance brièvement la pose intermédiaire de la marche avant que le dash parte.
 
+Quand Moussa encaisse un coup, il alterne deux dessins d'un coup à l'autre : le coup encaissé habituel (`hurt` puis `hurtRecover`), et plié au ventre (`hurtGut`, `HeroLayer.gut`).
+
+Quand un coup touche (ceux de Moussa comme ceux de l'adversaire), l'étincelle est dessinée : huit dessins (`fx/hit-N.webp`, `HIT_FX` dans `HeroLayer`), une étoile puis une onde qui part dans le sens du coup (vers la gauche quand c'est Moussa qui encaisse). Les parades et les explosions gardent l'étincelle calculée par le shader.
+
+## L'écran de chargement
+
+`LoadingScreen` (`src/components/`) recouvre la scène au lancement : fond partagé en rouge et violet, Moussa et Shigaraki face à face, « VS », leurs noms, une astuce de jeu qui change, et une jauge qui suit le vrai chargement des images (`onLoadProgress`, dans `src/game/gl.ts`, compte les images demandées et arrivées par `loadImage` ; la jauge ne recule jamais et attend que `StageEngine.run` ait tout chargé pour atteindre 100 %). Les noms (« Mouss, combattant » et « Shigaraki, le boss final ») sont en bas, sous les visages. Une fois tout chargé, la jauge reste pleine un instant (« Fight! », `AUTO_START_MS`), puis la partie se lance d'elle-même : la cinématique démarre derrière l'écran, qui s'efface par-dessus dans un éclair (le stage n'apparaît jamais entre les deux) et `App` lance la cinématique d'entrée (`replayIntro`), qui ne part plus toute seule au chargement. Tant qu'il est affiché, les touches du jeu sont ignorées.
+
+Les attaques ultimes s'annulent en combo. Pour Moussa, la frappe au sol (I) demandée pendant un coup part dès que le coup a touché, à la place de sa récupération (`groundQueued`, comme l'attaque spéciale). Pour Shigaraki, l'attaque ultime (N) demandée pendant un coup de son enchaînement ou pendant son coup spécial part dès la fin des images actives (`ultimateQueued`).
+
+## L'interface de combat
+
+`HudLayer` (`src/game/hud/`) tient et dessine les barres, à la manière de Street Fighter 6, Moussa à gauche et l'adversaire à droite. Elle se dessine sur la toile de la cinématique (`CinematicLayer.hud`), sous les annonces et les plans de coupe, et seulement quand les plans de l'intro ne couvrent plus l'écran.
+
+- **Vie**, en haut, de part et d'autre du numéro de round : ancrée au centre, elle perd par l'extérieur ; la part perdue s'efface d'abord en rouge, puis rattrape la vie. Un coup retire `DAMAGE.perPower` × sa puissance (`StageEngine`) ; la retombée et le coup de marteau de l'attaque ultime de l'adversaire retirent `DAMAGE.dive` et `DAMAGE.hammer`. Seul l'adversaire a une vie, pas le mannequin.
+- **Super**, en bas, depuis les bords : elle se remplit à chaque coup donné ou reçu, brille quand elle est pleine (« SUPER MAX ») et se vide quand l'attaque ultime part (`useSuper`). Pour les essais, l'attaque ultime ne demande pas encore une barre pleine.
+- **Drive**, juste sous la super : quatre blocs. Une parade en coûte ; la jauge se recharge seule après un instant ; vide, elle passe en surchauffe (« BURNOUT », grise) jusqu'à être pleine. Réglages dans `HUD`.
+- **K.O.** : à zéro, Moussa tombe K.O. (le K.O. habituel) ; s'il tombe à zéro pendant l'attaque ultime, il reste au sol à la fin au lieu de se relever. L'adversaire à zéro : « K.O. », il bascule en arrière, décolle un peu, retombe et reste allongé (`RivalLayer.knockOut`, `KO_FALL` : `ko1` à `ko5`, secousse quand il touche le sol), puis round suivant (`DAMAGE.koSeconds`). Les vies reviennent au plein à chaque round ; le super est gardé.
+
 ## Ajouter un plan
 
 1. Créer une classe avec `load(): Promise<boolean>` et `draw(frame, camera, …)`.

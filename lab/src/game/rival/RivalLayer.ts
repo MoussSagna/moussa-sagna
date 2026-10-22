@@ -60,10 +60,10 @@ const POSES = {
   specialKick: { file: 'rival/special-kick.webp', ground: [469, 1289], scale: 1.3 },
   // suite du coup spécial : coup de poing chargé (garde, armé, poing qui part, poing tendu) ; calés 150 à 280 px en
   // arrière de la botte arrière, sinon son corps chevauche Moussa à la distance du coup de pied
-  special2Ready: { file: 'rival/special2-ready.webp', ground: [362, 1316], scale: 1.15 },
-  special2Cock: { file: 'rival/special2-cock.webp', ground: [368, 1360], scale: 1.15 },
-  special2Punch: { file: 'rival/special2-punch.webp', ground: [401, 1305], scale: 1.15 },
-  special2Hit: { file: 'rival/special2-hit.webp', ground: [453, 1302], scale: 1.15 },
+  special2Ready: { file: 'rival/special2-ready.webp', ground: [362, 1316], scale: 1.35 },
+  special2Cock: { file: 'rival/special2-cock.webp', ground: [368, 1360], scale: 1.35 },
+  special2Punch: { file: 'rival/special2-punch.webp', ground: [401, 1305], scale: 1.35 },
+  special2Hit: { file: 'rival/special2-hit.webp', ground: [453, 1302], scale: 1.35 },
   // attaque ultime : mains tendues, puis énergie qui grossit entre ses mains ; calés sur la botte arrière
   ultReady: { file: 'rival/ult-ready.webp', ground: [631, 1459], scale: 1.1 },
   ultCharge1: { file: 'rival/ult-charge-1.webp', ground: [664, 1466], scale: 1.1 },
@@ -85,6 +85,13 @@ const POSES = {
   hammerHit: { file: 'rival/hammer-hit.webp', ground: [694, 1303], scale: 1.25 },
   hammerEnd: { file: 'rival/hammer-end.webp', ground: [686, 1317], scale: 1.25 },
   // bond en arrière après le coup final : calés sur la botte arrière au sol, sous les pieds en l'air
+  // K.O. : il bascule en arrière, décolle, retombe et reste allongé ; calés sur les hanches (les quatre derniers,
+  // en largeur, ont été réduits aux deux tiers pour tenir dans la toile)
+  ko1: { file: 'rival/ko-1.webp', ground: [505, 1410], scale: 0.92 },
+  ko2: { file: 'rival/ko-2.webp', ground: [470, 1515], scale: 1.6 },
+  ko3: { file: 'rival/ko-3.webp', ground: [480, 1478], scale: 1.6 },
+  ko4: { file: 'rival/ko-4.webp', ground: [480, 1495], scale: 1.6 },
+  ko5: { file: 'rival/ko-5.webp', ground: [505, 1490], scale: 1.55 },
   hop1: { file: 'rival/hop-1.webp', ground: [614, 1311], scale: 1.25 },
   hop2: { file: 'rival/hop-2.webp', ground: [618, 1314], scale: 1.25 },
   hop3: { file: 'rival/hop-3.webp', ground: [600, 1250], scale: 1.25 },
@@ -114,10 +121,11 @@ const POSES = {
   fxTrail3: { file: 'rival/fx-trail-3.webp', ground: [745, 1716], scale: 1 },
   fxBurst: { file: 'rival/fx-burst.webp', ground: [1057, 1716], scale: 1 },
   fxRing: { file: 'rival/fx-ring.webp', ground: [1057, 1716], scale: 1 },
-  blockStep: { file: 'rival/block-step.webp', ground: [519, 1414], scale: 1.1 },
-  block: { file: 'rival/block.webp', ground: [543, 1492], scale: 0.95 },
-  hurt: { file: 'rival/hurt.webp', ground: [490, 1478], scale: 0.9 },
-  hurtRecover: { file: 'rival/hurt-recover.webp', ground: [564, 1472], scale: 0.9 },
+  // parade : il lève la main (passage), puis se protège le front de l'avant-bras ; les jambes ne bougent pas
+  blockStep: { file: 'rival/block-step.webp', ground: [560, 1469], scale: 1.1 },
+  block: { file: 'rival/block.webp', ground: [559, 1471], scale: 1.1 },
+  hurt: { file: 'rival/hurt.webp', ground: [511, 1463], scale: 1.1 },
+  hurtRecover: { file: 'rival/hurt-recover.webp', ground: [491, 1399], scale: 1.1 },
 } satisfies Record<string, { file: string; ground: Point; scale: number }>
 type RivalPose = keyof typeof POSES
 const POSE_NAMES = Object.keys(POSES) as RivalPose[]
@@ -440,6 +448,25 @@ const HOP = {
 const HOP_AIR_START = HOP.steps[0].seconds + HOP.steps[1].seconds
 const HOP_AIR = HOP.steps.filter((step) => HOP.air.includes(step.pose)).reduce((sum, step) => sum + step.seconds, 0)
 const HOP_TOTAL = HOP.steps.reduce((sum, step) => sum + step.seconds, 0)
+/**
+ * K.O. : les dessins de la chute et leur durée ; le dernier (allongé) reste jusqu'au round suivant. Pendant les
+ * dessins en l'air (`air`), il monte jusqu'à `height` pixels de la toile ; il recule de `push` pendant la chute.
+ */
+const KO_FALL = {
+  steps: [
+    { pose: 'ko1', seconds: 0.14 },
+    { pose: 'ko2', seconds: 0.13 },
+    { pose: 'ko3', seconds: 0.13 },
+    { pose: 'ko4', seconds: 0.12 },
+    { pose: 'ko5', seconds: Infinity },
+  ] as { pose: RivalPose; seconds: number }[],
+  air: ['ko2', 'ko3'] as RivalPose[],
+  height: 180,
+  push: 0.1,
+}
+const KO_AIR_START = KO_FALL.steps[0].seconds
+const KO_AIR = KO_FALL.steps[1].seconds + KO_FALL.steps[2].seconds
+const KO_DOWN = KO_FALL.steps.slice(0, 4).reduce((sum, step) => sum + step.seconds, 0)
 /** Instants, depuis le début de la chute sur Moussa, du plan de coupe, du coup de marteau et de la fin. */
 const DIVE_CUT_IN = TAKEOFF_SECONDS + DIVE.hold
 const HAMMER_IMPACT = DIVE_CUT_IN + HAMMER.steps[0].seconds + HAMMER.steps[1].seconds
@@ -541,6 +568,10 @@ export class RivalLayer implements Opponent {
   private hammerImpact = false
   /** Temps écoulé depuis le début du bond en arrière, ou -1 ; position de départ du bond. */
   private hopTime = -1
+  /** Temps écoulé depuis son K.O., ou -1 ; position de départ ; vrai quand il vient de toucher le sol. */
+  private koTime = -1
+  private koFrom = 0
+  private koLanded = false
   private hopFrom = 0
   /** Position de Moussa et taille d'un pixel de la toile au moment où il retombe sur lui. */
   private diveTarget: [number, number] = [0, 0]
@@ -551,6 +582,8 @@ export class RivalLayer implements Opponent {
   private queued = false
   /** Vrai si le coup spécial a été demandé pendant un coup de l'enchaînement, pour l'annuler. */
   private specialQueued = false
+  /** Vrai si l'attaque ultime a été demandée pendant un coup : elle remplacera la suite du coup. */
+  private ultimateQueued = false
   /** Sens de la téléportation en cours : -1 vers Moussa, 1 en s'éloignant. */
   private teleportDirection = -1
   /** Vrai quand il vient de disparaître au corps à corps : le moteur fait changer les combattants de côté. */
@@ -594,6 +627,8 @@ export class RivalLayer implements Opponent {
   }
 
   hit(power: number): boolean {
+    // à terre, il n'encaisse plus rien
+    if (this.koTime >= 0) return false
     const guarded = this.pose === 'block'
     this.lean = (guarded ? GUARDED_LEAN : HIT.lean) * (0.45 + 0.55 * power)
     this.velocity = 0
@@ -605,6 +640,28 @@ export class RivalLayer implements Opponent {
       this.settle()
     }
     return guarded
+  }
+
+  /** K.O. : plus de vie, il bascule en arrière et tombe au sol, où il reste jusqu'au round suivant. */
+  knockOut(): void {
+    if (this.koTime >= 0) return
+    this.koTime = 0
+    this.koFrom = this.x
+    this.koLanded = false
+    this.attackTime = -1
+    this.teleportTime = -1
+    this.diveTime = -1
+    this.hopTime = -1
+    this.away = false
+    this.settle()
+    this.pose = 'ko1'
+  }
+
+  /** Vrai une seule fois, quand il touche le sol pendant son K.O. : le moteur fait trembler l'écran. */
+  takeKoLanding(): boolean {
+    const landed = this.koLanded
+    this.koLanded = false
+    return landed
   }
 
   /** Revient à sa place de départ, en garde, pour un nouveau round. */
@@ -620,6 +677,7 @@ export class RivalLayer implements Opponent {
     this.diveTime = -1
     this.finished = false
     this.hopTime = -1
+    this.koTime = -1
     this.settle()
   }
 
@@ -646,7 +704,17 @@ export class RivalLayer implements Opponent {
 
   /** Attaque ultime : possible seulement en garde ou en lévitation. */
   ultimate(): void {
-    if (this.attackTime >= 0 || this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    // pendant un coup (enchaînement ou coup spécial), elle part dès la fin des images actives : annulation en combo
+    if (this.attackTime >= 0) {
+      if (this.move !== 'ultimate') this.ultimateQueued = true
+      return
+    }
+    if (this.teleportTime >= 0 || !(this.pose === 'guard' || isFloatPose(this.pose))) return
+    this.startUltimate()
+  }
+
+  private startUltimate(): void {
+    this.ultimateQueued = false
     this.settle()
     this.focusTaken = false
     this.startMove('ultimate')
@@ -752,6 +820,7 @@ export class RivalLayer implements Opponent {
     this.attackFrom = this.x
     this.queued = false
     this.specialQueued = false
+    this.ultimateQueued = false
     this.warped = false
     this.landedStep = null
     this.pose = MOVES[move].steps[0].pose
@@ -844,6 +913,20 @@ export class RivalLayer implements Opponent {
     this.burstTime += frame.delta
     this.ghostTime += frame.delta
     if (this.away) return
+    if (this.koTime >= 0) {
+      const before = this.koTime
+      this.koTime += frame.delta
+      if (before < KO_DOWN && this.koTime >= KO_DOWN) this.koLanded = true
+      const k = Math.min(1, this.koTime / KO_DOWN)
+      this.x = Math.min(RANGE.maxX, this.koFrom + KO_FALL.push * k * (2 - k))
+      let end = 0
+      for (const step of KO_FALL.steps) {
+        end += step.seconds
+        this.pose = step.pose
+        if (this.koTime < end) break
+      }
+      return
+    }
     if (this.hopTime >= 0) {
       this.hopTime += frame.delta
       const k = Math.max(0, Math.min(1, (this.hopTime - HOP_AIR_START) / HOP_AIR))
@@ -930,7 +1013,10 @@ export class RivalLayer implements Opponent {
       const [min] = this.bounds(this.pixel(frame))
       const target = this.attackFrom - move.advance * (1 - (1 - k) ** 2)
       this.x = Math.max(Math.min(this.x, min), target)
-      if (this.specialQueued && this.attackTime >= moveActiveEnd(move)) {
+      if (this.ultimateQueued && this.move !== 'ultimate' && this.attackTime >= moveActiveEnd(move)) {
+        // l'attaque ultime annule la suite du coup en cours
+        this.startUltimate()
+      } else if (this.specialQueued && this.attackTime >= moveActiveEnd(move)) {
         // le coup spécial annule la suite du coup en cours
         this.startMove('special')
       } else if (move.next && this.queued && this.attackTime >= moveActiveEnd(move)) {
@@ -1043,6 +1129,11 @@ export class RivalLayer implements Opponent {
   /** Hauteur de vol du dessin `pose` à cet instant, en pixels de la toile : montée, puis flottement. */
   private lift(pose: RivalPose, amplitude: number): number {
     // l'envol de l'attaque ultime : il quitte l'écran par le haut presque instantanément
+    // K.O. : il décolle un peu en basculant, puis retombe
+    if (this.koTime >= 0 && KO_FALL.air.includes(pose)) {
+      const k = Math.max(0, Math.min(1, (this.koTime - KO_AIR_START) / KO_AIR))
+      return KO_FALL.height * Math.sin(Math.PI * k)
+    }
     // bond en arrière : une courbe qui monte et redescend pendant les dessins en l'air
     if (this.hopTime >= 0 && HOP.air.includes(pose)) {
       const k = Math.max(0, Math.min(1, (this.hopTime - HOP_AIR_START) / HOP_AIR))

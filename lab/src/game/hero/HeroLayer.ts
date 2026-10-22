@@ -13,7 +13,7 @@ const SPRITE_UNIFORMS = ['uRect', 'uTex', 'uUv', 'uAlpha'] as const
 const SPARK_UNIFORMS = ['uRect', 'uK', 'uSeed', 'uPower', 'uTint', 'uGlow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring', 'kickStart', 'kickHit', 'groundCharge', 'groundRise', 'groundPalm', 'koStagger', 'koFall', 'koAir', 'koDown', 'launch', 'slamFall', 'slamDown', 'slamBounce', 'getupSit', 'getupKneel', 'getupRise', 'getupGuard']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'hurtGut', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring', 'kickStart', 'kickHit', 'groundCharge', 'groundRise', 'groundPalm', 'koStagger', 'koFall', 'koAir', 'koDown', 'launch', 'slamFall', 'slamDown', 'slamBounce', 'getupSit', 'getupKneel', 'getupRise', 'getupGuard']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 export const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.546, depth: 0.42, minX: 0.14, maxX: 0.8 }
@@ -69,6 +69,7 @@ const FEET: Record<PoseName, [number, number]> = {
   groundRise: POSES.groundRise.anchor,
   groundPalm: POSES.groundPalm.anchor,
   hurtRecover: POSES.hurtRecover.anchor,
+  hurtGut: POSES.hurtGut.anchor,
   punchChain1: POSES.punchChain1.anchor,
   punchChain2: POSES.punchChain2.anchor,
   punchMidHit: POSES.punchMidHit.anchor,
@@ -90,6 +91,8 @@ const POSE_SCALE: Record<PoseName, number> = {
   specialCharge: 1, specialThrow: 1.12, specialRecover: 1,
   specialIn1: 1, specialIn2: 1, specialIn3: 1,
   hurt: 1, hurtRecover: 1,
+  // touché au ventre : mesuré sur la longueur de la basket avant
+  hurtGut: 1.12,
   // frappe au sol : mesuré sur la longueur des baskets
   groundCharge: 1.27, groundRise: 1.27, groundPalm: 1.27,
   // K.O. : mesuré sur la longueur des baskets ; le dessin au sol a été réduit à 0,85 pour tenir dans la toile
@@ -405,6 +408,15 @@ const PEBBLES = { count: 16, speed: [900, 1900] as [number, number], spread: 0.8
  * de la toile pour un coup de pleine puissance.
  */
 const IMPACT = { spark: { seconds: 0.24, radius: 420 }, blast: { seconds: 0.42, radius: 560 } }
+/**
+ * Étincelle dessinée d'un coup qui touche (huit dessins, `fx/hit-N.webp`, toile commune de `size` pixels, point
+ * d'impact en `origin`) : remplace l'étincelle calculée sur les coups encaissés (pas sur les parades ni les
+ * explosions). Chaque dessin dure `frame` secondes ; `scale` : taille d'un pixel du dessin, en pixels de la toile du
+ * personnage, pour un coup de puissance 1. L'onde part vers la droite (coup de Moussa), ou vers la gauche quand
+ * c'est Moussa qui encaisse.
+ */
+const HIT_FX = { count: 8, frame: 0.035, size: 448, origin: [96, 224] as [number, number], scale: 2.6, unit: 7 }
+const HIT_FX_SECONDS = HIT_FX.count * HIT_FX.frame
 
 /**
  * Coup encaissé. Le personnage affiche le dessin du coup reçu pendant `stun` secondes, puis celui du retour
@@ -498,7 +510,7 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'groundCharge' | 'groundRise' | 'groundPalm' | 'koStagger' | 'koFall' | 'koAir' | 'koDown' | 'launch' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring' | 'kickStart' | 'kickHit'> | 'dash' | 'jump' | 'punch' | 'special' | 'ground' | 'exit' | 'ko' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'hurtGut' | 'groundCharge' | 'groundRise' | 'groundPalm' | 'koStagger' | 'koFall' | 'koAir' | 'koDown' | 'launch' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring' | 'kickStart' | 'kickHit'> | 'dash' | 'jump' | 'punch' | 'special' | 'ground' | 'exit' | 'ko' = 'guard'
   /** Temps écoulé depuis le début de l'attaque spéciale en cours. */
   private specialTime = 0
   /** Boule de feu en vol : position (fraction de la largeur du stage), hauteur au-dessus du sol (pixels de la toile), âge. */
@@ -511,10 +523,16 @@ export class HeroLayer {
   private punchLanded = false
   /** Vrai si l'attaque spéciale a été demandée pendant le coup en cours : elle annulera sa récupération s'il touche. */
   private specialQueued = false
+  /** Vrai si la frappe au sol a été demandée pendant un coup : elle partira dès qu'il aura touché. */
+  private groundQueued = false
   /** Impacts en cours : position, hauteur au-dessus du sol, âge, et s'il s'agit d'une explosion. */
-  private impacts: { x: number; height: number; age: number; power: number; blast: boolean; guard?: boolean; seed: number }[] = []
+  private impacts: { x: number; height: number; age: number; power: number; blast: boolean; guard?: boolean; seed: number; dir?: number }[] = []
+  /** Les dessins de l'étincelle d'un coup qui touche. */
+  private hitFx: (WebGLTexture | null)[] = []
   /** Temps écoulé depuis le coup encaissé en cours. */
   private hurtTime = 0
+  /** Vrai si le coup encaissé en cours le prend au ventre (un coup sur deux) : autre dessin, sans dessin de retour. */
+  private gut = false
   /** Temps écoulé depuis le début de la frappe au sol, et vrai dès qu'elle a touché. */
   private groundTime = 0
   private groundLanded = false
@@ -620,6 +638,8 @@ export class HeroLayer {
     this.fx = sheet ? uploadTexture(gl, FX_UNIT, sheet, { alpha: true, premultiply: true }) : null
     const puffs = await Promise.all(SMOKE.files.map((file) => loadImage(asset(file))))
     this.smoke = puffs.map((image, index) => (image ? uploadTexture(gl, SMOKE_UNIT + index, image, { alpha: true, premultiply: true }) : null))
+    const hits = await Promise.all(Array.from({ length: HIT_FX.count }, (_, i) => loadImage(asset(`fx/hit-${i + 1}.webp`))))
+    this.hitFx = hits.map((image) => (image ? uploadTexture(gl, HIT_FX.unit, image, { alpha: true, premultiply: true }) : null))
 
     // texture hors écran du reflet, sur sa propre unité
     gl.activeTexture(gl.TEXTURE0 + REFLECTION_UNIT)
@@ -685,6 +705,7 @@ export class HeroLayer {
     if (!free) return
     // juste après un coup, l'appui poursuit l'enchaînement ; sinon il repart du coup léger
     const next = this.sincePunch < CHAIN_GRACE && this.punchLanded ? CHAIN[this.punchStrength] : undefined
+    this.groundQueued = false
     this.pose = 'punch'
     this.punchStrength = next ?? 'light'
     this.punchTime = 0
@@ -771,7 +792,7 @@ export class HeroLayer {
     if (this.pose === 'exit' || this.pose === 'ko') return false
     const guarded = this.pose === 'block' || this.pose === 'crouchBlock'
     const height = !guarded ? strike.height : this.pose === 'block' ? GUARD_HIT.height : GUARD_HIT.crouchHeight
-    this.impacts.push({ x: this.front(pixel), height, age: 0, power: strike.power, blast: false, guard: guarded, seed: this.x * 50 + this.impacts.length })
+    this.impacts.push({ x: this.front(pixel), height, age: 0, power: strike.power, blast: false, guard: guarded, seed: this.x * 50 + this.impacts.length, dir: -1 })
     const push = guarded ? GUARD_HIT : HURT
     this.slide = { from: this.x, distance: push.push * (0.5 + 0.5 * strike.power), time: 0, seconds: push.pushSeconds }
     if (guarded) {
@@ -780,10 +801,16 @@ export class HeroLayer {
     }
     this.pose = 'hurt'
     this.hurtTime = 0
+    this.gut = !this.gut
     this.punchQueued = false
     this.specialQueued = false
     this.sincePunch = Infinity
     return false
+  }
+
+  /** Vrai si l'impact est dessiné avec l'étincelle dessinée (coup encaissé, dessins chargés). */
+  private drawnHit(impact: { blast: boolean; guard?: boolean }): boolean {
+    return !impact.blast && !impact.guard && this.hitFx.length === HIT_FX.count && this.hitFx.every(Boolean)
   }
 
   /** Fait vieillir les impacts. À appeler à chaque image avec le temps réel : ils continuent pendant l'arrêt sur image. */
@@ -791,7 +818,7 @@ export class HeroLayer {
     for (const impact of this.impacts) impact.age += delta
     for (const fx of this.flurryFx) fx.age += delta
     this.flurryFx = this.flurryFx.filter((fx) => fx.age < (fx.heavy ? 0.32 : 0.22))
-    this.impacts = this.impacts.filter((impact) => impact.age < (impact.blast ? IMPACT.blast : IMPACT.spark).seconds)
+    this.impacts = this.impacts.filter((impact) => impact.age < (impact.blast ? IMPACT.blast.seconds : this.drawnHit(impact) ? HIT_FX_SECONDS : IMPACT.spark.seconds))
   }
 
   /** Dessin du coup de poing en cours : démarrage, bras tendu pendant les images actives, puis récupération. */
@@ -1023,8 +1050,21 @@ export class HeroLayer {
 
   /** Lance la seconde attaque spéciale, la frappe au sol. Possible depuis la garde ou la marche. */
   groundSpecial(): void {
+    // pendant un coup, elle part dès que le coup a touché, à la place de sa récupération (annulation en combo)
+    if (this.pose === 'punch') {
+      this.groundQueued = true
+      return
+    }
     const free = this.pose === 'guard' || this.pose === 'step' || this.pose === 'walk'
     if (!free) return
+    this.startGround()
+  }
+
+  /** Lance la frappe au sol. */
+  private startGround(): void {
+    this.groundQueued = false
+    this.punchQueued = false
+    this.specialQueued = false
     this.pose = 'ground'
     this.groundTime = 0
     this.groundLanded = false
@@ -1323,6 +1363,11 @@ export class HeroLayer {
       const move = PUNCHES[this.punchStrength]
       const next = CHAIN[this.punchStrength]
       const cancellable = this.punchLanded && this.punchTime >= move.startup + move.active
+      if (cancellable && this.groundQueued) {
+        // l'attaque ultime (frappe au sol) remplace la récupération du coup
+        this.startGround()
+        return
+      }
       if (cancellable && this.specialQueued) {
         // l'attaque spéciale remplace la récupération du coup
         this.pose = 'special'
@@ -1561,7 +1606,9 @@ export class HeroLayer {
         : this.pose === 'ground'
           ? this.groundPose()
         : this.pose === 'hurt'
-          ? this.hurtTime < HURT.stun
+          ? this.gut
+            ? 'hurtGut'
+            : this.hurtTime < HURT.stun
             ? 'hurt'
             : 'hurtRecover'
         : this.pose === 'special'
@@ -1752,13 +1799,41 @@ export class HeroLayer {
       }
     }
 
-    // 6. les étincelles d'impact, par-dessus tout le reste
+    // 6. les étincelles d'impact, par-dessus tout le reste : d'abord celles dessinées (coups encaissés)
+    const drawn = this.impacts.filter((impact) => this.drawnHit(impact))
+    if (drawn.length > 0) {
+      gl.useProgram(flat.program)
+      gl.enableVertexAttribArray(flat.attribute)
+      gl.vertexAttribPointer(flat.attribute, 2, gl.FLOAT, false, 0, 0)
+      gl.uniform1f(flat.u.uShadow, 0)
+      gl.uniform1i(flat.u.uTex, HIT_FX.unit)
+      gl.activeTexture(gl.TEXTURE0 + HIT_FX.unit)
+      for (const impact of drawn) {
+        const index = Math.min(HIT_FX.count - 1, Math.floor(impact.age / HIT_FX.frame))
+        gl.bindTexture(gl.TEXTURE_2D, this.hitFx[index])
+        const dir = impact.dir ?? 1
+        const size = HIT_FX.scale * (0.6 + 0.4 * impact.power) * (calm ? 0.8 : 1)
+        const x = (impact.x + PLACEMENT.depth * camera.ox - 0.5) * camera.zoom + 0.5
+        const y = sy - impact.height * (h / CANVAS[1])
+        const ux = unitX / 2
+        const uy = unitY / 2
+        // centre du dessin : décalé du point d'impact, dans le sens de l'onde
+        const cx = x + dir * (HIT_FX.size / 2 - HIT_FX.origin[0]) * size * ux
+        const cy = y - (HIT_FX.size / 2 - HIT_FX.origin[1]) * size * uy
+        gl.uniform1f(flat.u.uAlpha, calm ? 0.7 : 1)
+        // hauteur négative : l'image est envoyée tête en bas ; une largeur négative la retourne vers la gauche
+        gl.uniform4f(flat.u.uRect, cx * 2 - 1, 1 - cy * 2, HIT_FX.size * size * ux * dir, -HIT_FX.size * size * uy)
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+      }
+      gl.uniform1i(flat.u.uTex, REFLECTION_UNIT)
+    }
     const spark = this.spark
-    if (!spark || this.impacts.length === 0) return
+    if (!spark || this.impacts.length === drawn.length) return
     gl.useProgram(spark.program)
     gl.enableVertexAttribArray(spark.attribute)
     gl.vertexAttribPointer(spark.attribute, 2, gl.FLOAT, false, 0, 0)
     for (const impact of this.impacts) {
+      if (this.drawnHit(impact)) continue
       const shape = impact.blast ? IMPACT.blast : IMPACT.spark
       const k = impact.age / shape.seconds
       const x = (impact.x + PLACEMENT.depth * camera.ox - 0.5) * camera.zoom + 0.5

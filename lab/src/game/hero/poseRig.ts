@@ -52,6 +52,7 @@ export const BENDS: Record<keyof typeof POSES, Record<string, Bend>> = {
   getupKneel: {},
   getupRise: {},
   getupGuard: {},
+  hurtGut: {},
   koDown: {},
   groundCharge: {},
   groundRise: {},
