@@ -2,7 +2,7 @@
 
 Usage (depuis lab/) : python3 tools/prepare_poses.py [--debug dossier]
 Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png, hero-dash-back.png,
-hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png les neuf hero-punch-*.png, les six hero-special-*.png, les deux hero-hurt*.png, les trois hero-ground-*.png, les quatre hero-ko-*.png, les quatre hero-exit-*.png et les deux hero-kick-*.png
+hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png les neuf hero-punch-*.png, les six hero-jab-*.png, les six hero-special-*.png, les deux hero-hurt*.png, les trois hero-ground-*.png, les quatre hero-ko-*.png, les quatre hero-exit-*.png et les deux hero-kick-*.png
 (fond vert uni, 1024 x 1536).
 Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
@@ -56,6 +56,13 @@ LOGOS = dict(
     jumpLand=[[(155, 1275), (195, 1285), (200, 1325), (165, 1325)]],
     dashForward=[],
     dashBack=[],
+    # nouveau jab : la virgule sur la basket avant, qui se décale un peu d'un dessin à l'autre
+    jab1=[[(698, 1300), (752, 1318), (800, 1327), (823, 1337), (824, 1355), (816, 1374), (798, 1375), (770, 1361), (740, 1345), (698, 1330)]],
+    jab2=[[(698, 1300), (752, 1318), (800, 1327), (823, 1337), (824, 1355), (816, 1374), (798, 1375), (770, 1361), (740, 1345), (698, 1330)]],
+    jab3=[[(693, 1301), (747, 1319), (795, 1328), (818, 1338), (819, 1356), (811, 1375), (793, 1376), (765, 1362), (735, 1346), (693, 1331)]],
+    jab4=[[(694, 1301), (748, 1319), (796, 1328), (819, 1338), (820, 1356), (812, 1375), (794, 1376), (766, 1362), (736, 1346), (694, 1331)]],
+    jab5=[[(678, 1302), (732, 1320), (780, 1329), (803, 1339), (804, 1357), (796, 1376), (778, 1377), (750, 1363), (720, 1347), (678, 1332)]],
+    jab6=[[(678, 1303), (732, 1321), (780, 1330), (803, 1340), (804, 1358), (796, 1377), (778, 1378), (750, 1364), (720, 1348), (678, 1333)]],
 )
 # Logos en relief, tracés en traits pâles sur le blanc : dans chaque polygone, tout pixel clair devient blanc.
 # Logos rouges sur un panneau blanc : dans chaque rectangle (x0, y0, x1, y1), serré autour du logo, les pixels
@@ -85,6 +92,8 @@ SINGLE = dict(step=None, dashForward=560, dashBack=360, crouchStep=None, crouch=
               jumpStart=None, jumpRise=520, jumpPeak=520, jumpLand=None,
               # jab : calé pour que le pied arrière tombe sur celui de la garde ; le pied avant fait son petit pas
               punchStart=483, punchHit=475,
+              # nouveau jab, en six dessins : calé sur le milieu des pieds, qui ne bougent presque pas
+              jab1=None, jab2=None, jab3=None, jab4=None, jab5=None, jab6=None,
               # direct : corps entier, calé sur le pied avant de la garde ; le pied arrière pivote sur place
               punchMidHit=518,
               # transitions jab -> direct : le pied avant glisse de sa place du jab à celle du direct
@@ -177,6 +186,7 @@ FILES = dict(guard='hero-guard.png', step='hero-step.png', walk='hero-walk.png',
              blockStep='hero-block-step.png', block='hero-block.png', crouchBlock='hero-crouch-block.png',
              jumpStart='hero-jump-start.png', jumpRise='hero-jump-rise.png', jumpPeak='hero-jump-peak.png', jumpLand='hero-jump-land.png',
              punchStart='hero-punch-start.png', punchHit='hero-punch-hit.png',
+             **{f'jab{i}': f'hero-jab-{i}.png' for i in range(1, 7)},
              punchHeavyStart='hero-punch-heavy-start.png', punchHeavyHit='hero-punch-heavy-hit.png', punchHeavyRecover='hero-punch-heavy-recover.png',
              specialIn1='hero-special-in-1.png', specialIn2='hero-special-in-2.png', specialIn3='hero-special-in-3.png',
              specialCharge='hero-special-charge.png', specialThrow='hero-special-throw.png', specialRecover='hero-special-recover.png',

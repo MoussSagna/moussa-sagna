@@ -56,7 +56,8 @@ Le personnage est fait de vingt-neuf illustrations dans la même vue (trois quar
 | `jumpRise` | `../art/hero-jump-rise.png` | saut : montée, corps en extension |
 | `jumpPeak` | `../art/hero-jump-peak.png` | saut : sommet et descente, corps regroupé |
 | `jumpLand` | `../art/hero-jump-land.png` | saut : réception, au sol |
-| `punchStart` | `../art/hero-punch-start.png` | coup de poing léger : bras à mi-course, au démarrage et au retour |
+| `jab1` à `jab6` | `../art/hero-jab-1.png` à `hero-jab-6.png` | coup de poing léger (jab de boxeur) : le bras avant part de la garde (`jab1` à `jab4`), tendu (`jab5`), puis revient (`jab6`) |
+| `punchStart` | `../art/hero-punch-start.png` | ancien jab, plus utilisé par le coup léger (son bras tendu, `punchHit`, sert encore à la rafale de la frappe au sol) |
 | `punchHit` | `../art/hero-punch-hit.png` | coup de poing léger : bras tendu |
 | `specialCharge`, `specialThrow`, `specialRecover` | `../art/hero-special-*.png` | attaque spéciale : charge à la hanche, lancer à deux mains, retour |
 | `koStagger`, `koFall`, `koAir`, `koDown` | `../art/hero-ko-*.png` | K.O. : il titube, bascule, est projeté en l'air, puis reste au sol |
@@ -120,7 +121,7 @@ Il n'y a qu'une touche d'attaque. `HeroLayer.attack()` lance le coup léger depu
 
 | Coup | Démarrage | Actif | Récupération | Dessins |
 | --- | --- | --- | --- | --- |
-| Léger (jab du bras avant) | 4 | 3 | 7 | `punchStart`, `punchHit`, puis `punchStart` à nouveau |
+| Léger (jab du bras avant) | 4 | 3 | 7 | `jab1` à `jab4` (un dessin par image), `jab5` bras tendu, puis `jab6`, `jab4`, `jab2`, `jab1` pour revenir en garde |
 | Fort (uppercut du bras avant) | 11 | 6 | 20 | `punchHeavyStart`, `punchHeavyHit`, `punchHeavyRecover` |
 | Moyen (direct du bras arrière) | 6 | 4 | 11 | `punchChain1` et `punchChain2` (trois images chacun), `punchMidHit`, `punchMidRecover` |
 

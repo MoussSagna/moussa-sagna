@@ -13,7 +13,7 @@ const SPRITE_UNIFORMS = ['uRect', 'uTex', 'uUv', 'uAlpha'] as const
 const SPARK_UNIFORMS = ['uRect', 'uK', 'uSeed', 'uPower', 'uTint', 'uGlow'] as const
 
 type PoseName = keyof typeof POSES
-const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'hurtGut', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring', 'kickStart', 'kickHit', 'groundCharge', 'groundRise', 'groundPalm', 'koStagger', 'koFall', 'koAir', 'koDown', 'launch', 'slamFall', 'slamDown', 'slamBounce', 'getupSit', 'getupKneel', 'getupRise', 'getupGuard']
+const POSE_NAMES: PoseName[] = ['guard', 'step', 'walk', 'dashForward', 'dashBack', 'crouchStep', 'crouch', 'blockStep', 'block', 'crouchBlock', 'jumpStart', 'jumpRise', 'jumpPeak', 'jumpLand', 'punchStart', 'punchHit', 'jab1', 'jab2', 'jab3', 'jab4', 'jab5', 'jab6', 'punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover', 'punchHeavyStart', 'punchHeavyHit', 'punchHeavyRecover', 'specialCharge', 'specialThrow', 'specialRecover', 'specialIn1', 'specialIn2', 'specialIn3', 'hurt', 'hurtRecover', 'hurtGut', 'exitLean', 'exitCrouch', 'exitGround', 'exitSpring', 'kickStart', 'kickHit', 'groundCharge', 'groundRise', 'groundPalm', 'koStagger', 'koFall', 'koAir', 'koDown', 'launch', 'slamFall', 'slamDown', 'slamBounce', 'getupSit', 'getupKneel', 'getupRise', 'getupGuard']
 
 /** Position sur le stage, en fraction de l'écran ; `scale` = hauteur de la toile en hauteurs d'écran. */
 export const PLACEMENT = { x: 0.33, y: 0.905, scale: 0.45, depth: 0.42, minX: 0.15, maxX: 0.84 }
@@ -36,6 +36,12 @@ const FEET: Record<PoseName, [number, number]> = {
   jumpPeak: POSES.jumpPeak.anchor,
   jumpLand: POSES.jumpLand.anchor,
   punchStart: POSES.punchStart.anchor,
+  jab1: POSES.jab1.anchor,
+  jab2: POSES.jab2.anchor,
+  jab3: POSES.jab3.anchor,
+  jab4: POSES.jab4.anchor,
+  jab5: POSES.jab5.anchor,
+  jab6: POSES.jab6.anchor,
   punchHit: POSES.punchHit.anchor,
   punchHeavyStart: POSES.punchHeavyStart.anchor,
   punchHeavyHit: POSES.punchHeavyHit.anchor,
@@ -86,6 +92,8 @@ const POSE_SCALE: Record<PoseName, number> = {
   guard: 1, step: 1, walk: 1, dashForward: 1.07, dashBack: 1.15, crouchStep: 1, crouch: 1, blockStep: 1, block: 1, crouchBlock: 1,
   jumpStart: 1, jumpRise: 1, jumpPeak: 0.93, jumpLand: 1,
   punchStart: 1, punchHit: 1,
+  // nouveau jab : dessiné un peu plus petit que la garde (mesuré sur la hauteur, de la tête aux semelles)
+  jab1: 1.024, jab2: 1.024, jab3: 1.024, jab4: 1.024, jab5: 1.024, jab6: 1.024,
   punchChain1: 1, punchChain2: 1, punchMidHit: 1, punchMidRecover: 1,
   punchHeavyStart: 1, punchHeavyHit: 1, punchHeavyRecover: 1,
   specialCharge: 1, specialThrow: 1.12, specialRecover: 1,
@@ -148,15 +156,15 @@ const JUMP = {
  * `power` (de 0 à 1) règle la réaction de la cible et la taille de l'étincelle, `stop` est la durée de
  * l'arrêt sur image, en secondes.
  * Chaque coup a ses dessins par phase ; le démarrage peut en avoir plusieurs, qui se partagent sa durée.
- * Le léger réutilise son dessin de démarrage pour la récupération. Le fort est un uppercut du bras avant. Le coup de pied (`kick`), quatrième et dernier coup de l'enchaînement, part après le fort. Le moyen ne s'obtient qu'en enchaînant
+ * Le léger (jab) a six dessins : quatre au démarrage, le bras tendu, puis le retour en garde en repassant par les dessins du démarrage. Le fort est un uppercut du bras avant. Le coup de pied (`kick`), quatrième et dernier coup de l'enchaînement, part après le fort. Le moyen ne s'obtient qu'en enchaînant
  * après le léger : son démarrage est fait des deux dessins de transition entre le jab et le direct.
  */
 const PUNCHES = {
-  light: { startup: 4 / 60, active: 3 / 60, recovery: 7 / 60, reach: 580, height: 1010, power: 0.35, stop: 0.06, start: ['punchStart'], hit: 'punchHit', recover: 'punchStart' },
-  medium: { startup: 6 / 60, active: 4 / 60, recovery: 11 / 60, reach: 560, height: 960, power: 0.6, stop: 0.09, start: ['punchChain1', 'punchChain2'], hit: 'punchMidHit', recover: 'punchMidRecover' },
-  heavy: { startup: 11 / 60, active: 6 / 60, recovery: 20 / 60, reach: 480, height: 1150, power: 1, stop: 0.15, start: ['punchHeavyStart'], hit: 'punchHeavyHit', recover: 'punchHeavyRecover' },
-  kick: { startup: 6 / 60, active: 4 / 60, recovery: 11 / 60, reach: 700, height: 1220, power: 1, stop: 0.17, start: ['kickStart'], hit: 'kickHit', recover: 'kickStart' },
-} satisfies Record<string, { startup: number; active: number; recovery: number; reach: number; height: number; power: number; stop: number; start: PoseName[]; hit: PoseName; recover: PoseName }>
+  light: { startup: 4 / 60, active: 3 / 60, recovery: 7 / 60, reach: 580, height: 1010, power: 0.35, stop: 0.06, start: ['jab1', 'jab2', 'jab3', 'jab4'], hit: 'jab5', recover: ['jab6', 'jab4', 'jab2', 'jab1'] },
+  medium: { startup: 6 / 60, active: 4 / 60, recovery: 11 / 60, reach: 560, height: 960, power: 0.6, stop: 0.09, start: ['punchChain1', 'punchChain2'], hit: 'punchMidHit', recover: ['punchMidRecover'] },
+  heavy: { startup: 11 / 60, active: 6 / 60, recovery: 20 / 60, reach: 480, height: 1150, power: 1, stop: 0.15, start: ['punchHeavyStart'], hit: 'punchHeavyHit', recover: ['punchHeavyRecover'] },
+  kick: { startup: 6 / 60, active: 4 / 60, recovery: 11 / 60, reach: 700, height: 1220, power: 1, stop: 0.17, start: ['kickStart'], hit: 'kickHit', recover: ['kickStart'] },
+} satisfies Record<string, { startup: number; active: number; recovery: number; reach: number; height: number; power: number; stop: number; start: PoseName[]; hit: PoseName; recover: PoseName[] }>
 export type PunchStrength = keyof typeof PUNCHES
 
 /**
@@ -511,7 +519,7 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'hurtGut' | 'groundCharge' | 'groundRise' | 'groundPalm' | 'koStagger' | 'koFall' | 'koAir' | 'koDown' | 'launch' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring' | 'kickStart' | 'kickHit'> | 'dash' | 'jump' | 'punch' | 'special' | 'ground' | 'exit' | 'ko' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'jab1' | 'jab2' | 'jab3' | 'jab4' | 'jab5' | 'jab6' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'hurtGut' | 'groundCharge' | 'groundRise' | 'groundPalm' | 'koStagger' | 'koFall' | 'koAir' | 'koDown' | 'launch' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring' | 'kickStart' | 'kickHit'> | 'dash' | 'jump' | 'punch' | 'special' | 'ground' | 'exit' | 'ko' = 'guard'
   /** Temps écoulé depuis le début de l'attaque spéciale en cours. */
   private specialTime = 0
   /** Boule de feu en vol : position (fraction de la largeur du stage), hauteur au-dessus du sol (pixels de la toile), âge. */
@@ -831,7 +839,10 @@ export class HeroLayer {
       const start: PoseName[] = move.start
       return start[Math.min(start.length - 1, Math.floor((this.punchTime / move.startup) * start.length))]
     }
-    return this.punchTime < move.startup + move.active ? move.hit : move.recover
+    if (this.punchTime < move.startup + move.active) return move.hit
+    const recover: PoseName[] = move.recover
+    const k = (this.punchTime - move.startup - move.active) / move.recovery
+    return recover[Math.max(0, Math.min(recover.length - 1, Math.floor(k * recover.length)))]
   }
 
   /**
