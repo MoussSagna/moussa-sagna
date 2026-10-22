@@ -2,7 +2,7 @@
 
 Ce fichier sert à reprendre le travail dans une nouvelle conversation sans rien perdre. Il dit où en est le projet, comment Moussa et Claude travaillent ensemble, et ce qui reste à faire. À mettre à jour à chaque fusion dans `main`.
 
-Dernière mise à jour : 18 octobre 2026, après la fusion de `coup-adversaire` dans `main` (adversaire : enchaînement, coup spécial et sa suite, attaque ultime complète ; Moussa propulsé, écrasé au sol et qui se relève).
+Dernière mise à jour : 22 octobre 2026, après la fusion de `barres` dans `main` (barres de vie, de super et de drive, écran de chargement, Shigaraki : parade, coup encaissé et K.O. redessinés, étincelles d'impact, attaques ultimes annulables en combo).
 
 ## Pour reprendre dans une nouvelle conversation
 
@@ -63,7 +63,7 @@ Touches : flèches ou ZQSD, J attaque, L boule de feu, I attaque spéciale au so
 
 Pas encore repris (demande du travail de rendu dans Phaser) : boule de feu, attaque spéciale au sol et ses effets, effet de vitesse des dashs, mannequin, impacts, adversaire en combat (avec sa lévitation, ses téléportations et le changement de côté), coups reçus, fin de round, K.O.
 
-Les fusions du 16 et du 18 octobre ne touchent que l'adversaire, absent de l'arène du folio : il n'y avait rien à reprendre pour Moussa (`HeroLayer.mirror` sert au changement de côté ; les nouvelles poses de Moussa, propulsé, écrasé au sol et relevé, ne servent qu'à l'attaque ultime de l'adversaire). Le folio garde ses boutons sous l'arène : le lab les a retirés, mais sur le site ils servent au tactile.
+Les fusions du 16, du 18 et du 22 octobre ne touchent que l'adversaire, l'interface de combat et l'écran de chargement du lab, absent de l'arène du folio : il n'y avait rien à reprendre pour Moussa (`HeroLayer.mirror` sert au changement de côté ; les nouvelles poses de Moussa, propulsé, écrasé au sol et relevé, ne servent qu'à l'attaque ultime de l'adversaire). Le folio garde ses boutons sous l'arène : le lab les a retirés, mais sur le site ils servent au tactile.
 
 ## Limites connues et prochaines pistes
 
