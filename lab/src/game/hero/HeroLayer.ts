@@ -137,6 +137,10 @@ const JUMP = {
    */
   forward: 0.17,
   back: 0.13,
+  /** Saut avant par-dessus l'adversaire : possible si le point d'arrivée, dans son dos, est à moins de `crossReach`. */
+  crossReach: 0.4,
+  /** Hauteur d'un saut par-dessus l'adversaire (pixels de la toile) : plus haut, pour passer au-dessus de sa tête. */
+  crossHeight: 900,
   lean: 55,
 }
 
@@ -591,7 +595,12 @@ export class HeroLayer {
   /** Temps écoulé depuis le début du saut en cours. */
   private jumpTime = 0
   /** Saut en cours : sens (1 avant, -1 arrière, 0 vertical) et position de départ. */
-  private jumping = { direction: 0, from: PLACEMENT.x }
+  private jumping = { direction: 0, from: PLACEMENT.x, distance: 0, cross: false }
+  /**
+   * Position de l'adversaire qu'on peut franchir d'un saut (l'adversaire, pas le mannequin), ou `null`. Mise à jour
+   * par le moteur à chaque image, avec `wall`.
+   */
+  crossable: number | null = null
   /** L'atlas de chaque pose. Un seul est lié à la fois, celui de la pose affichée. */
   private images = new Map<PoseName, HTMLImageElement>()
   /** Atlas envoyés à la carte graphique, du moins récemment utilisé au plus récent. */
@@ -1112,7 +1121,7 @@ export class HeroLayer {
     const flip = (x: number) => 1 - x
     this.x = flip(this.x)
     this.dashing = { ...this.dashing, direction: -this.dashing.direction, from: flip(this.dashing.from) }
-    this.jumping = { direction: -this.jumping.direction, from: flip(this.jumping.from) }
+    this.jumping = { ...this.jumping, direction: -this.jumping.direction, from: flip(this.jumping.from) }
     this.groundFrom = flip(this.groundFrom)
     this.koFrom = flip(this.koFrom)
     if (this.slide) this.slide = { ...this.slide, from: flip(this.slide.from), distance: -this.slide.distance }
@@ -1174,7 +1183,25 @@ export class HeroLayer {
     if (!free) return
     this.pose = 'jump'
     this.jumpTime = 0
-    this.jumping = { direction: Math.sign(direction), from: this.x }
+    const dir = Math.sign(direction)
+    let distance = dir > 0 ? JUMP.forward : JUMP.back
+    // saut avant assez près de l'adversaire : il passe par-dessus et retombe dans son dos, à la même distance que
+    // devant lui (le moteur fait changer les combattants de côté quand il le franchit)
+    let cross = false
+    if (dir > 0 && this.crossable !== null) {
+      const gap = this.crossable - this.wall
+      const over = this.crossable + gap - this.x
+      if (over <= JUMP.crossReach) {
+        cross = true
+        distance = Math.max(distance, over)
+      }
+    }
+    this.jumping = { direction: dir, from: this.x, distance, cross }
+  }
+
+  /** Vrai pendant un saut qui passe par-dessus l'adversaire. */
+  get crossing(): boolean {
+    return this.pose === 'jump' && this.jumping.cross
   }
 
   /** Avancée du vol, de 0 au décollage à 1 à l'atterrissage ; le corps garde une vitesse horizontale constante. */
@@ -1205,7 +1232,7 @@ export class HeroLayer {
     const stretch = JUMP.stretch * speed * speed
     return {
       name: rising && t / JUMP.rise < JUMP.tuck ? 'jumpRise' : 'jumpPeak',
-      lift: JUMP.height * (1 - speed * speed),
+      lift: (this.jumping.cross ? JUMP.crossHeight : JUMP.height) * (1 - speed * speed),
       sx: 1 - stretch * 0.6,
       sy: 1 + stretch,
     }
@@ -1393,10 +1420,11 @@ export class HeroLayer {
     if (this.pose === 'jump') {
       this.jumpTime += frame.delta
       // saut avant ou arrière : le corps avance pendant tout le vol, sans franchir le bord ni l'adversaire
-      const { direction, from } = this.jumping
+      const { direction, from, distance, cross } = this.jumping
       if (direction !== 0) {
-        const distance = direction > 0 ? JUMP.forward : JUMP.back
-        this.x = Math.max(PLACEMENT.minX, Math.min(this.limit(), from + direction * distance * this.jumpFlight()))
+        // par-dessus l'adversaire, il n'est pas arrêté par lui (seulement par les bords du stage)
+        const limit = cross ? 1 - PLACEMENT.minX : this.limit()
+        this.x = Math.max(PLACEMENT.minX, Math.min(limit, from + direction * distance * this.jumpFlight()))
       }
       if (this.jumpTime < JUMP.start + JUMP.rise + JUMP.fall + JUMP.land) return
       this.pose = 'guard'

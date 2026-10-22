@@ -896,6 +896,25 @@ export class RivalLayer implements Opponent {
     return this.heroX
   }
 
+  /** Vrai une fois K.O. (au sol) : on ne peut plus le franchir d'un saut. */
+  get knockedDown(): boolean {
+    return this.koTime >= 0
+  }
+
+  /**
+   * Moussa est passé dans son dos d'un saut : le moteur a retourné l'affichage, il change de repère sans bouger à
+   * l'écran (Moussa, encore en l'air, retombe ensuite dans son dos à la bonne distance).
+   */
+  flipSide(heroX: number): void {
+    const flip = (x: number) => 1 - x
+    this.x = flip(this.x)
+    this.ghostX = flip(this.ghostX)
+    this.attackFrom = flip(this.attackFrom)
+    this.hopFrom = flip(this.hopFrom)
+    this.koFrom = flip(this.koFrom)
+    this.heroX = heroX
+  }
+
   /** Vrai pendant la téléportation, quand il n'est plus visible. */
   private get vanished(): boolean {
     return this.away || (this.teleportTime >= 0 && this.teleportStep() === null) || (this.attackTime >= 0 && this.moveStep().vanish === true)

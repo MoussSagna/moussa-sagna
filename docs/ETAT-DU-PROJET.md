@@ -68,7 +68,7 @@ Les fusions du 16, du 18 et du 22 octobre ne touchent que l'adversaire, l'interf
 ## Limites connues et prochaines pistes
 
 - **Adversaire** : Il ne se téléporte et n'attaque seul que si un joueur le contrôle (ou avec les touches K, M, N). Son attaque ultime ne retire pas encore de vie : il n'y a pas de barres de vie. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié).
-- **Changement de côté** : seul l'adversaire peut passer dans le dos de Moussa ; Moussa se retourne d'un coup, sans animation de demi-tour.
+- **Changement de côté** : l'adversaire passe dans le dos de Moussa en se téléportant, Moussa dans le sien d'un saut avant ; les combattants se retournent d'un coup, sans animation de demi-tour.
 - **Prochaine grosse étape possible** : faire entrer l'adversaire dans l'arène du folio (affichage, lévitation, téléportations, changement de côté), puis les coups qui touchent.
 - **K.O.** : pas d'animation pour se relever ; il réapparaît en garde.
 - **Rafale de l'attaque spéciale** : le corps saute un peu d'un coup à l'autre, les dessins n'ont pas le même point d'appui.
