@@ -306,10 +306,11 @@ export class StageEngine {
     // largeur d'un pixel de la toile, en fraction de la largeur du stage
     const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)
     this.hero.wall = target.x - target.gap * pixel
-    // l'adversaire (pas le mannequin) peut être franchi d'un saut : dès que Moussa le dépasse, ils changent de côté
+    // l'adversaire (pas le mannequin) peut être franchi d'un saut : Moussa passe au-dessus en gardant son sens, et
+    // c'est en retombant dans son dos que les combattants se retournent (un demi-tour en l'air paraissait faux)
     const jumpable = target === this.rival && !this.rival.knockedDown
     this.hero.crossable = jumpable ? target.x : null
-    if (jumpable && this.hero.crossing && this.hero.position > this.rival.x) {
+    if (jumpable && !this.hero.airborne && this.hero.position > this.rival.x) {
       this.setMirrored(!this.mirrored)
       this.hero.mirror()
       this.rival.flipSide(this.hero.position)

@@ -271,7 +271,7 @@ Quand un coup touche (ceux de Moussa comme ceux de l'adversaire), l'étincelle e
 
 Les attaques ultimes s'annulent en combo. Pour Moussa, la frappe au sol (I) demandée pendant un coup part dès que le coup a touché, à la place de sa récupération (`groundQueued`, comme l'attaque spéciale). Pour Shigaraki, l'attaque ultime (N) demandée pendant un coup de son enchaînement ou pendant son coup spécial part dès la fin des images actives (`ultimateQueued`).
 
-Les sauts sont hauts (`JUMP.height`) : un saut avant qui retombe au-delà de Shigaraki passe par-dessus lui au lieu d'être arrêté (`HeroLayer.crossable`, `crossing`). Dès que Moussa le dépasse, `StageEngine.resolveHits` fait changer les combattants de côté (`setMirrored`, `hero.mirror`, `RivalLayer.flipSide`) ; s'il retombe trop près, Shigaraki est repoussé (`pushBack`). Le mannequin, lui, ne se franchit pas.
+Les sauts sont hauts (`JUMP.height`) : un saut avant qui retombe au-delà de Shigaraki passe par-dessus lui au lieu d'être arrêté (`HeroLayer.crossable`, `crossing`). Pendant le vol, Moussa garde son sens au-dessus de lui ; c'est en retombant dans son dos (`airborne` redevenu faux) que `StageEngine.resolveHits` fait changer les combattants de côté (`setMirrored`, `hero.mirror`, `RivalLayer.flipSide`). Un demi-tour en plein vol, au-dessus de lui, paraissait faux. S'il retombe trop près, Shigaraki est repoussé (`pushBack`). Le mannequin, lui, ne se franchit pas.
 
 ## L'interface de combat
 
