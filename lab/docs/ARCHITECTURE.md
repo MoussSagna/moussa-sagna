@@ -261,6 +261,10 @@ Quand Moussa encaisse un coup, il alterne deux dessins d'un coup à l'autre : le
 
 Quand un coup touche (ceux de Moussa comme ceux de l'adversaire), l'étincelle est dessinée : huit dessins (`fx/hit-N.webp`, `HIT_FX` dans `HeroLayer`), une étoile puis une onde qui part dans le sens du coup (vers la gauche quand c'est Moussa qui encaisse). Les parades et les explosions gardent l'étincelle calculée par le shader.
 
+## La caméra de combat
+
+`StageEngine` (`CAMERA`) zoome davantage qu'avant (1,25) en visant plus bas pour garder les pieds à la même hauteur, et suit le milieu des deux combattants, en douceur. Le suivi est surtout un travelling (`Camera.pan`, uniforme `uPan` du décor : tout glisse d'un bloc, sans déformation) plus une petite part de parallaxe (`ox`, jusqu'à `CAMERA.parallax`, comme la souris) pour la perspective. Une parallaxe plus forte déformerait le décor aux bords des objets ; le travelling s'arrête avant les bords de l'image, ce qui limite l'aire de jeu (`PLACEMENT.minX`, `maxX`, `RANGE.maxX`). Les combattants reçoivent le travelling dans leur décalage (`ox - pan / depth`).
+
 ## L'écran de chargement
 
 `LoadingScreen` (`src/components/`) recouvre la scène au lancement : fond partagé en rouge et violet, Moussa et Shigaraki face à face, « VS », leurs noms, une astuce de jeu qui change, et une jauge qui suit le vrai chargement des images (`onLoadProgress`, dans `src/game/gl.ts`, compte les images demandées et arrivées par `loadImage` ; la jauge ne recule jamais et attend que `StageEngine.run` ait tout chargé pour atteindre 100 %). Les noms (« Mouss, combattant » et « Shigaraki, le boss final ») sont en bas, sous les visages. Une fois tout chargé, la jauge reste pleine un instant (« Fight! », `AUTO_START_MS`), puis la partie se lance d'elle-même : la cinématique démarre derrière l'écran, qui s'efface par-dessus dans un éclair (le stage n'apparaît jamais entre les deux) et `App` lance la cinématique d'entrée (`replayIntro`), qui ne part plus toute seule au chargement. Tant qu'il est affiché, les touches du jeu sont ignorées.

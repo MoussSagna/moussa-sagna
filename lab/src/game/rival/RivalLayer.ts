@@ -490,7 +490,7 @@ const isFlightPose = (pose: RivalPose): boolean => pose === 'floatForward' || po
  * (en fraction de la largeur du stage, en plus de la distance minimale), et marche jusqu'au milieu de cet
  * intervalle quand il en sort. `maxX` : sa position la plus reculée.
  */
-const RANGE = { near: 0.04, far: 0.14, maxX: 0.86 }
+const RANGE = { near: 0.04, far: 0.14, maxX: 0.85 }
 
 /** Respiration de la garde : amplitude de l'étirement vertical et durée d'un cycle, en secondes. */
 const BREATH = { amplitude: 0.007, period: 3.6 }

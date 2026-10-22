@@ -2,14 +2,14 @@
 export const STAGE_VERTEX = `attribute vec2 a;varying vec2 v;void main(){v=a*.5+.5;v.y=1.-v.y;gl_Position=vec4(a,0.,1.);}`
 
 export const STAGE_FRAGMENT = `precision mediump float;
-varying vec2 v; uniform sampler2D uImg,uDepth; uniform float uT,uZoom,uTrain,uCalm,uBolt; uniform vec2 uOff;
+varying vec2 v; uniform sampler2D uImg,uDepth; uniform float uT,uZoom,uTrain,uCalm,uBolt,uPan; uniform vec2 uOff;
 float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
 float fbm(vec2 p){float a=.5,s=0.;for(int i=0;i<4;i++){s+=a*n(p);p*=2.02;a*=.5;}return s;}
 float g(vec2 p,vec2 c,float r){vec2 q=(p-c)*vec2(1.777,1.);return exp(-dot(q,q)/(r*r));}
 float fl(float seed,float sp){return .72+.28*n(vec2(uT*sp,seed));}
 void main(){
-  vec2 uv=(v-.5)/uZoom+.5;
+  vec2 uv=(v-.5)/uZoom+.5+vec2(uPan,0.);
   float d=texture2D(uDepth,uv).r;
   vec2 p=uv+(d-.42)*uOff;                       // parallaxe : le proche bouge plus que le lointain
   float floorM=smoothstep(.725,.765,uv.y);

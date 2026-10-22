@@ -25,6 +25,17 @@ const INTRO_MS = 3600
 /** Secousse de la caméra à l'impact : amplitude (fraction d'écran) pour un coup de pleine puissance, et vitesse d'extinction. */
 const SHAKE = { amplitude: 0.006, decay: 16 }
 /**
+ * Caméra de combat : zoom de base (`zoom`), hauteur à l'écran des pieds des combattants (`feet`, fraction de la
+ * hauteur), et suivi horizontal (`follow`, par seconde) : la caméra glisse vers le milieu des deux combattants. Le
+ * glissement est surtout un travelling (`pan`, tout le décor d'un bloc, sans déformation), plus une part de
+ * parallaxe (jusqu'à `parallax` en `ox`, comme la souris) qui donne la perspective. Le travelling s'arrête avant les
+ * bords de l'image : la marge laissée par le zoom, moins ce que la parallaxe décale au premier plan (profondeur 0,98 :
+ * 0,56 × `ox`).
+ */
+const CAMERA = { zoom: 1.25, feet: 0.923, follow: 3.5, parallax: 0.04 }
+const CAMERA_MAX_PAN = 0.5 - 0.5 / CAMERA.zoom - 0.56 * (CAMERA.parallax + 0.03)
+const CAMERA_MAX_SHIFT = CAMERA_MAX_PAN + PLACEMENT.depth * CAMERA.parallax
+/**
  * Dégâts, en fraction de la barre de vie : un coup en retire `perPower` × sa puissance. Les deux derniers coups de
  * l'attaque ultime de l'adversaire (sa retombée en coup de poing, puis le coup de marteau) retirent `dive` et
  * `hammer`. Après un K.O. de l'adversaire, le round suivant commence au bout de `koSeconds`.
@@ -94,6 +105,8 @@ export class StageEngine {
   private frozen = 0
   /** Secousse de la caméra, de 0 à 1 ; elle s'éteint d'elle-même. */
   private shake = 0
+  /** Décalage horizontal de la caméra qui suit les combattants (lissé). */
+  private track = 0
   /** Barres de vie, de super et de drive. */
   private hud = new HudLayer()
   private hudRound = 1
@@ -359,10 +372,22 @@ export class StageEngine {
     const sway = calm ? 0 : 1
     const k = Math.min(1, (now - this.introAt) / INTRO_MS)
     const settle = 1 - (1 - k) ** 3
+    // elle suit le milieu des deux combattants (positions à l'écran, retournées quand ils ont changé de côté)
+    const screenX = (x: number) => (this.mirrored ? 1 - x : x)
+    const middle = (screenX(this.hero.position) + screenX(this.opponent().x)) / 2
+    // décalage voulu des combattants à l'écran (en fraction du stage), partagé entre parallaxe et travelling
+    const follow = Math.max(-CAMERA_MAX_SHIFT, Math.min(CAMERA_MAX_SHIFT, 0.5 - middle))
+    this.track += (follow - this.track) * Math.min(1, delta * CAMERA.follow)
+    const parallax = (this.track / CAMERA_MAX_SHIFT) * CAMERA.parallax
+    const pan = -(this.track - PLACEMENT.depth * parallax)
+    const zoom = CAMERA.zoom + (1 - settle) * 0.13 * sway + Math.sin(time * 0.13) * 0.006 * sway
+    // plus zoomée, elle vise plus bas, pour garder les pieds à la même hauteur à l'écran
+    const lower = ((CAMERA.feet - 0.5) / CAMERA.zoom - (PLACEMENT.y - 0.5)) / PLACEMENT.depth
     const camera: Camera = {
-      ox: p.x * 0.02 + Math.sin(time * 0.21) * 0.007 * sway + (1 - settle) * 0.045 * sway,
-      oy: p.y * 0.008 + Math.cos(time * 0.17) * 0.003 * sway,
-      zoom: 1.045 + (1 - settle) * 0.13 * sway + Math.sin(time * 0.13) * 0.006 * sway,
+      ox: parallax + p.x * 0.02 + Math.sin(time * 0.21) * 0.007 * sway + (1 - settle) * 0.045 * sway,
+      oy: lower + p.y * 0.008 + Math.cos(time * 0.17) * 0.003 * sway,
+      zoom,
+      pan,
     }
     // mise au point du début de l'attaque spéciale : zoom et recentrage sur le personnage, entrée et sortie adoucies
     if (this.focusTime >= 0) {
@@ -378,7 +403,7 @@ export class StageEngine {
       // position du personnage à l'écran, retournée quand les combattants ont changé de côté
       const position = this.focusOn === 'rival' ? this.rival.x : this.hero.position
       const screen = this.mirrored ? 1 - position : position
-      const ox = (0.5 - screen) / depth
+      const ox = (0.5 - screen + pan) / depth
       // l'adversaire est debout : la caméra vise plus haut que pour Moussa baissé
       const height = this.focusOn === 'rival' ? FOCUS.rivalHeight : FOCUS.height
       const oy = (0.5 + 0.05 / zoom - height) / depth
@@ -402,7 +427,8 @@ export class StageEngine {
     // impact du coup de marteau de l'adversaire : dessiné par la cinématique, devant les combattants, au même endroit
     // du stage qu'eux (même caméra, secousse comprise)
     if (this.cinematic.blasting) {
-      const view = this.mirrored ? -camera.ox : camera.ox
+      const fighterOx = camera.ox - pan / PLACEMENT.depth
+      const view = this.mirrored ? -fighterOx : fighterOx
       const x = (this.rival.hammerX + PLACEMENT.depth * view - 0.5) * camera.zoom + 0.5
       this.cinematic.blastAt = {
         x: this.mirrored ? 1 - x : x,
@@ -569,7 +595,9 @@ export class StageEngine {
     this.opponentCanvases.dummy.style.visibility = target === this.dummy ? 'visible' : 'hidden'
     this.opponentCanvases.rival.style.visibility = target === this.rival ? 'visible' : 'hidden'
     // plans retournés en miroir : la parallaxe horizontale s'inverse aussi, pour rester calée sur le décor
-    const view = this.mirrored ? { ...camera, ox: -camera.ox } : camera
+    // les combattants suivent aussi le travelling (`pan`), exprimé dans leur décalage de parallaxe
+    const fighterOx = camera.ox - (camera.pan ?? 0) / PLACEMENT.depth
+    const view = { ...camera, ox: this.mirrored ? -fighterOx : fighterOx }
     target.draw(fight, view, calm)
     this.hero.draw(fight, view, calm)
     this.weather.draw(info, -camera.ox * 0.5, this.options)
