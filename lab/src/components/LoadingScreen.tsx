@@ -19,6 +19,7 @@ const TIPS = [
   'L lance la boule de feu, I déclenche la frappe au sol.',
   'Maintiens Espace pour parer : chaque parade coûte un peu de drive.',
   'Deux appuis rapides sur une flèche font un dash.',
+  'Un coup touche ? Deux appuis rapides vers l\'avant : drive rush, pour 2 blocs de drive.',
   'Shigaraki lit tes mouvements. Garde tes distances.',
 ]
 

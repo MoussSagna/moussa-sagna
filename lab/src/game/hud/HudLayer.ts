@@ -13,7 +13,7 @@ const BODY_FONT = '"Barlow Semi Condensed", "Arial Narrow", sans-serif'
 
 /**
  * Réglages. `trail` : vitesse à laquelle la part perdue (en rouge) rattrape la vie, par seconde, après `trailDelay`.
- * Drive : `segments` blocs ; une parade en coûte `block` × la puissance du coup ; il se recharge de `regen` bloc par
+ * Drive : `segments` blocs ; une parade en coûte `block` × la puissance du coup, un drive rush `rush` ; il se recharge de `regen` bloc par
  * seconde, `regenDelay` secondes après la dernière dépense ; vide, il passe en surchauffe (« BURNOUT ») et se
  * recharge à `burnoutRegen` jusqu'au plein. Super : chaque coup donné en remplit `gainDealt` × sa puissance, chaque
  * coup reçu `gainTaken` × sa puissance.
@@ -23,6 +23,7 @@ export const HUD = {
   trailDelay: 0.5,
   segments: 4,
   block: 0.5,
+  rush: 2,
   regen: 0.35,
   regenDelay: 1.2,
   burnoutRegen: 0.25,
@@ -68,6 +69,12 @@ export class HudLayer {
     this.spendDrive(side, HUD.block * power)
     const other = this.sides[side === 'hero' ? 'rival' : 'hero']
     other.super = Math.min(1, other.super + (HUD.gainDealt / 2) * power)
+  }
+
+  /** Vrai si `side` a au moins `segments` blocs de drive et n'est pas en surchauffe. */
+  hasDrive(side: HudSide, segments: number): boolean {
+    const gauges = this.sides[side]
+    return !gauges.burnout && gauges.drive >= segments
   }
 
   /** Dépense `segments` blocs de drive ; à zéro, surchauffe. */

@@ -91,6 +91,8 @@ Le corps avance à `WALK_SPEED`, la vitesse exacte du pied posé, pour que les a
 
 `App.tsx` déclenche un dash quand la même direction est pressée deux fois en moins de `DOUBLE_TAP_MS`, au clavier ou sur les boutons.
 
+**Drive rush** (à la manière de Street Fighter 6, Moussa seulement) : un double appui vers l'avant pendant un coup qui a touché ou a été paré (`HeroLayer.canDriveRush`) annule le coup en une course plus longue et plus rapide que le dash (`DRIVE_RUSH`, pose `rush`, dessin du dash avant). `StageEngine.dash` vérifie qu'il reste assez de drive (`HudLayer.hasDrive`) et en dépense `HUD.rush` blocs (2). Pendant la course, la touche d'attaque lance le coup suivant de l'enchaînement (le léger si l'enchaînement est fini) dès `DRIVE_RUSH.cancelFrom` ; sans coup, il revient en garde et peut encore enchaîner juste après. Effet : un halo vert autour de lui (le dessin teinté, `uTint`, décalé tout autour, sous lui), qui s'estompe peu après la course, des images fantômes vertes et une traînée verte (`uTrail`). « Réduire les mouvements » garde un halo plus doux, sans images fantômes ni déformation.
+
 ### L'accroupi
 
 Tant que `StageEngine.crouch` est vrai, le personnage passe de la garde à la pose `crouchStep` pendant `CROUCH_STEP_SECONDS`, puis reste en `crouch` ; il fait le chemin inverse quand on relâche. Accroupi, il ne marche pas et ne dashe pas. S'il marchait, il repasse d'abord par la garde. La pose `crouch` respire : `crouchMatrix` tasse à peine tout le dessin vers le sol, semelles fixes.
@@ -280,7 +282,7 @@ Les sauts sont hauts (`JUMP.height`) : un saut avant qui retombe au-delà de Shi
 
 - **Vie**, en haut, de part et d'autre du numéro de round : ancrée au centre, elle perd par l'extérieur ; la part perdue s'efface d'abord en rouge, puis rattrape la vie. Un coup retire `DAMAGE.perPower` × sa puissance (`StageEngine`) ; la retombée et le coup de marteau de l'attaque ultime de l'adversaire retirent `DAMAGE.dive` et `DAMAGE.hammer`. Seul l'adversaire a une vie, pas le mannequin.
 - **Super**, en bas, depuis les bords : elle se remplit à chaque coup donné ou reçu, brille quand elle est pleine (« SUPER MAX ») et se vide quand l'attaque ultime part (`useSuper`). Pour les essais, l'attaque ultime ne demande pas encore une barre pleine.
-- **Drive**, juste sous la super : quatre blocs. Une parade en coûte ; la jauge se recharge seule après un instant ; vide, elle passe en surchauffe (« BURNOUT », grise) jusqu'à être pleine. Réglages dans `HUD`.
+- **Drive**, juste sous la super : quatre blocs. Une parade en coûte, un drive rush en coûte deux ; la jauge se recharge seule après un instant ; vide, elle passe en surchauffe (« BURNOUT », grise) jusqu'à être pleine. Réglages dans `HUD`.
 - **K.O.** : à zéro, Moussa tombe K.O. (le K.O. habituel) ; s'il tombe à zéro pendant l'attaque ultime, il reste au sol à la fin au lieu de se relever. L'adversaire à zéro : « K.O. », il bascule en arrière, décolle un peu, retombe et reste allongé (`RivalLayer.knockOut`, `KO_FALL` : `ko1` à `ko5`, secousse quand il touche le sol), puis round suivant (`DAMAGE.koSeconds`). Les vies reviennent au plein à chaque round ; le super est gardé.
 
 ## Ajouter un plan

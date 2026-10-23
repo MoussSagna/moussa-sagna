@@ -5,7 +5,7 @@ import { BENDS, GAIT, WALK_SPEED, guardMatrices, heldMatrix, scaleAbout, walkMat
 import type { Affine } from './poseRig'
 import { FIRE_FRAGMENT, SPARK_FRAGMENT, SPRITE_FRAGMENT, FLAT_FRAGMENT, FLAT_VERTEX, LAYER_FRAGMENT, LAYER_VERTEX } from './shaders'
 
-const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas', 'uAtlasSize', 'uBend', 'uAxis', 'uAlpha', 'uSmear'] as const
+const LAYER_UNIFORMS = ['uQuad', 'uMx', 'uMy', 'uView', 'uTex', 'uBox', 'uAtlas', 'uAtlasSize', 'uBend', 'uAxis', 'uAlpha', 'uSmear', 'uTrail', 'uTint'] as const
 const FLAT_UNIFORMS = ['uRect', 'uTex', 'uAlpha', 'uShadow'] as const
 const FIRE_UNIFORMS = ['uRect', 'uT', 'uPower', 'uTail', 'uWobble'] as const
 const lerpRange = ([a, b]: [number, number], k: number) => a + (b - a) * k
@@ -495,6 +495,28 @@ const DASH = {
   smear: 300,
 }
 
+/**
+ * Drive rush, à la manière de Street Fighter 6 : un coup qui touche ou qui est paré s'annule par un double appui
+ * vers l'avant en une course plus longue et plus rapide que le dash (le moteur dépense le drive). Pendant la course,
+ * la touche d'attaque lance le coup suivant de l'enchaînement, dès `cancelFrom` secondes. Le personnage est entouré
+ * d'un halo vert (`glow` : rayon en pixels de la toile, opacité de chaque passe) qui s'estompe en `fade` secondes
+ * après la course, et laisse derrière lui des images fantômes teintées de vert (`ghosts` : retard, opacité).
+ */
+const DRIVE_RUSH = {
+  distance: 0.3,
+  seconds: 0.36,
+  cancelFrom: 0.08,
+  color: [0.3, 1, 0.45] as [number, number, number],
+  glow: { radius: 9, alpha: 0.2, passes: 8 },
+  fade: 0.35,
+  ghosts: [
+    [0.1, 0.22],
+    [0.07, 0.3],
+    [0.04, 0.4],
+  ] as [number, number][],
+}
+const RED_TRAIL: [number, number, number, number] = [0.91, 0.15, 0.18, 0.35]
+
 /** Marge autour du quad d'un ruban ondulé dans le shader, pour que rien ne soit coupé. */
 const RIBBON_MARGIN = 40
 
@@ -519,7 +541,7 @@ export class HeroLayer {
   private flat: Program<(typeof FLAT_UNIFORMS)[number]> | null = null
   private target: WebGLFramebuffer | null = null
   private x = PLACEMENT.x
-  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'jab1' | 'jab2' | 'jab3' | 'jab4' | 'jab5' | 'jab6' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'hurtGut' | 'groundCharge' | 'groundRise' | 'groundPalm' | 'koStagger' | 'koFall' | 'koAir' | 'koDown' | 'launch' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring' | 'kickStart' | 'kickHit'> | 'dash' | 'jump' | 'punch' | 'special' | 'ground' | 'exit' | 'ko' = 'guard'
+  private pose: Exclude<PoseName, 'dashForward' | 'dashBack' | 'jumpStart' | 'jumpRise' | 'jumpPeak' | 'jumpLand' | 'punchStart' | 'punchHit' | 'jab1' | 'jab2' | 'jab3' | 'jab4' | 'jab5' | 'jab6' | 'punchChain1' | 'punchChain2' | 'punchHeavyStart' | 'punchHeavyHit' | 'punchHeavyRecover' | 'punchMidHit' | 'punchMidRecover' | 'specialCharge' | 'specialThrow' | 'specialRecover' | 'specialIn1' | 'specialIn2' | 'specialIn3' | 'hurtRecover' | 'hurtGut' | 'groundCharge' | 'groundRise' | 'groundPalm' | 'koStagger' | 'koFall' | 'koAir' | 'koDown' | 'launch' | 'exitLean' | 'exitCrouch' | 'exitGround' | 'exitSpring' | 'kickStart' | 'kickHit'> | 'dash' | 'rush' | 'jump' | 'punch' | 'special' | 'ground' | 'exit' | 'ko' = 'guard'
   /** Temps écoulé depuis le début de l'attaque spéciale en cours. */
   private specialTime = 0
   /** Boule de feu en vol : position (fraction de la largeur du stage), hauteur au-dessus du sol (pixels de la toile), âge. */
@@ -609,6 +631,8 @@ export class HeroLayer {
   private atlases = new Map<PoseName, WebGLTexture>()
   /** Dash en cours : sens, position de départ et temps écoulé. */
   private dashing = { direction: 1, from: PLACEMENT.x, time: 0 }
+  /** Halo du drive rush : 1 pendant la course, puis il s'estompe jusqu'à 0. */
+  private rushGlow = 0
   /** Temps restant dans la pose intermédiaire. */
   private stepLeft = 0
   private phase = 0
@@ -680,6 +704,22 @@ export class HeroLayer {
     this.dashing = { direction: Math.sign(direction), from: this.x, time: 0 }
   }
 
+  /** Vrai si le coup en cours peut être annulé par un drive rush : il a touché ou a été paré. */
+  get canDriveRush(): boolean {
+    return this.pose === 'punch' && this.punchLanded
+  }
+
+  /** Annule le coup en cours par un drive rush (le moteur a vérifié `canDriveRush` et dépensé le drive). */
+  driveRush(): void {
+    if (!this.canDriveRush) return
+    this.pose = 'rush'
+    this.dashing = { direction: 1, from: this.x, time: 0 }
+    this.rushGlow = 1
+    this.punchQueued = false
+    this.specialQueued = false
+    this.groundQueued = false
+  }
+
   /** L'atlas d'une pose, envoyé à la carte graphique s'il n'y est pas ; les moins récemment utilisés sont libérés. */
   private atlas(name: PoseName): WebGLTexture | null {
     const gl = this.gl
@@ -708,6 +748,11 @@ export class HeroLayer {
    * le coup suivant de l'enchaînement.
    */
   attack(): void {
+    // pendant le drive rush, le coup part dès que la course le permet
+    if (this.pose === 'rush') {
+      this.punchQueued = true
+      return
+    }
     if (this.pose === 'punch') {
       if (CHAIN[this.punchStrength]) this.punchQueued = true
       return
@@ -1248,9 +1293,14 @@ export class HeroLayer {
     return [sx, 0, shear, sy, feet[0] - sx * feet[0] - shear * feet[1], feet[1] - sy * feet[1]]
   }
 
+  /** Distance et durée du dash en cours, ou du drive rush. */
+  private dashMove(): { distance: number; seconds: number } {
+    return this.pose === 'rush' ? DRIVE_RUSH : this.dashing.direction > 0 ? DASH.forward : DASH.back
+  }
+
   /** Vitesse du dash en cours : 1 au départ, 0 à l'arrêt. */
   private dashSpeed(): number {
-    const move = this.dashing.direction > 0 ? DASH.forward : DASH.back
+    const move = this.dashMove()
     const k = Math.max(0, Math.min(1, this.dashing.time / move.seconds))
     return (1 - k) ** 2
   }
@@ -1267,7 +1317,7 @@ export class HeroLayer {
 
   /** Position du personnage `time` secondes après le début du dash en cours. */
   private dashX(time: number): number {
-    const move = this.dashing.direction > 0 ? DASH.forward : DASH.back
+    const move = this.dashMove()
     const k = Math.max(0, Math.min(1, time / move.seconds))
     const eased = 1 - (1 - k) ** 3
     return Math.max(PLACEMENT.minX, Math.min(this.limit(), this.dashing.from + this.dashing.direction * move.distance * eased))
@@ -1334,6 +1384,25 @@ export class HeroLayer {
       this.blockStun -= frame.delta
       crouch = this.pose === 'crouchBlock'
       block = true
+    }
+    if (this.pose !== 'rush') this.rushGlow = Math.max(0, this.rushGlow - frame.delta / DRIVE_RUSH.fade)
+    if (this.pose === 'rush') {
+      this.dashing.time += frame.delta
+      this.x = this.dashX(this.dashing.time)
+      if (this.punchQueued && this.dashing.time >= DRIVE_RUSH.cancelFrom) {
+        // le coup suivant de l'enchaînement part de la course (le léger si l'enchaînement est terminé)
+        this.pose = 'punch'
+        this.punchStrength = CHAIN[this.punchStrength] ?? 'light'
+        this.punchTime = 0
+        this.punchQueued = false
+        this.punchLanded = false
+        this.specialQueued = false
+        return
+      }
+      if (this.dashing.time < DRIVE_RUSH.seconds) return
+      // course finie sans coup : l'enchaînement peut encore reprendre juste après
+      this.pose = 'guard'
+      this.sincePunch = 0
     }
     if (this.pose === 'dash') {
       this.dashing.time += frame.delta
@@ -1641,7 +1710,7 @@ export class HeroLayer {
             : 'hurtRecover'
         : this.pose === 'special'
           ? this.specialStep().pose
-        : this.pose === 'dash'
+        : this.pose === 'dash' || this.pose === 'rush'
           ? this.dashing.direction > 0
             ? 'dashForward'
             : 'dashBack'
@@ -1662,16 +1731,18 @@ export class HeroLayer {
               ? [this.jumpMatrix(feet, 1 + (jump.sx - 1) * amplitude, 1 + (jump.sy - 1) * amplitude, amplitude)]
               : leaving && leaving.leap > 0
                 ? [scaleAbout(feet, 1 - EXIT.stretch * 0.5 * amplitude, 1 + EXIT.stretch * amplitude)]
-              : this.pose === 'dash' && !calm
+              : (this.pose === 'dash' || this.pose === 'rush') && !calm
                 ? [this.dashMatrix(feet)]
                 : null
     const bends = BENDS[name]
     // traînée derrière le personnage : du côté opposé à sa course
     const rushing = this.pose === 'ground' && this.groundTime >= GROUND_RUSH && this.groundStep().rush
-    const smear = calm ? 0 : this.pose === 'dash' ? this.dashing.direction * DASH.smear * this.dashSpeed() : rushing ? DASH.smear * 0.8 : 0
+    const smear = calm ? 0 : this.pose === 'dash' || this.pose === 'rush' ? this.dashing.direction * DASH.smear * this.dashSpeed() : rushing ? DASH.smear * 0.8 : 0
 
     /** Dessine la pose affichée, ou `other` (une pose de même point d'appui et de même échelle, en un calque). */
-    const drawLayers = (vx: number, vy: number, vz: number, vw: number, alpha = 1, raise = 0, other?: PoseName) => {
+    // traînée verte pendant le drive rush, rouge sinon
+    const trail = this.pose === 'rush' ? ([...DRIVE_RUSH.color, 0.7] as const) : RED_TRAIL
+    const drawLayers = (vx: number, vy: number, vz: number, vw: number, alpha = 1, raise = 0, other?: PoseName, tint = 0) => {
       const shown = other ?? name
       const pose = POSES[shown]
       gl.useProgram(layer.program)
@@ -1680,6 +1751,8 @@ export class HeroLayer {
       const u = layer.u
       gl.uniform4f(u.uView, vx, vy, vz, vw)
       gl.uniform1f(u.uAlpha, alpha)
+      gl.uniform4f(u.uTrail, trail[0], trail[1], trail[2], trail[3])
+      gl.uniform4f(u.uTint, DRIVE_RUSH.color[0], DRIVE_RUSH.color[1], DRIVE_RUSH.color[2], tint)
       gl.activeTexture(gl.TEXTURE0 + ATLAS_UNIT)
       gl.bindTexture(gl.TEXTURE_2D, this.atlas(shown))
       gl.uniform1i(u.uTex, ATLAS_UNIT)
@@ -1742,6 +1815,27 @@ export class HeroLayer {
         if (this.dashing.time <= delay) continue
         const shift = (this.dashX(this.dashing.time - delay) - this.x) * camera.zoom
         drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * (left + shift) - 1, 1 - 2 * top, alpha)
+      }
+    }
+
+    // pendant le drive rush, des images fantômes teintées de vert
+    if (this.pose === 'rush' && !calm) {
+      for (const [delay, alpha] of DRIVE_RUSH.ghosts) {
+        if (this.dashing.time <= delay) continue
+        const shift = (this.dashX(this.dashing.time - delay) - this.x) * camera.zoom
+        drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * (left + shift) - 1, 1 - 2 * top, alpha, 0, undefined, 0.75)
+      }
+    }
+
+    // halo vert du drive rush : le dessin teinté, décalé tout autour du personnage, sous lui
+    if (this.rushGlow > 0) {
+      const { radius, alpha, passes } = DRIVE_RUSH.glow
+      const pulse = calm ? 0.6 : 0.8 + 0.2 * Math.sin(frame.time * 40)
+      const rx = (2 * w * radius) / CANVAS[0]
+      const ry = (2 * h * radius) / CANVAS[1]
+      for (let i = 0; i < passes; i++) {
+        const angle = (i / passes) * Math.PI * 2
+        drawLayers((2 * w) / CANVAS[0], (-2 * h) / CANVAS[1], 2 * left - 1 + rx * Math.cos(angle), 1 - 2 * top + ry * Math.sin(angle), alpha * pulse * this.rushGlow, lift, undefined, 1)
       }
     }
 

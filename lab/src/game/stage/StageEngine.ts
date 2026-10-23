@@ -1,5 +1,5 @@
 import { CUT_IN_SECONDS, FOCUS_SECONDS, CinematicLayer } from '../cinematic/CinematicLayer'
-import { HudLayer } from '../hud/HudLayer'
+import { HUD, HudLayer } from '../hud/HudLayer'
 import { DummyLayer } from '../dummy/DummyLayer'
 import { HeroLayer, PLACEMENT } from '../hero/HeroLayer'
 import type { Strike } from '../hero/HeroLayer'
@@ -156,9 +156,19 @@ export class StageEngine {
     return backdrop
   }
 
-  /** Lance un dash du personnage : 1 vers l'avant, -1 vers l'arrière. */
+  /**
+   * Lance un dash du personnage : 1 vers l'avant, -1 vers l'arrière. Vers l'avant pendant un coup qui a touché
+   * ou a été paré, c'est un drive rush, s'il reste assez de drive : le coup est annulé et le drive dépensé.
+   */
   dash(direction: number): void {
-    if (!this.cinematic.locked) this.hero.dash(direction * this.side)
+    if (this.cinematic.locked) return
+    const move = direction * this.side
+    if (move > 0 && this.hero.canDriveRush && this.hud.hasDrive('hero', HUD.rush)) {
+      this.hud.spendDrive('hero', HUD.rush)
+      this.hero.driveRush()
+      return
+    }
+    this.hero.dash(move)
   }
 
   /** Touche d'attaque : lance un coup de poing ou enchaîne sur le suivant. */
