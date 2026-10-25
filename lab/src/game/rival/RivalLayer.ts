@@ -521,6 +521,8 @@ export class RivalLayer implements Opponent {
   private ready = false
   /** Vrai tant qu'il doit parer. */
   blocking = false
+  /** Vrai pendant l'attaque finale de Moussa : sonné, il reste figé dans le coup reçu jusqu'à la frappe. */
+  held = false
   /** Vrai s'il se déplace seul pour garder ses distances. */
   moves = true
   /** Vrai quand le joueur le contrôle : il se déplace dans le sens demandé par `request`, au lieu de garder ses distances. */
@@ -1070,7 +1072,8 @@ export class RivalLayer implements Opponent {
     if (this.attackTime >= 0 || this.teleportTime >= 0) {
       // rien d'autre pendant la téléportation
     } else if (this.pose === 'hurt' || this.pose === 'hurtRecover') {
-      this.hurtTime += frame.delta
+      // tenu par l'attaque finale de Moussa : il reste figé dans le coup reçu
+      if (!this.held) this.hurtTime += frame.delta
       this.pose = this.hurtTime < HIT.stun ? 'hurt' : 'hurtRecover'
       if (this.hurtTime >= HIT.stun + HIT.recover) this.pose = 'guard'
     } else if (this.pose === 'blockStep') {

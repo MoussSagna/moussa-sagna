@@ -512,6 +512,8 @@ export class StageEngine {
     // il ne se déplace pas avant le « Fight », ni pendant la mise au point de la frappe au sol
     this.rival.moves = this.options.rivalMoves !== false && !locked && !controlled
     this.rival.heroX = this.hero.position
+    // attaque finale de Moussa : sonné par la rafale, il reste figé dans le coup reçu jusqu'à la frappe de la paume
+    this.rival.held = this.hero.holdingTarget
     const target = this.opponent()
     target.update(fight)
     // l'adversaire décolle : forte secousse de l'écran

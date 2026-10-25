@@ -235,7 +235,7 @@ const HEAVY = {
 
 /**
  * Seconde attaque spéciale. Il se baisse, se rue sur l'adversaire (`rush`, à `rushSpeed` largeurs d'écran par
- * seconde, jusqu'à lui ou jusqu'au bord), enchaîne une rafale de coups (`FLURRY`), puis finit par la frappe au sol :
+ * seconde, jusqu'à lui ou jusqu'au bord ; arrivé contre lui, la ruée s'arrête et la rafale part aussitôt), enchaîne une rafale de coups (`FLURRY`), puis finit par la frappe au sol :
  * main au sol pour charger (`charge`), redressement et frappe de la paume en avançant (`palm`), retour. Les dessins
  * dans l'ordre, avec leur durée en secondes ; `flurry` : rang du coup de la rafale. La paume touche pendant les
  * `active` premières secondes de la frappe ; le corps avance de `advance` (fraction de la largeur de l'écran) en
@@ -243,15 +243,16 @@ const HEAVY = {
  */
 const GROUND = {
   steps: [
-    { pose: 'exitLean', seconds: 0.07 },
-    { pose: 'exitCrouch', seconds: 0.08 },
+    // départ court, pour qu'elle passe en combo
+    { pose: 'exitLean', seconds: 0.04 },
+    { pose: 'exitCrouch', seconds: 0.05 },
     // la main au sol : le jeu se fige ici, le temps de la mise au point sur le personnage
-    { pose: 'exitGround', seconds: 0.1, focus: true },
+    { pose: 'exitGround', seconds: 0.06, focus: true },
     { pose: 'dashForward', seconds: 0.28, rush: true },
     ...Array.from({ length: FLURRY.count }, (_, flurry) => ({ pose: 'punchHit' as PoseName, seconds: FLURRY.seconds, flurry })),
     ...HEAVY.poses.map((_, index) => ({ pose: 'punchHit' as PoseName, seconds: HEAVY.seconds, flurry: FLURRY.count + index, heavy: true })),
     { pose: 'exitGround', seconds: 0.08 },
-    { pose: 'groundCharge', seconds: 1.34, charge: true },
+    { pose: 'groundCharge', seconds: 0.55, charge: true },
     { pose: 'groundRise', seconds: 0.07 },
     { pose: 'groundPalm', seconds: 0.42, palm: true },
     { pose: 'groundRise', seconds: 0.14 },
@@ -274,6 +275,8 @@ const GROUND_CHARGE = groundStart('charge')
 const GROUND_PALM = groundStart('palm')
 const GROUND_RUSH = groundStart('rush')
 const GROUND_TOTAL = GROUND.steps.reduce((sum, step) => sum + step.seconds, 0)
+/** Début de la rafale, juste après la ruée. */
+const GROUND_FLURRY = GROUND_RUSH + (GROUND.steps.find((step) => step.rush)?.seconds ?? 0)
 
 /**
  * Effets de la frappe au sol, découpés dans une planche (`../art/fx-ground-special.png`, préparée par
@@ -1148,6 +1151,11 @@ export class HeroLayer {
     return step.flurry !== undefined ? (this.flurry[step.flurry] ?? step.pose) : step.pose
   }
 
+  /** Vrai de la rafale à la fin de la frappe de la paume : l'adversaire sonné reste figé dans le coup reçu. */
+  get holdingTarget(): boolean {
+    return this.pose === 'ground' && this.groundTime >= GROUND_FLURRY && this.groundTime < GROUND_PALM + GROUND.active
+  }
+
   /** Vrai pendant la frappe au sol : le moteur assombrit alors le décor. */
   get superActive(): boolean {
     return this.pose === 'ground' && this.groundTime >= GROUND_CHARGE - 0.08
@@ -1424,6 +1432,8 @@ export class HeroLayer {
       if (this.groundStep().rush) {
         this.rushTrail = [this.x, ...this.rushTrail].slice(0, 6)
         this.x = Math.max(PLACEMENT.minX, Math.min(this.limit(), this.x + GROUND.rushSpeed * frame.delta))
+        // arrivé contre l'adversaire : la rafale part tout de suite, sans finir la ruée
+        if (this.x >= this.wall - 0.002) this.groundTime = Math.max(this.groundTime, GROUND_FLURRY)
       } else if (this.groundTime < GROUND_PALM) {
         this.rushTrail = []
       }
