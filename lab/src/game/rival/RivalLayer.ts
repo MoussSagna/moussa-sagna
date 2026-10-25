@@ -644,6 +644,11 @@ export class RivalLayer implements Opponent {
     return guarded
   }
 
+  /** Vrai tant qu'il est sonné par un coup (ou à terre) : il ne peut ni bouger ni parer. Le compteur de combo en dépend. */
+  get stunned(): boolean {
+    return this.pose === 'hurt' || this.pose === 'hurtRecover' || this.koTime >= 0
+  }
+
   /** K.O. : plus de vie, il bascule en arrière et tombe au sol, où il reste jusqu'au round suivant. */
   knockOut(): void {
     if (this.koTime >= 0) return

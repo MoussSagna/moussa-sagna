@@ -1,7 +1,8 @@
 /**
  * Interface de combat, à la manière de Street Fighter 6 : barres de vie en haut, barre de super et jauge de drive
  * (quatre blocs) en bas, Moussa à gauche, l'adversaire à droite. Elle tient aussi les valeurs : le moteur lui
- * signale les coups (`damage`, `block`), l'usage des attaques ultimes (`useSuper`) et le changement de round (`reset`).
+ * signale les coups (`damage`, `block`), les combos (`combo`, `endCombo`), l'usage des attaques ultimes (`useSuper`) et le
+ * changement de round (`reset`).
  * Elle se dessine sur la toile de la cinématique, sous les annonces et les plans de coupe.
  */
 
@@ -31,18 +32,29 @@ export const HUD = {
   gainTaken: 0.035,
 }
 
+/**
+ * Compteur de combo, affiché du côté de l'attaquant, sous sa barre de vie, à partir de `min` coups. Chaque coup le fait
+ * grossir un instant (`pop` secondes) ; une fois le combo fini, il reste `hold` secondes puis s'efface en `fade` secondes.
+ */
+const COMBO = { min: 2, pop: 0.14, hold: 0.9, fade: 0.35 }
+
+type Combo = { count: number; age: number; over: number }
+
 type Gauges = { health: number; trail: number; trailWait: number; super: number; drive: number; driveWait: number; burnout: boolean; flash: number }
 
 const fresh = (): Gauges => ({ health: 1, trail: 1, trailWait: 0, super: 0, drive: HUD.segments, driveWait: 0, burnout: false, flash: 0 })
 
 export class HudLayer {
   private sides: Record<HudSide, Gauges> = { hero: fresh(), rival: fresh() }
+  /** Combo en cours (ou qui s'efface) de chaque attaquant ; `over` : temps écoulé depuis sa fin, négatif tant qu'il dure. */
+  private combos: Record<HudSide, Combo> = { hero: { count: 0, age: 0, over: Infinity }, rival: { count: 0, age: 0, over: Infinity } }
   private time = 0
   /** Numéro du round affiché au centre. */
   round = 1
 
   /** Nouveau round : tout revient au plein (le super est gardé, comme dans Street Fighter). */
   reset(keepSuper = true): void {
+    for (const combo of Object.values(this.combos)) combo.over = Infinity
     for (const side of ['hero', 'rival'] as HudSide[]) {
       const kept = keepSuper ? this.sides[side].super : 0
       this.sides[side] = { ...fresh(), super: kept }
@@ -86,6 +98,17 @@ export class HudLayer {
     if (gauges.drive <= 0) gauges.burnout = true
   }
 
+  /** `side` vient de toucher : `count` coups d'affilée sans que l'adversaire ait pu se remettre. */
+  combo(side: HudSide, count: number): void {
+    this.combos[side] = { count, age: 0, over: -1 }
+  }
+
+  /** L'adversaire de `side` s'est remis (il peut bouger ou parer) : le combo s'arrête. */
+  endCombo(side: HudSide): void {
+    const combo = this.combos[side]
+    if (combo.over < 0) combo.over = 0
+  }
+
   /** Attaque ultime lancée : la barre de super se vide. */
   useSuper(side: HudSide): void {
     this.sides[side].super = 0
@@ -93,6 +116,10 @@ export class HudLayer {
 
   update(delta: number): void {
     this.time += delta
+    for (const combo of Object.values(this.combos)) {
+      combo.age += delta
+      if (combo.over >= 0) combo.over += delta
+    }
     for (const gauges of Object.values(this.sides)) {
       gauges.flash = Math.max(0, gauges.flash - delta)
       if (gauges.trailWait > 0) gauges.trailWait -= delta
@@ -128,6 +155,45 @@ export class HudLayer {
     this.drawSuper(ctx, 'rival', w - margin, superY, superW, superH, -1, unit, calm)
     this.drawDrive(ctx, 'hero', margin, driveY, superW, driveH, 1, unit, calm)
     this.drawDrive(ctx, 'rival', w - margin, driveY, superW, driveH, -1, unit, calm)
+    // ---------- compteur de combo, sous la barre de vie de l'attaquant ----------
+    const comboY = top + barH + unit * 0.14
+    this.drawCombo(ctx, 'hero', unit * 0.06, comboY, 1, unit, calm)
+    this.drawCombo(ctx, 'rival', w - unit * 0.06, comboY, -1, unit, calm)
+    ctx.restore()
+  }
+
+  /** Compteur de combo : le nombre de coups en grand, « HITS » à côté, du bord de l'écran vers le centre (`dir`). */
+  private drawCombo(ctx: CanvasRenderingContext2D, side: HudSide, edge: number, y: number, dir: number, unit: number, calm: boolean): void {
+    const combo = this.combos[side]
+    if (combo.count < COMBO.min || combo.over > COMBO.hold + COMBO.fade) return
+    const alpha = combo.over > COMBO.hold ? 1 - (combo.over - COMBO.hold) / COMBO.fade : 1
+    // à chaque coup, le chiffre grossit puis reprend sa taille
+    const pop = calm ? 1 : 1 + 0.35 * Math.max(0, 1 - combo.age / COMBO.pop)
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.textBaseline = 'alphabetic'
+    ctx.textAlign = dir > 0 ? 'left' : 'right'
+    const size = unit * 0.085
+    ctx.font = `italic ${size * pop}px ${DISPLAY_FONT}`
+    const number = String(combo.count)
+    const numberW = ctx.measureText(number).width
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = unit * 0.008
+    ctx.strokeStyle = 'rgba(8, 4, 12, 0.9)'
+    ctx.strokeText(number, edge, y)
+    const fill = ctx.createLinearGradient(0, y - size * pop, 0, y)
+    fill.addColorStop(0, '#fff6c2')
+    fill.addColorStop(1, '#ffb21e')
+    ctx.fillStyle = fill
+    ctx.fillText(number, edge, y)
+    // « HITS » à côté du nombre, côté centre
+    ctx.font = `italic 700 ${unit * 0.032}px ${BODY_FONT}`
+    const label = 'HITS'
+    const x = edge + dir * (numberW + unit * 0.012)
+    ctx.lineWidth = unit * 0.006
+    ctx.strokeText(label, x, y)
+    ctx.fillStyle = '#fff'
+    ctx.fillText(label, x, y)
     ctx.restore()
   }
 

@@ -107,6 +107,8 @@ export class StageEngine {
   private shake = 0
   /** Décalage horizontal de la caméra qui suit les combattants (lissé). */
   private track = 0
+  /** Coups de Moussa d'affilée sur l'adversaire sans qu'il ait pu se remettre (0 : pas de combo en cours). */
+  private comboHits = 0
   /** Barres de vie, de super et de drive. */
   private hud = new HudLayer()
   private hudRound = 1
@@ -216,6 +218,7 @@ export class StageEngine {
   /** Passe au round suivant : les deux combattants reviennent en garde à leur place de départ. */
   private nextRound(): void {
     this.quake = -1
+    this.comboHits = 0
     this.round += 1
     this.hero.reenter()
     this.rival.reset()
@@ -333,11 +336,25 @@ export class StageEngine {
       if (moved < overlap) this.hero.placeAt(this.hero.position - (overlap - moved))
       this.hero.wall = this.rival.x - this.rival.gap * pixel
     }
+    // il s'est remis du dernier coup (il peut bouger ou parer) : le combo s'arrête
+    if (this.comboHits > 0 && !this.rival.stunned) {
+      this.comboHits = 0
+      this.hud.endCombo('hero')
+    }
     const surface = target.x - target.surface * pixel
     /** Le coup atteint la cible : elle l'encaisse ou le pare. Retourne vrai s'il est paré. */
     const rivalTarget = target === this.rival
     const react = (strike: Strike): boolean => {
+      // combo : le coup touche alors qu'il est encore sonné par le précédent
+      const stunned = rivalTarget && this.rival.stunned
       const guarded = target.hit(strike.power)
+      if (rivalTarget && this.koWait < 0) {
+        if (guarded) this.hud.endCombo('hero')
+        else {
+          this.comboHits = stunned && this.comboHits > 0 ? this.comboHits + 1 : 1
+          this.hud.combo('hero', this.comboHits)
+        }
+      }
       // barres : seul l'adversaire a une vie ; le mannequin encaisse sans fin
       if (rivalTarget && this.koWait < 0) {
         if (guarded) this.hud.block('rival', strike.power)
