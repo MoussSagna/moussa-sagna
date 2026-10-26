@@ -41,13 +41,16 @@ Toute nouvelle pose demande aussi une échelle dans `POSE_SCALE` (`lab/src/game/
 Touches : flèches ou ZQSD (deux appuis vers l'avant pendant un coup qui touche ou est paré : drive rush, 2 blocs de drive), J attaque, L boule de feu, I attaque spéciale au sol, O K.O., P fin de round, K le mannequin attaque, Échap passe l'intro. Plus de boutons sous la scène. La case « Contrôler l'adversaire » donne les flèches à l'adversaire (← avance, deux appuis rapides vers Moussa le téléportent, dans son dos au corps à corps, → recule (deux appuis rapides : téléportation en arrière), ↓ pare, Entrée frappe) ; Moussa se joue alors avec Q D, S, Z, Espace et les touches d'attaque.
 
 - Écran de chargement : Moussa face à Shigaraki (l'adversaire, nommé ainsi le 19 octobre), « VS », jauge du vrai chargement, puis la partie et la cinématique se lancent d'elles-mêmes.
-- Barres de vie, de super et de drive (quatre blocs), K.O. de l'adversaire quand sa vie tombe à zéro.
+- Barres de vie, de super et de drive (quatre blocs), K.O. de l'adversaire quand sa vie tombe à zéro, puis victoire : animation de fin de round de Moussa avec un léger zoom, passage au noir, combattants replacés au centre et round suivant.
+- Compteur de combo (« N HITS ») sous la barre de vie de Moussa, tant que Shigaraki n'a pas pu se remettre.
+- Drive rush (Moussa) : deux appuis vers l'avant pendant un coup qui touche ou est paré, 2 blocs de drive, halo vert ; J en pleine course enchaîne le coup suivant.
+- Caméra plus zoomée qui suit les combattants (travelling et légère parallaxe).
 - Stage Tokyo Underground animé (pluie, pétales, néons, reflets).
 - Cinématique d'entrée en six plans (Moussa puis l'adversaire), « Face your destiny », « Round 1 », « Fight! ».
-- Garde, marche, dashs, accroupi, parade, sauts (sur place, avant, arrière).
-- Enchaînement à une touche : léger, moyen, fort (uppercut), coup de pied. L'enchaînement ne continue que si le coup touche ; l'attaque spéciale annule la récupération.
+- Garde, marche, dashs, accroupi, parade, sauts (sur place, avant, arrière), assez hauts pour passer par-dessus Shigaraki (les combattants se retournent à l'atterrissage).
+- Enchaînement à une touche : léger (jab de boxeur en six dessins), moyen, fort (uppercut), coup de pied. L'enchaînement ne continue que si le coup touche ; l'attaque spéciale annule la récupération.
 - Boule de feu (shader).
-- Attaque spéciale au sol : mise au point figée avec zoom, ruée, rafale de dix coups au hasard, trois coups lourds qui font trembler l'écran, plan de coupe, charge, frappe de la paume, gros impact.
+- Attaque spéciale au sol (l'attaque finale) : mise au point figée avec zoom, ruée, rafale de dix coups au hasard, trois coups lourds qui font trembler l'écran, plan de coupe, charge, frappe de la paume, gros impact. Elle passe en combo (départ court, ruée qui s'arrête au contact, Shigaraki figé dans le coup reçu jusqu'à la paume) ; à bout de vie, Shigaraki encaisse jusqu'à la paume, qui le met K.O. de façon spectaculaire (arrêt, rayons, ondes de choc, « K.O. » géant, ralenti).
 - Mannequin et adversaire original : impacts, arrêt sur image, étincelles, secousse ; l'adversaire encaisse et peut parer.
 - Adversaire (nouveau modèle aux proportions de Moussa) : il se déplace en lévitation au ras du sol (un dessin par sens, une pose de passage, sans fondu), garde seul ses distances, ou se joue aux flèches. Dash avant et arrière en téléportation, à la manière de Doom ; au corps à corps, la téléportation le fait passer dans le dos de Moussa et les combattants changent de côté en restant face à face (affichage retourné en miroir, commandes dans le sens de l'écran).
 - Coups de l'adversaire (case « Contrôler l'adversaire » : Entrée enchaîne, Maj coup spécial ; touches globales K attaque, M coup spécial, N attaque ultime) :
@@ -59,16 +62,18 @@ Touches : flèches ou ZQSD (deux appuis vers l'avant pendant un coup qui touche 
 
 ## Ce que le folio a repris
 
-État au commit `8456faf` du lab : cinématique d'entrée, garde, marche, dashs, accroupi, parade, sauts sur place, avant et arrière (sans l'inclinaison du corps, que `HeroRig.show` ne sait pas afficher), enchaînement léger, moyen, fort, coup de pied.
+État au commit `8456faf` du lab : cinématique d'entrée, garde, marche, dashs, accroupi, parade, sauts sur place, avant et arrière (sans l'inclinaison du corps, que `HeroRig.show` ne sait pas afficher), enchaînement léger, moyen, fort, coup de pied. Puis, à la fusion du 26 octobre (`f8663d1`) : le nouveau petit coup (jab en six dessins).
 
 Pas encore repris (demande du travail de rendu dans Phaser) : boule de feu, attaque spéciale au sol et ses effets, effet de vitesse des dashs, mannequin, impacts, adversaire en combat (avec sa lévitation, ses téléportations et le changement de côté), coups reçus, fin de round, K.O.
 
-Les fusions du 16, du 18 et du 22 octobre ne touchent que l'adversaire, l'interface de combat et l'écran de chargement du lab, absent de l'arène du folio : il n'y avait rien à reprendre pour Moussa (`HeroLayer.mirror` sert au changement de côté ; les nouvelles poses de Moussa, propulsé, écrasé au sol et relevé, ne servent qu'à l'attaque ultime de l'adversaire). Le folio garde ses boutons sous l'arène : le lab les a retirés, mais sur le site ils servent au tactile.
+Les fusions du 16, du 18 et du 22 octobre ne touchent que l'adversaire, l'interface de combat et l'écran de chargement du lab, absent de l'arène du folio : il n'y avait rien à reprendre pour Moussa (`HeroLayer.mirror` sert au changement de côté ; les nouvelles poses de Moussa, propulsé, écrasé au sol et relevé, ne servent qu'à l'attaque ultime de l'adversaire). La fusion du 26 octobre n'apporte au folio que le jab : la caméra qui suit les combattants, les sauts plus hauts et la taille réduite des personnages (faits pour l'adversaire et les barres), le drive rush, le combo, l'attaque finale et la victoire supposent un adversaire, des barres ou l'attaque spéciale, absents de l'arène. Le folio garde ses boutons sous l'arène : le lab les a retirés, mais sur le site ils servent au tactile.
 
 ## Limites connues et prochaines pistes
 
 - **Adversaire** : Il ne se téléporte et n'attaque seul que si un joueur le contrôle (ou avec les touches K, M, N). Son attaque ultime ne retire pas encore de vie : il n'y a pas de barres de vie. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié).
-- **Changement de côté** : l'adversaire passe dans le dos de Moussa en se téléportant, Moussa dans le sien en sautant par-dessus ; les combattants se retournent d'un coup, sans animation de demi-tour.
+- **Changement de côté** : l'adversaire passe dans le dos de Moussa en se téléportant, Moussa dans le sien en sautant par-dessus ; les combattants se retournent d'un coup, sans animation de demi-tour. Moussa a signalé un bug au passage dans le dos d'un saut, sans le décrire ; deux corrections ont été tentées (la seconde annulée à sa demande), à revoir avec lui.
+- **Coup moyen** : Moussa prépare un direct du bras arrière (planche de poses générée) ; idée retenue en attendant : ne générer que deux images clés et animer le reste dans le moteur.
+- **Après le K.O. spectaculaire** : le décor reste assombri pendant la chute au ralenti, et Moussa finit en partie par-dessus Shigaraki au sol.
 - **Prochaine grosse étape possible** : faire entrer l'adversaire dans l'arène du folio (affichage, lévitation, téléportations, changement de côté), puis les coups qui touchent.
 - **K.O.** : pas d'animation pour se relever ; il réapparaît en garde.
 - **Rafale de l'attaque spéciale** : le corps saute un peu d'un coup à l'autre, les dessins n'ont pas le même point d'appui.
