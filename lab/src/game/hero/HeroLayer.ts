@@ -458,6 +458,8 @@ export interface Strike {
    * pendant l'attaque ultime de l'adversaire.
    */
   launch?: 'pop' | 'fly'
+  /** La frappe de la paume, qui finit l'attaque finale de Moussa : un K.O. sur ce coup est spectaculaire. */
+  finisher?: boolean
 }
 /** Instant du lancer et durée totale de l'attaque spéciale. */
 const SPECIAL_LAUNCH = SPECIAL.steps.slice(0, SPECIAL.steps.findIndex((step) => step.launch)).reduce((sum, step) => sum + step.seconds, 0)
@@ -794,7 +796,7 @@ export class HeroLayer {
       }
       const t = this.groundTime - GROUND_PALM
       if (t < 0 || t >= GROUND.active || this.groundLanded) return null
-      return { x: this.x + GROUND.reach * pixel, height: GROUND.height, power: GROUND.power, stop: GROUND.stop }
+      return { x: this.x + GROUND.reach * pixel, height: GROUND.height, power: GROUND.power, stop: GROUND.stop, finisher: true }
     }
     if (this.pose !== 'punch' || this.punchLanded) return null
     const move = PUNCHES[this.punchStrength]
@@ -1149,6 +1151,11 @@ export class HeroLayer {
   private groundPose(): PoseName {
     const step = this.groundStep()
     return step.flurry !== undefined ? (this.flurry[step.flurry] ?? step.pose) : step.pose
+  }
+
+  /** Vrai tant que l'attaque finale n'a pas frappé de la paume : un adversaire à bout de vie encaisse jusqu'à elle. */
+  get finishing(): boolean {
+    return this.pose === 'ground' && !this.groundLanded && this.groundTime < GROUND_PALM + GROUND.active
   }
 
   /** Vrai de la rafale à la fin de la frappe de la paume : l'adversaire sonné reste figé dans le coup reçu. */

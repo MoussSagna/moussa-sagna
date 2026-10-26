@@ -42,6 +42,12 @@ const CAMERA_MAX_SHIFT = CAMERA_MAX_PAN + PLACEMENT.depth * CAMERA.parallax
  */
 const DAMAGE = { perPower: 0.05, dive: 0.08, hammer: 0.2, koSeconds: 3 }
 /**
+ * K.O. sur la frappe de la paume de l'attaque finale de Moussa : le combat se fige `freeze` secondes sur l'impact, la
+ * caméra se resserre sur l'adversaire, puis il s'envole au ralenti (`scale` de la vitesse normale pendant `slow`
+ * secondes). Le round suivant arrive `extra` secondes plus tard qu'après un K.O. ordinaire.
+ */
+const SUPER_KO = { freeze: 0.7, slow: 1.6, scale: 0.3, shake: 3.5, extra: 2 }
+/**
  * Secousse verticale de l'impact du coup de marteau de l'adversaire : l'écran rebondit de haut en bas `frequency`
  * fois par seconde, de moins en moins fort, pendant `seconds` (la durée de l'explosion). `amplitude` : décalage de
  * la caméra au début.
@@ -114,6 +120,10 @@ export class StageEngine {
   private hudRound = 1
   /** Temps écoulé depuis un K.O. qui attend la fin de son annonce pour passer au round suivant, ou -1. */
   private koWait = -1
+  /** Durée du K.O. avant le round suivant (plus longue après le K.O. de l'attaque finale). */
+  private koLength = DAMAGE.koSeconds
+  /** Ralenti restant après le K.O. de l'attaque finale, en secondes. */
+  private slow = 0
   /** Temps écoulé depuis le début de la secousse verticale, ou -1. */
   private quake = -1
   private weather: WeatherLayer
@@ -215,9 +225,33 @@ export class StageEngine {
   }
 
   /** Retourne ou remet à l'endroit l'affichage des combattants. */
+  /** L'adversaire n'a plus de vie : « K.O. », il tombe, puis round suivant. */
+  private rivalKO(): void {
+    this.koWait = 0
+    this.koLength = DAMAGE.koSeconds
+    this.rival.knockOut()
+    this.cinematic.showKO()
+    this.shake = Math.max(this.shake, 2.2)
+  }
+
+  /** K.O. sur la frappe de la paume de l'attaque finale : arrêt sur l'impact, gros plan, éclats, « K.O. » géant, ralenti. */
+  private superKO(calm: boolean): void {
+    this.koWait = 0
+    this.koLength = DAMAGE.koSeconds + SUPER_KO.extra
+    this.rival.knockOut()
+    this.cinematic.superKO()
+    this.stop = SUPER_KO.freeze * (calm ? 0.5 : 1)
+    this.slow = calm ? 0 : SUPER_KO.slow
+    this.shake = calm ? 1 : SUPER_KO.shake
+    // la caméra se resserre sur lui pendant l'arrêt sur image
+    this.focusTime = 0
+    this.focusOn = 'rival'
+  }
+
   /** Passe au round suivant : les deux combattants reviennent en garde à leur place de départ. */
   private nextRound(): void {
     this.quake = -1
+    this.slow = 0
     this.comboHits = 0
     this.round += 1
     this.hero.reenter()
@@ -336,6 +370,8 @@ export class StageEngine {
       if (moved < overlap) this.hero.placeAt(this.hero.position - (overlap - moved))
       this.hero.wall = this.rival.x - this.rival.gap * pixel
     }
+    // à bout de vie pendant l'attaque finale, mais la paume n'a pas touché : K.O. ordinaire une fois l'attaque finie
+    if (this.koWait < 0 && target === this.rival && this.hud.health('rival') <= 0 && !this.hero.finishing && !this.rival.knockedDown) this.rivalKO()
     // il s'est remis du dernier coup (il peut bouger ou parer) : le combo s'arrête
     if (this.comboHits > 0 && !this.rival.stunned) {
       this.comboHits = 0
@@ -359,12 +395,14 @@ export class StageEngine {
       if (rivalTarget && this.koWait < 0) {
         if (guarded) this.hud.block('rival', strike.power)
         else this.hud.damage('rival', strike.power * DAMAGE.perPower, strike.power)
-        // plus de vie : « K.O. », puis round suivant
+        // plus de vie : « K.O. », puis round suivant. Pendant l'attaque finale de Moussa, il encaisse jusqu'à la
+        // frappe de la paume, qui le met K.O. de façon spectaculaire
         if (this.hud.health('rival') <= 0) {
-          this.koWait = 0
-          this.rival.knockOut()
-          this.cinematic.showKO()
-          this.shake = Math.max(this.shake, 2.2)
+          if (strike.finisher) {
+            this.superKO(calm)
+            return guarded
+          }
+          if (!this.hero.finishing) this.rivalKO()
         }
       }
       this.stop = strike.stop * (guarded ? 0.5 : 1) * (calm ? 0.5 : 1)
@@ -502,7 +540,13 @@ export class StageEngine {
       this.stop -= delta
       this.frozen += delta
     }
-    const fight: FrameInfo = { ...info, time: time - this.frozen, delta: stopped ? 0 : delta }
+    // ralenti après le K.O. de l'attaque finale : le combat avance moins vite que le reste
+    const slowed = !stopped && this.slow > 0
+    if (slowed) {
+      this.slow -= delta
+      this.frozen += delta * (1 - SUPER_KO.scale)
+    }
+    const fight: FrameInfo = { ...info, time: time - this.frozen, delta: stopped ? 0 : slowed ? delta * SUPER_KO.scale : delta }
     this.hero.update(fight, locked ? 0 : this.walk * this.side, locked ? false : this.crouch, locked ? false : this.block)
     // contrôlé par le joueur, il marche et pare à la demande ; sinon il pare selon l'option et garde ses distances
     const controlled = this.options.rivalControl === true
@@ -601,7 +645,7 @@ export class StageEngine {
     this.hud.update(delta)
     if (this.koWait >= 0) {
       this.koWait += delta
-      if (this.koWait >= DAMAGE.koSeconds) {
+      if (this.koWait >= this.koLength) {
         this.koWait = -1
         this.nextRound()
       }
