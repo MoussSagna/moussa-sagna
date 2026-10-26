@@ -240,6 +240,78 @@ export const POSES = {
       { name: 'body', parent: -1, pivot: [512, 768], box: [-8, 99, 1032, 1324], atlas: [0, 0] },
     ] as PoseLayer[],
   },
+  jab1: {
+    file: 'hero/jab1.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [520, 1454] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [25, 57, 980, 1407], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  jab2: {
+    file: 'hero/jab2.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [520, 1455] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [29, 57, 976, 1407], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  jab3: {
+    file: 'hero/jab3.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [515, 1455] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [25, 57, 974, 1408], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  jab4: {
+    file: 'hero/jab4.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [515, 1456] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [-2, 55, 1007, 1410], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  jab5: {
+    file: 'hero/jab5.webp',
+    atlasSize: [2048, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [503, 1457] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [4, 75, 1028, 1391], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
+  jab6: {
+    file: 'hero/jab6.webp',
+    atlasSize: [1024, 2048] as Point,
+    /** Milieu des appuis et ligne des semelles, en pixels de la toile. */
+    anchor: [503, 1458] as Point,
+    joints: {
+      center: [512, 768] as Point,
+    },
+    layers: [
+      { name: 'body', parent: -1, pivot: [512, 768], box: [8, 78, 1014, 1390], atlas: [0, 0] },
+    ] as PoseLayer[],
+  },
   punchMidHit: {
     file: 'hero/punchMidHit.webp',
     atlasSize: [2048, 2048] as Point,

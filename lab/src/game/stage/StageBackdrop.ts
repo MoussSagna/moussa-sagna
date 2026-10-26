@@ -2,7 +2,7 @@ import { asset, bindQuad, createProgram, loadTexture, uniforms } from '../gl'
 import type { Camera, FrameInfo } from '../types'
 import { STAGE_FRAGMENT, STAGE_VERTEX } from './shaders'
 
-const UNIFORMS = ['uImg', 'uDepth', 'uT', 'uZoom', 'uTrain', 'uCalm', 'uBolt', 'uOff'] as const
+const UNIFORMS = ['uImg', 'uDepth', 'uT', 'uZoom', 'uTrain', 'uCalm', 'uBolt', 'uOff', 'uPan'] as const
 
 /** Le décor : parallaxe par carte de profondeur, ciel, écrans, lanternes, métro, brume et sol mouillé. */
 export class StageBackdrop {
@@ -62,6 +62,7 @@ export class StageBackdrop {
     gl.uniform1f(u.uCalm, calm ? 1 : 0)
     gl.uniform1f(u.uBolt, bolt)
     gl.uniform2f(u.uOff, -camera.ox, -camera.oy)
+    gl.uniform1f(u.uPan, camera.pan ?? 0)
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
   }
 }

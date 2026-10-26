@@ -3,6 +3,8 @@ export interface Camera {
   ox: number
   oy: number
   zoom: number
+  /** Travelling horizontal, en fraction de la largeur de l'image : tout le décor glisse d'un bloc (sans parallaxe). */
+  pan?: number
 }
 
 export interface StageOptions {

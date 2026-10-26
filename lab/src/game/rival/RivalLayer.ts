@@ -124,7 +124,9 @@ const POSES = {
   // parade : il lève la main (passage), puis se protège le front de l'avant-bras ; les jambes ne bougent pas
   blockStep: { file: 'rival/block-step.webp', ground: [560, 1469], scale: 1.1 },
   block: { file: 'rival/block.webp', ground: [559, 1471], scale: 1.1 },
-  hurt: { file: 'rival/hurt.webp', ground: [511, 1463], scale: 1.1 },
+  // coup encaissé : le pied avant est levé plus haut que dans la garde ; le point au sol est descendu à mi-chemin
+  // entre les deux semelles, pour qu'il ne paraisse pas décoller
+  hurt: { file: 'rival/hurt.webp', ground: [511, 1425], scale: 1.1 },
   hurtRecover: { file: 'rival/hurt-recover.webp', ground: [491, 1399], scale: 1.1 },
 } satisfies Record<string, { file: string; ground: Point; scale: number }>
 type RivalPose = keyof typeof POSES
@@ -490,7 +492,7 @@ const isFlightPose = (pose: RivalPose): boolean => pose === 'floatForward' || po
  * (en fraction de la largeur du stage, en plus de la distance minimale), et marche jusqu'au milieu de cet
  * intervalle quand il en sort. `maxX` : sa position la plus reculée.
  */
-const RANGE = { near: 0.04, far: 0.14, maxX: 0.86 }
+const RANGE = { near: 0.04, far: 0.14, maxX: 0.85 }
 
 /** Respiration de la garde : amplitude de l'étirement vertical et durée d'un cycle, en secondes. */
 const BREATH = { amplitude: 0.007, period: 3.6 }
@@ -519,6 +521,8 @@ export class RivalLayer implements Opponent {
   private ready = false
   /** Vrai tant qu'il doit parer. */
   blocking = false
+  /** Vrai pendant l'attaque finale de Moussa : sonné, il reste figé dans le coup reçu jusqu'à la frappe. */
+  held = false
   /** Vrai s'il se déplace seul pour garder ses distances. */
   moves = true
   /** Vrai quand le joueur le contrôle : il se déplace dans le sens demandé par `request`, au lieu de garder ses distances. */
@@ -640,6 +644,11 @@ export class RivalLayer implements Opponent {
       this.settle()
     }
     return guarded
+  }
+
+  /** Vrai tant qu'il est sonné par un coup (ou à terre) : il ne peut ni bouger ni parer. Le compteur de combo en dépend. */
+  get stunned(): boolean {
+    return this.pose === 'hurt' || this.pose === 'hurtRecover' || this.koTime >= 0
   }
 
   /** K.O. : plus de vie, il bascule en arrière et tombe au sol, où il reste jusqu'au round suivant. */
@@ -894,6 +903,30 @@ export class RivalLayer implements Opponent {
     return this.heroX
   }
 
+  /** Moussa est passé dans son dos d'un saut : l'affichage est retourné, il change de repère sans bouger à l'écran. */
+  flipSide(heroX: number): void {
+    const flip = (x: number) => 1 - x
+    this.x = flip(this.x)
+    this.ghostX = flip(this.ghostX)
+    this.attackFrom = flip(this.attackFrom)
+    this.hopFrom = flip(this.hopFrom)
+    this.koFrom = flip(this.koFrom)
+    this.heroX = heroX
+  }
+
+  /** Repoussé de `distance` (Moussa lui est retombé dessus), sans dépasser le bord ; retourne la distance parcourue. */
+  pushBack(distance: number): number {
+    const x = Math.min(RANGE.maxX, this.x + distance)
+    const moved = x - this.x
+    this.x = x
+    return moved
+  }
+
+  /** Vrai une fois K.O. (au sol) : on ne peut plus le franchir d'un saut. */
+  get knockedDown(): boolean {
+    return this.koTime >= 0
+  }
+
   /** Vrai pendant la téléportation, quand il n'est plus visible. */
   private get vanished(): boolean {
     return this.away || (this.teleportTime >= 0 && this.teleportStep() === null) || (this.attackTime >= 0 && this.moveStep().vanish === true)
@@ -1039,7 +1072,8 @@ export class RivalLayer implements Opponent {
     if (this.attackTime >= 0 || this.teleportTime >= 0) {
       // rien d'autre pendant la téléportation
     } else if (this.pose === 'hurt' || this.pose === 'hurtRecover') {
-      this.hurtTime += frame.delta
+      // tenu par l'attaque finale de Moussa : il reste figé dans le coup reçu
+      if (!this.held) this.hurtTime += frame.delta
       this.pose = this.hurtTime < HIT.stun ? 'hurt' : 'hurtRecover'
       if (this.hurtTime >= HIT.stun + HIT.recover) this.pose = 'guard'
     } else if (this.pose === 'blockStep') {

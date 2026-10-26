@@ -56,7 +56,8 @@ Le personnage est fait de vingt-neuf illustrations dans la même vue (trois quar
 | `jumpRise` | `../art/hero-jump-rise.png` | saut : montée, corps en extension |
 | `jumpPeak` | `../art/hero-jump-peak.png` | saut : sommet et descente, corps regroupé |
 | `jumpLand` | `../art/hero-jump-land.png` | saut : réception, au sol |
-| `punchStart` | `../art/hero-punch-start.png` | coup de poing léger : bras à mi-course, au démarrage et au retour |
+| `jab1` à `jab6` | `../art/hero-jab-1.png` à `hero-jab-6.png` | coup de poing léger (jab de boxeur) : le bras avant part de la garde (`jab1` à `jab4`), tendu (`jab5`), puis revient (`jab6`) |
+| `punchStart` | `../art/hero-punch-start.png` | ancien jab, plus utilisé par le coup léger (son bras tendu, `punchHit`, sert encore à la rafale de la frappe au sol) |
 | `punchHit` | `../art/hero-punch-hit.png` | coup de poing léger : bras tendu |
 | `specialCharge`, `specialThrow`, `specialRecover` | `../art/hero-special-*.png` | attaque spéciale : charge à la hanche, lancer à deux mains, retour |
 | `koStagger`, `koFall`, `koAir`, `koDown` | `../art/hero-ko-*.png` | K.O. : il titube, bascule, est projeté en l'air, puis reste au sol |
@@ -90,6 +91,8 @@ Le corps avance à `WALK_SPEED`, la vitesse exacte du pied posé, pour que les a
 
 `App.tsx` déclenche un dash quand la même direction est pressée deux fois en moins de `DOUBLE_TAP_MS`, au clavier ou sur les boutons.
 
+**Drive rush** (à la manière de Street Fighter 6, Moussa seulement) : un double appui vers l'avant pendant un coup qui a touché ou a été paré (`HeroLayer.canDriveRush`) annule le coup en une course plus longue et plus rapide que le dash (`DRIVE_RUSH`, pose `rush`, dessin du dash avant). `StageEngine.dash` vérifie qu'il reste assez de drive (`HudLayer.hasDrive`) et en dépense `HUD.rush` blocs (2). Pendant la course, la touche d'attaque lance le coup suivant de l'enchaînement (le léger si l'enchaînement est fini) dès `DRIVE_RUSH.cancelFrom` ; sans coup, il revient en garde et peut encore enchaîner juste après. Effet : un halo vert autour de lui (le dessin teinté, `uTint`, décalé tout autour, sous lui), qui s'estompe peu après la course, des images fantômes vertes et une traînée verte (`uTrail`). « Réduire les mouvements » garde un halo plus doux, sans images fantômes ni déformation.
+
 ### L'accroupi
 
 Tant que `StageEngine.crouch` est vrai, le personnage passe de la garde à la pose `crouchStep` pendant `CROUCH_STEP_SECONDS`, puis reste en `crouch` ; il fait le chemin inverse quand on relâche. Accroupi, il ne marche pas et ne dashe pas. S'il marchait, il repasse d'abord par la garde. La pose `crouch` respire : `crouchMatrix` tasse à peine tout le dessin vers le sol, semelles fixes.
@@ -120,7 +123,7 @@ Il n'y a qu'une touche d'attaque. `HeroLayer.attack()` lance le coup léger depu
 
 | Coup | Démarrage | Actif | Récupération | Dessins |
 | --- | --- | --- | --- | --- |
-| Léger (jab du bras avant) | 4 | 3 | 7 | `punchStart`, `punchHit`, puis `punchStart` à nouveau |
+| Léger (jab du bras avant) | 4 | 3 | 7 | `jab1` à `jab4` (un dessin par image), `jab5` bras tendu, puis `jab6`, `jab4`, `jab2`, `jab1` pour revenir en garde |
 | Fort (uppercut du bras avant) | 11 | 6 | 20 | `punchHeavyStart`, `punchHeavyHit`, `punchHeavyRecover` |
 | Moyen (direct du bras arrière) | 6 | 4 | 11 | `punchChain1` et `punchChain2` (trois images chacun), `punchMidHit`, `punchMidRecover` |
 
@@ -176,6 +179,10 @@ Quand la fumée est retombée (`exitDone`), le moteur ramène le personnage en g
 ### La frappe au sol
 
 Seconde attaque spéciale (`HeroLayer.groundSpecial()`, touche I ou bouton « Spécial 2 »), depuis la garde ou la marche. Le personnage se baisse et pose la main au sol : le jeu se fige le temps d'une mise au point (`FOCUS_SECONDS`), où la caméra zoome et se recentre vers lui (`FOCUS` dans `StageEngine`, recentrage partiel pour ne pas déformer le décor), le décor s'assombrit et des traits de vitesse convergent vers lui sur un vignettage rouge (`CinematicLayer.focus`). Puis il se rue sur l'adversaire avec le dessin du dash avant, une traînée et des images fantômes (`GROUND.rushSpeed`), puis enchaîne une rafale de dix coups très rapides (`FLURRY`) : direct léger, moyen, uppercut et coup de pied, dans un ordre tiré au hasard à chaque attaque, sans répéter deux fois le même de suite. Elle se termine par trois coups plus lents et plus lourds, toujours les mêmes (`HEAVY` : direct, uppercut, coup de pied), qui explosent sur la cible et font trembler l'écran. Chaque coup touche une fois, avec son étincelle, une étoile et une entaille dessinées au point d'impact, un court arrêt sur image et une petite secousse. Il finit par la frappe au sol : il pose la main au sol pour charger, se redresse et frappe de la paume en avançant encore un peu, puis revient (`GROUND.steps`). La paume touche une fois ; le corps avance de `GROUND.advance` sans franchir le bord ni l'adversaire.
+
+Pour qu'elle passe en combo, le départ est court (0,15 s avant la mise au point) et la ruée s'arrête dès que Moussa arrive contre l'adversaire : la rafale part aussitôt (`GROUND_FLURRY`). De la rafale à la frappe de la paume (`holdingTarget`), Shigaraki sonné reste figé dans le coup reçu (`RivalLayer.held`) : il ne se remet pas pendant la charge, et la paume touche toujours. La charge dure 0,55 s.
+
+Si Shigaraki tombe à zéro pendant l'attaque finale, il n'est pas K.O. tout de suite : il encaisse jusqu'à la frappe de la paume (`HeroLayer.finishing`). La paume (`Strike.finisher`) le met alors K.O. de façon spectaculaire (`StageEngine.superKO`, `SUPER_KO`) : arrêt sur l'impact (0,7 s), caméra resserrée sur lui, éclair blanc, voile rouge et noir traversé de rayons, ondes de choc et « K.O. » géant (`CinematicLayer.superKO`), puis il s'envole au ralenti (30 % de la vitesse pendant 1,6 s) ; le round suivant arrive 2 s plus tard que d'habitude. Si la paume ne touche pas, K.O. ordinaire à la fin de l'attaque. « Réduire les mouvements » garde l'arrêt (raccourci) et le « K.O. », sans voile, rayons, ondes ni ralenti.
 
 À partir de la charge, le décor, l'adversaire et la météo sont assombris par un filtre CSS (`StageEngine.dimmed`) : seul le personnage reste éclairé. Quand la charge commence, le combat se fige le temps d'un plan de coupe (`CinematicLayer.cutIn`, `CUT_IN_SECONDS`) : une bande inclinée s'ouvre au milieu de l'écran sur un gros plan de Moussa qui charge (`../art/cinematic-cutin.png`, détouré par `tools/prepare_cinematic.py`), qui glisse lentement devant des traits de vitesse, puis se referme et la frappe part.
 
@@ -261,11 +268,17 @@ Quand Moussa encaisse un coup, il alterne deux dessins d'un coup à l'autre : le
 
 Quand un coup touche (ceux de Moussa comme ceux de l'adversaire), l'étincelle est dessinée : huit dessins (`fx/hit-N.webp`, `HIT_FX` dans `HeroLayer`), une étoile puis une onde qui part dans le sens du coup (vers la gauche quand c'est Moussa qui encaisse). Les parades et les explosions gardent l'étincelle calculée par le shader.
 
+## La caméra de combat
+
+`StageEngine` (`CAMERA`) zoome davantage qu'avant (1,25) en visant plus bas pour garder les pieds à la même hauteur, et suit le milieu des deux combattants, en douceur. Le suivi est surtout un travelling (`Camera.pan`, uniforme `uPan` du décor : tout glisse d'un bloc, sans déformation) plus une petite part de parallaxe (`ox`, jusqu'à `CAMERA.parallax`, comme la souris) pour la perspective. Une parallaxe plus forte déformerait le décor aux bords des objets ; le travelling s'arrête avant les bords de l'image, ce qui limite l'aire de jeu (`PLACEMENT.minX`, `maxX`, `RANGE.maxX`). Les combattants reçoivent le travelling dans leur décalage (`ox - pan / depth`).
+
 ## L'écran de chargement
 
 `LoadingScreen` (`src/components/`) recouvre la scène au lancement : fond partagé en rouge et violet, Moussa et Shigaraki face à face, « VS », leurs noms, une astuce de jeu qui change, et une jauge qui suit le vrai chargement des images (`onLoadProgress`, dans `src/game/gl.ts`, compte les images demandées et arrivées par `loadImage` ; la jauge ne recule jamais et attend que `StageEngine.run` ait tout chargé pour atteindre 100 %). Les noms (« Mouss, combattant » et « Shigaraki, le boss final ») sont en bas, sous les visages. Une fois tout chargé, la jauge reste pleine un instant (« Fight! », `AUTO_START_MS`), puis la partie se lance d'elle-même : la cinématique démarre derrière l'écran, qui s'efface par-dessus dans un éclair (le stage n'apparaît jamais entre les deux) et `App` lance la cinématique d'entrée (`replayIntro`), qui ne part plus toute seule au chargement. Tant qu'il est affiché, les touches du jeu sont ignorées.
 
 Les attaques ultimes s'annulent en combo. Pour Moussa, la frappe au sol (I) demandée pendant un coup part dès que le coup a touché, à la place de sa récupération (`groundQueued`, comme l'attaque spéciale). Pour Shigaraki, l'attaque ultime (N) demandée pendant un coup de son enchaînement ou pendant son coup spécial part dès la fin des images actives (`ultimateQueued`).
+
+Les sauts sont hauts (`JUMP.height`) : un saut avant qui retombe au-delà de Shigaraki passe par-dessus lui au lieu d'être arrêté (`HeroLayer.crossable`, `crossing`). Pendant le vol, Moussa garde son sens au-dessus de lui ; c'est en retombant dans son dos (`airborne` redevenu faux) que `StageEngine.resolveHits` fait changer les combattants de côté (`setMirrored`, `hero.mirror`, `RivalLayer.flipSide`). Un demi-tour en plein vol, au-dessus de lui, paraissait faux. S'il retombe trop près, Shigaraki est repoussé (`pushBack`). Le mannequin, lui, ne se franchit pas.
 
 ## L'interface de combat
 
@@ -273,8 +286,9 @@ Les attaques ultimes s'annulent en combo. Pour Moussa, la frappe au sol (I) dema
 
 - **Vie**, en haut, de part et d'autre du numéro de round : ancrée au centre, elle perd par l'extérieur ; la part perdue s'efface d'abord en rouge, puis rattrape la vie. Un coup retire `DAMAGE.perPower` × sa puissance (`StageEngine`) ; la retombée et le coup de marteau de l'attaque ultime de l'adversaire retirent `DAMAGE.dive` et `DAMAGE.hammer`. Seul l'adversaire a une vie, pas le mannequin.
 - **Super**, en bas, depuis les bords : elle se remplit à chaque coup donné ou reçu, brille quand elle est pleine (« SUPER MAX ») et se vide quand l'attaque ultime part (`useSuper`). Pour les essais, l'attaque ultime ne demande pas encore une barre pleine.
-- **Drive**, juste sous la super : quatre blocs. Une parade en coûte ; la jauge se recharge seule après un instant ; vide, elle passe en surchauffe (« BURNOUT », grise) jusqu'à être pleine. Réglages dans `HUD`.
-- **K.O.** : à zéro, Moussa tombe K.O. (le K.O. habituel) ; s'il tombe à zéro pendant l'attaque ultime, il reste au sol à la fin au lieu de se relever. L'adversaire à zéro : « K.O. », il bascule en arrière, décolle un peu, retombe et reste allongé (`RivalLayer.knockOut`, `KO_FALL` : `ko1` à `ko5`, secousse quand il touche le sol), puis round suivant (`DAMAGE.koSeconds`). Les vies reviennent au plein à chaque round ; le super est gardé.
+- **Drive**, juste sous la super : quatre blocs. Une parade en coûte, un drive rush en coûte deux ; la jauge se recharge seule après un instant ; vide, elle passe en surchauffe (« BURNOUT », grise) jusqu'à être pleine. Réglages dans `HUD`.
+- **Combo** : sous la barre de vie de l'attaquant, « N HITS » à partir de 2 coups (`COMBO`). `StageEngine` compte les coups de Moussa qui touchent Shigaraki alors qu'il est encore sonné par le précédent (`RivalLayer.stunned` : coup encaissé, retour en garde ou à terre) ; dès qu'il peut de nouveau bouger ou parer, ou s'il pare, le combo s'arrête (`endCombo`) et le compteur s'efface après un instant. Le chiffre grossit un instant à chaque coup (pas avec « Réduire les mouvements »).
+- **K.O.** : à zéro, Moussa tombe K.O. (le K.O. habituel) ; s'il tombe à zéro pendant l'attaque ultime, il reste au sol à la fin au lieu de se relever. L'adversaire à zéro : « K.O. », il bascule en arrière, décolle un peu, retombe et reste allongé (`RivalLayer.knockOut`, `KO_FALL` : `ko1` à `ko5`, secousse quand il touche le sol), puis, après `DAMAGE.koSeconds`, la victoire : Moussa fait son animation de fin de round (`HeroLayer.exit`) pendant que la caméra se resserre un peu sur lui (`VICTORY`), l'écran passe au noir (`CinematicLayer.fadeToBlack`, `BLACK`) et, quand il est noir, les combattants sont replacés au centre de l'arène, la caméra recentrée d'un coup, et le round suivant est annoncé pendant que l'écran s'éclaircit. Les vies reviennent au plein à chaque round ; le super est gardé.
 
 ## Ajouter un plan
 

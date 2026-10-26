@@ -21,6 +21,8 @@ uniform vec4 uBend;                             // amplitude, longueur, angle de
 uniform vec4 uAxis;                             // xy = axe racine -> pointe, zw = racine
 uniform float uAlpha;                           // opacité du calque (images fantômes du dash)
 uniform float uSmear;                           // traînée de vitesse : longueur en pixels de la toile, signée
+uniform vec4 uTrail;                            // couleur de la traînée (rgb) et part de cette couleur
+uniform vec4 uTint;                             // teinte du dessin (rgb) et part de cette teinte (images fantômes et halo du drive rush)
 vec4 pick(vec2 c){
   vec2 q=c-uBox.xy;
   float inside=step(0.,q.x)*step(0.,q.y)*step(q.x,uBox.z)*step(q.y,uBox.w);
@@ -41,10 +43,11 @@ void main(){
       trail+=pick(c+vec2(uSmear*t*band,0.))*(1.-t)*(1.-t);
     }
     trail*=.42;
-    // la traînée tire vers le rouge du personnage et ne recouvre pas le dessin net
-    trail.rgb=mix(trail.rgb,vec3(.91,.15,.18)*trail.a,.35);
+    // la traînée tire vers la couleur demandée (le rouge du personnage, le vert du drive rush) et ne recouvre pas le dessin net
+    trail.rgb=mix(trail.rgb,uTrail.rgb*trail.a,uTrail.a);
     col+=trail*(1.-col.a);
   }
+  col.rgb=mix(col.rgb,uTint.rgb*col.a,uTint.a);
   gl_FragColor=col*uAlpha;
 }`
 

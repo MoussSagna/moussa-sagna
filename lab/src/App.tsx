@@ -257,7 +257,8 @@ function App() {
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↑</kbd> ou{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Z</kbd> pour sauter (avec une direction tenue : saut avant ou arrière),{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">J</kbd> pour attaquer : un appui pour le
-        coup léger, puis d'autres pour enchaîner le coup moyen, le coup fort et le coup de pied ;{' '}
+        coup léger, puis d'autres pour enchaîner le coup moyen, le coup fort et le coup de pied (pendant un coup qui touche ou est paré, deux appuis vite vers l'avant lancent un drive rush, pour 2 blocs de drive, et{' '}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">J</kbd> en pleine course enchaîne le coup suivant) ;{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">L</kbd> pour la boule de feu,{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">I</kbd> pour la frappe au sol,{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">P</kbd> pour finir le round,{' '}

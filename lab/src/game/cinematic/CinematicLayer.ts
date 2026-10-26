@@ -98,6 +98,13 @@ const TIMELINE = {
 }
 /** Annonce « K.O. » : début et fin, en secondes depuis le K.O. du personnage au sol. */
 const KO_ANNOUNCE: [number, number] = [0, 1.7]
+/** Passage au noir de fin de round : l'écran s'assombrit en `in` secondes, reste noir `hold` secondes, puis s'éclaircit en `out` secondes. */
+export const BLACK = { in: 0.45, hold: 0.35, out: 0.55 }
+/**
+ * K.O. de l'attaque finale de Moussa : éclair blanc (`flash` secondes), voile rouge et noir avec des rayons qui
+ * jaillissent du centre, ondes de choc (`rings`, durée `ring`), puis « K.O. » géant (`size`, affiché pendant `announce`).
+ */
+const SUPER_KO = { seconds: 2, flash: 0.09, veil: 0.75, rings: 3, ring: 0.7, size: 0.42, announce: [0.12, 1.9] as [number, number] }
 /**
  * Plan de coupe de la frappe au sol : un gros plan de Moussa qui charge, dans une bande inclinée qui s'ouvre au
  * milieu de l'écran, pendant que le combat est figé. Durée, et temps d'ouverture et de fermeture de la bande.
@@ -158,10 +165,13 @@ export class CinematicLayer {
   private time = -1
   /** Temps écoulé depuis l'annonce « K.O. », ou -1 quand elle n'est pas affichée. */
   private koTime = -1
+  private superKoTime = -1
   /** Temps écoulé depuis le début du plan de coupe, ou -1 quand il n'est pas affiché. */
   private cutInTime = -1
   /** Temps écoulé depuis l'impact de la frappe au sol, ou -1 : un éclair blanc puis rouge sur tout l'écran. */
   private impactTime = -1
+  /** Passage au noir entre deux rounds, en secondes depuis son début (-1 : aucun). */
+  private blackTime = -1
   /** Temps écoulé depuis le début de la mise au point, ou -1 : traits de vitesse qui convergent vers le centre. */
   private focusTime = -1
   private cutInImage: HTMLImageElement | null = null
@@ -260,6 +270,16 @@ export class CinematicLayer {
     return this.blastTime >= 0
   }
 
+  /** L'écran passe au noir, puis revient : le moteur change de round pendant qu'il est noir. */
+  fadeToBlack(): void {
+    this.blackTime = 0
+  }
+
+  /** K.O. spectaculaire de l'attaque finale de Moussa, le temps de `SUPER_KO.seconds`. */
+  superKO(): void {
+    this.superKoTime = 0
+  }
+
   /** Affiche « K.O. » par-dessus le stage, le temps de `KO_ANNOUNCE`. */
   showKO(): void {
     this.koTime = 0
@@ -281,6 +301,14 @@ export class CinematicLayer {
     if (this.cutInTime >= 0) {
       this.cutInTime += delta
       if (this.cutInTime >= CUT_IN_SECONDS) this.cutInTime = -1
+    }
+    if (this.blackTime >= 0) {
+      this.blackTime += delta
+      if (this.blackTime >= BLACK.in + BLACK.hold + BLACK.out) this.blackTime = -1
+    }
+    if (this.superKoTime >= 0) {
+      this.superKoTime += delta
+      if (this.superKoTime >= SUPER_KO.seconds) this.superKoTime = -1
     }
     if (this.koTime >= 0) {
       this.koTime += delta
@@ -318,6 +346,13 @@ export class CinematicLayer {
     }
     if (this.cutInTime >= 0) this.drawCutIn(ctx, this.cutInTime, frame, calm)
     if (this.koTime >= 0) this.announce(ctx, this.koTime, KO_ANNOUNCE, 'K.O.', 0.3, RED, w, h, calm)
+    if (this.superKoTime >= 0) this.drawSuperKO(ctx, this.superKoTime, w, h, calm)
+    // passage au noir entre deux rounds : par-dessus le combat, sous les annonces du round suivant
+    if (this.blackTime >= 0) {
+      const b = this.blackTime
+      const alpha = b < BLACK.in ? b / BLACK.in : b < BLACK.in + BLACK.hold ? 1 : 1 - (b - BLACK.in - BLACK.hold) / BLACK.out
+      this.flash(ctx, w, h, alpha, '0, 0, 0')
+    }
     const t = this.time
     if (t < 0) return
 
@@ -566,6 +601,57 @@ export class CinematicLayer {
     ctx.fillText(text, 0, 0)
     ctx.restore()
     if (fight && age < 0.15) this.flash(ctx, w, h, (1 - age / 0.15) * (calm ? 0.25 : 0.6))
+  }
+
+  /**
+   * K.O. de l'attaque finale : éclair blanc, puis voile rouge et noir traversé de rayons qui partent du centre, ondes
+   * de choc qui s'élargissent, et « K.O. » géant qui secoue l'écran en arrivant.
+   */
+  private drawSuperKO(ctx: CanvasRenderingContext2D, t: number, w: number, h: number, calm: boolean): void {
+    const cx = w / 2
+    const cy = h * 0.47
+    const reach = Math.hypot(w, h)
+    if (!calm && t < SUPER_KO.veil) {
+      const fade = 1 - clamp((t - SUPER_KO.veil * 0.6) / (SUPER_KO.veil * 0.4))
+      // voile : rouge sombre au bord, transparent au centre, où se trouve l'adversaire
+      const veil = ctx.createRadialGradient(cx, cy, h * 0.12, cx, cy, reach * 0.6)
+      veil.addColorStop(0, 'rgba(120, 0, 8, 0)')
+      veil.addColorStop(1, `rgba(20, 0, 4, ${0.85 * fade})`)
+      ctx.fillStyle = veil
+      ctx.fillRect(0, 0, w, h)
+      // rayons blancs et rouges, figés comme l'impact, qui partent du centre
+      ctx.save()
+      ctx.translate(cx, cy)
+      for (let i = 0; i < 48; i++) {
+        const angle = (i / 48) * Math.PI * 2 + Math.sin(i * 12.9898) * 0.06
+        const width = (0.012 + 0.02 * Math.abs(Math.sin(i * 78.233))) * fade
+        const start = h * (0.16 + 0.12 * Math.abs(Math.sin(i * 3.7)))
+        ctx.fillStyle = i % 3 === 0 ? `rgba(255, 245, 235, ${0.75 * fade})` : `rgba(232, 38, 45, ${0.6 * fade})`
+        ctx.beginPath()
+        ctx.moveTo(Math.cos(angle - width) * start, Math.sin(angle - width) * start)
+        ctx.lineTo(Math.cos(angle) * reach, Math.sin(angle) * reach)
+        ctx.lineTo(Math.cos(angle + width) * start, Math.sin(angle + width) * start)
+        ctx.closePath()
+        ctx.fill()
+      }
+      ctx.restore()
+    }
+    // ondes de choc, l'une après l'autre
+    if (!calm) {
+      for (let i = 0; i < SUPER_KO.rings; i++) {
+        const k = (t - i * 0.12) / SUPER_KO.ring
+        if (k < 0 || k > 1) continue
+        ctx.beginPath()
+        ctx.arc(cx, cy, easeOut(k) * reach * 0.55, 0, Math.PI * 2)
+        ctx.lineWidth = h * 0.03 * (1 - k)
+        ctx.strokeStyle = `rgba(255, ${i === 0 ? 255 : 120}, ${i === 0 ? 255 : 90}, ${1 - k})`
+        ctx.stroke()
+      }
+    }
+    this.announce(ctx, t, SUPER_KO.announce, 'K.O.', SUPER_KO.size, RED, w, h, calm)
+    // l'éclair blanc de l'impact, par-dessus tout
+    if (t < SUPER_KO.flash) this.flash(ctx, w, h, calm ? 0.35 : 1)
+    else if (t < SUPER_KO.flash + 0.25) this.flash(ctx, w, h, (1 - (t - SUPER_KO.flash) / 0.25) * (calm ? 0.15 : 0.5))
   }
 
   /**

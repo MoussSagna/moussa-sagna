@@ -1,5 +1,5 @@
-import { CUT_IN_SECONDS, FOCUS_SECONDS, CinematicLayer } from '../cinematic/CinematicLayer'
-import { HudLayer } from '../hud/HudLayer'
+import { BLACK, CUT_IN_SECONDS, FOCUS_SECONDS, CinematicLayer } from '../cinematic/CinematicLayer'
+import { HUD, HudLayer } from '../hud/HudLayer'
 import { DummyLayer } from '../dummy/DummyLayer'
 import { HeroLayer, PLACEMENT } from '../hero/HeroLayer'
 import type { Strike } from '../hero/HeroLayer'
@@ -25,11 +25,35 @@ const INTRO_MS = 3600
 /** Secousse de la caméra à l'impact : amplitude (fraction d'écran) pour un coup de pleine puissance, et vitesse d'extinction. */
 const SHAKE = { amplitude: 0.006, decay: 16 }
 /**
+ * Caméra de combat : zoom de base (`zoom`), hauteur à l'écran des pieds des combattants (`feet`, fraction de la
+ * hauteur), et suivi horizontal (`follow`, par seconde) : la caméra glisse vers le milieu des deux combattants. Le
+ * glissement est surtout un travelling (`pan`, tout le décor d'un bloc, sans déformation), plus une part de
+ * parallaxe (jusqu'à `parallax` en `ox`, comme la souris) qui donne la perspective. Le travelling s'arrête avant les
+ * bords de l'image : la marge laissée par le zoom, moins ce que la parallaxe décale au premier plan (profondeur 0,98 :
+ * 0,56 × `ox`).
+ */
+const CAMERA = { zoom: 1.25, feet: 0.923, follow: 3.5, parallax: 0.04 }
+const CAMERA_MAX_PAN = 0.5 - 0.5 / CAMERA.zoom - 0.56 * (CAMERA.parallax + 0.03)
+const CAMERA_MAX_SHIFT = CAMERA_MAX_PAN + PLACEMENT.depth * CAMERA.parallax
+/**
  * Dégâts, en fraction de la barre de vie : un coup en retire `perPower` × sa puissance. Les deux derniers coups de
  * l'attaque ultime de l'adversaire (sa retombée en coup de poing, puis le coup de marteau) retirent `dive` et
  * `hammer`. Après un K.O. de l'adversaire, le round suivant commence au bout de `koSeconds`.
  */
 const DAMAGE = { perPower: 0.05, dive: 0.08, hammer: 0.2, koSeconds: 3 }
+/**
+ * K.O. sur la frappe de la paume de l'attaque finale de Moussa : le combat se fige `freeze` secondes sur l'impact, la
+ * caméra se resserre sur l'adversaire, puis il s'envole au ralenti (`scale` de la vitesse normale pendant `slow`
+ * secondes). Le round suivant arrive `extra` secondes plus tard qu'après un K.O. ordinaire.
+ */
+/**
+ * Victoire : après le K.O. de l'adversaire, Moussa fait son animation de fin de round pendant que la caméra se
+ * resserre un peu sur lui (`zoom` en plus, atteint en `ease` secondes, recentrage partiel `pull`, visée à `height`
+ * de la hauteur de l'écran). L'écran passe au noir `black` secondes après le début ; quand il est noir, les
+ * combattants sont replacés au centre de l'arène et le round suivant est annoncé.
+ */
+const VICTORY = { zoom: 0.16, ease: 0.6, pull: 0.5, height: 0.72, black: 0.8 }
+const SUPER_KO = { freeze: 0.7, slow: 1.6, scale: 0.3, shake: 3.5, extra: 2 }
 /**
  * Secousse verticale de l'impact du coup de marteau de l'adversaire : l'écran rebondit de haut en bas `frequency`
  * fois par seconde, de moins en moins fort, pendant `seconds` (la durée de l'explosion). `amplitude` : décalage de
@@ -75,6 +99,8 @@ export class StageEngine {
   private covered = false
   /** Temps écoulé depuis le début de la mise au point, ou -1. */
   private focusTime = -1
+  /** Temps écoulé depuis le début de l'animation de victoire de Moussa (-1 : aucune). */
+  private victoryTime = -1
   /** Celui sur qui la caméra se resserre pendant la mise au point. */
   private focusOn: 'hero' | 'rival' = 'hero'
   /** Plans assombris pendant l'attaque ultime de l'adversaire : tout sauf lui. */
@@ -94,11 +120,19 @@ export class StageEngine {
   private frozen = 0
   /** Secousse de la caméra, de 0 à 1 ; elle s'éteint d'elle-même. */
   private shake = 0
+  /** Décalage horizontal de la caméra qui suit les combattants (lissé). */
+  private track = 0
+  /** Coups de Moussa d'affilée sur l'adversaire sans qu'il ait pu se remettre (0 : pas de combo en cours). */
+  private comboHits = 0
   /** Barres de vie, de super et de drive. */
   private hud = new HudLayer()
   private hudRound = 1
   /** Temps écoulé depuis un K.O. qui attend la fin de son annonce pour passer au round suivant, ou -1. */
   private koWait = -1
+  /** Durée du K.O. avant le round suivant (plus longue après le K.O. de l'attaque finale). */
+  private koLength = DAMAGE.koSeconds
+  /** Ralenti restant après le K.O. de l'attaque finale, en secondes. */
+  private slow = 0
   /** Temps écoulé depuis le début de la secousse verticale, ou -1. */
   private quake = -1
   private weather: WeatherLayer
@@ -143,9 +177,19 @@ export class StageEngine {
     return backdrop
   }
 
-  /** Lance un dash du personnage : 1 vers l'avant, -1 vers l'arrière. */
+  /**
+   * Lance un dash du personnage : 1 vers l'avant, -1 vers l'arrière. Vers l'avant pendant un coup qui a touché
+   * ou a été paré, c'est un drive rush, s'il reste assez de drive : le coup est annulé et le drive dépensé.
+   */
   dash(direction: number): void {
-    if (!this.cinematic.locked) this.hero.dash(direction * this.side)
+    if (this.cinematic.locked) return
+    const move = direction * this.side
+    if (move > 0 && this.hero.canDriveRush && this.hud.hasDrive('hero', HUD.rush)) {
+      this.hud.spendDrive('hero', HUD.rush)
+      this.hero.driveRush()
+      return
+    }
+    this.hero.dash(move)
   }
 
   /** Touche d'attaque : lance un coup de poing ou enchaîne sur le suivant. */
@@ -190,9 +234,38 @@ export class StageEngine {
   }
 
   /** Retourne ou remet à l'endroit l'affichage des combattants. */
+  /** L'adversaire n'a plus de vie : « K.O. », il tombe, puis round suivant. */
+  private rivalKO(): void {
+    this.koWait = 0
+    this.koLength = DAMAGE.koSeconds
+    this.rival.knockOut()
+    this.cinematic.showKO()
+    this.shake = Math.max(this.shake, 2.2)
+  }
+
+  /** K.O. sur la frappe de la paume de l'attaque finale : arrêt sur l'impact, gros plan, éclats, « K.O. » géant, ralenti. */
+  private superKO(calm: boolean): void {
+    this.koWait = 0
+    this.koLength = DAMAGE.koSeconds + SUPER_KO.extra
+    this.rival.knockOut()
+    this.cinematic.superKO()
+    this.stop = SUPER_KO.freeze * (calm ? 0.5 : 1)
+    this.slow = calm ? 0 : SUPER_KO.slow
+    this.shake = calm ? 1 : SUPER_KO.shake
+    // la caméra se resserre sur lui pendant l'arrêt sur image
+    this.focusTime = 0
+    this.focusOn = 'rival'
+  }
+
   /** Passe au round suivant : les deux combattants reviennent en garde à leur place de départ. */
   private nextRound(): void {
     this.quake = -1
+    this.victoryTime = -1
+    this.focusTime = -1
+    // la caméra se recentre d'un coup sur les combattants replacés au centre de l'arène
+    this.track = 0.5 - (PLACEMENT.x + RivalLayer.START_X) / 2
+    this.slow = 0
+    this.comboHits = 0
     this.round += 1
     this.hero.reenter()
     this.rival.reset()
@@ -223,6 +296,7 @@ export class StageEngine {
     this.round = 1
     this.hud.reset(false)
     this.koWait = -1
+    this.victoryTime = -1
     // Moussa revient à sa place s'il était sorti ou s'il avait changé de côté
     if (this.roundEnding || this.mirrored) this.hero.reenter()
     this.rival.reset()
@@ -293,21 +367,56 @@ export class StageEngine {
     // largeur d'un pixel de la toile, en fraction de la largeur du stage
     const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)
     this.hero.wall = target.x - target.gap * pixel
+    // l'adversaire (pas le mannequin) peut être franchi d'un saut : Moussa passe au-dessus en gardant son sens, et
+    // c'est en retombant dans son dos que les combattants se retournent (un demi-tour en l'air paraissait faux)
+    const jumpable = target === this.rival && !this.rival.knockedDown
+    this.hero.crossable = jumpable ? target.x : null
+    if (jumpable && !this.hero.airborne && this.hero.position > this.rival.x) {
+      this.setMirrored(!this.mirrored)
+      this.hero.mirror()
+      this.rival.flipSide(this.hero.position)
+      this.hero.wall = this.rival.x - this.rival.gap * pixel
+    }
+    // retombé trop près de lui : il est repoussé (et Moussa aussi s'il est dans le coin)
+    if (jumpable && !this.hero.airborne && this.hero.position > this.hero.wall + 0.001) {
+      const overlap = this.hero.position - this.hero.wall
+      const moved = this.rival.pushBack(overlap)
+      if (moved < overlap) this.hero.placeAt(this.hero.position - (overlap - moved))
+      this.hero.wall = this.rival.x - this.rival.gap * pixel
+    }
+    // à bout de vie pendant l'attaque finale, mais la paume n'a pas touché : K.O. ordinaire une fois l'attaque finie
+    if (this.koWait < 0 && target === this.rival && this.hud.health('rival') <= 0 && !this.hero.finishing && !this.rival.knockedDown) this.rivalKO()
+    // il s'est remis du dernier coup (il peut bouger ou parer) : le combo s'arrête
+    if (this.comboHits > 0 && !this.rival.stunned) {
+      this.comboHits = 0
+      this.hud.endCombo('hero')
+    }
     const surface = target.x - target.surface * pixel
     /** Le coup atteint la cible : elle l'encaisse ou le pare. Retourne vrai s'il est paré. */
     const rivalTarget = target === this.rival
     const react = (strike: Strike): boolean => {
+      // combo : le coup touche alors qu'il est encore sonné par le précédent
+      const stunned = rivalTarget && this.rival.stunned
       const guarded = target.hit(strike.power)
+      if (rivalTarget && this.koWait < 0) {
+        if (guarded) this.hud.endCombo('hero')
+        else {
+          this.comboHits = stunned && this.comboHits > 0 ? this.comboHits + 1 : 1
+          this.hud.combo('hero', this.comboHits)
+        }
+      }
       // barres : seul l'adversaire a une vie ; le mannequin encaisse sans fin
       if (rivalTarget && this.koWait < 0) {
         if (guarded) this.hud.block('rival', strike.power)
         else this.hud.damage('rival', strike.power * DAMAGE.perPower, strike.power)
-        // plus de vie : « K.O. », puis round suivant
+        // plus de vie : « K.O. », puis round suivant. Pendant l'attaque finale de Moussa, il encaisse jusqu'à la
+        // frappe de la paume, qui le met K.O. de façon spectaculaire
         if (this.hud.health('rival') <= 0) {
-          this.koWait = 0
-          this.rival.knockOut()
-          this.cinematic.showKO()
-          this.shake = Math.max(this.shake, 2.2)
+          if (strike.finisher) {
+            this.superKO(calm)
+            return guarded
+          }
+          if (!this.hero.finishing) this.rivalKO()
         }
       }
       this.stop = strike.stop * (guarded ? 0.5 : 1) * (calm ? 0.5 : 1)
@@ -359,10 +468,22 @@ export class StageEngine {
     const sway = calm ? 0 : 1
     const k = Math.min(1, (now - this.introAt) / INTRO_MS)
     const settle = 1 - (1 - k) ** 3
+    // elle suit le milieu des deux combattants (positions à l'écran, retournées quand ils ont changé de côté)
+    const screenX = (x: number) => (this.mirrored ? 1 - x : x)
+    const middle = (screenX(this.hero.position) + screenX(this.opponent().x)) / 2
+    // décalage voulu des combattants à l'écran (en fraction du stage), partagé entre parallaxe et travelling
+    const follow = Math.max(-CAMERA_MAX_SHIFT, Math.min(CAMERA_MAX_SHIFT, 0.5 - middle))
+    this.track += (follow - this.track) * Math.min(1, delta * CAMERA.follow)
+    const parallax = (this.track / CAMERA_MAX_SHIFT) * CAMERA.parallax
+    const pan = -(this.track - PLACEMENT.depth * parallax)
+    const zoom = CAMERA.zoom + (1 - settle) * 0.13 * sway + Math.sin(time * 0.13) * 0.006 * sway
+    // plus zoomée, elle vise plus bas, pour garder les pieds à la même hauteur à l'écran
+    const lower = ((CAMERA.feet - 0.5) / CAMERA.zoom - (PLACEMENT.y - 0.5)) / PLACEMENT.depth
     const camera: Camera = {
-      ox: p.x * 0.02 + Math.sin(time * 0.21) * 0.007 * sway + (1 - settle) * 0.045 * sway,
-      oy: p.y * 0.008 + Math.cos(time * 0.17) * 0.003 * sway,
-      zoom: 1.045 + (1 - settle) * 0.13 * sway + Math.sin(time * 0.13) * 0.006 * sway,
+      ox: parallax + p.x * 0.02 + Math.sin(time * 0.21) * 0.007 * sway + (1 - settle) * 0.045 * sway,
+      oy: lower + p.y * 0.008 + Math.cos(time * 0.17) * 0.003 * sway,
+      zoom,
+      pan,
     }
     // mise au point du début de l'attaque spéciale : zoom et recentrage sur le personnage, entrée et sortie adoucies
     if (this.focusTime >= 0) {
@@ -378,13 +499,25 @@ export class StageEngine {
       // position du personnage à l'écran, retournée quand les combattants ont changé de côté
       const position = this.focusOn === 'rival' ? this.rival.x : this.hero.position
       const screen = this.mirrored ? 1 - position : position
-      const ox = (0.5 - screen) / depth
+      const ox = (0.5 - screen + pan) / depth
       // l'adversaire est debout : la caméra vise plus haut que pour Moussa baissé
       const height = this.focusOn === 'rival' ? FOCUS.rivalHeight : FOCUS.height
       const oy = (0.5 + 0.05 / zoom - height) / depth
       camera.zoom = zoom
       camera.ox += (ox - camera.ox) * FOCUS.pull * e
       camera.oy += (oy - camera.oy) * FOCUS.pull * e
+    }
+    // victoire : la caméra se resserre un peu sur Moussa pendant son animation de fin de round
+    if (this.victoryTime >= 0 && !calm) {
+      const k = Math.min(1, this.victoryTime / VICTORY.ease)
+      const e = k * k * (3 - 2 * k)
+      const zoom = camera.zoom + VICTORY.zoom * e
+      const screen = this.mirrored ? 1 - this.hero.position : this.hero.position
+      const ox = (0.5 - screen + pan) / PLACEMENT.depth
+      const oy = (0.5 + 0.05 / zoom - VICTORY.height) / PLACEMENT.depth
+      camera.zoom = zoom
+      camera.ox += (ox - camera.ox) * VICTORY.pull * e
+      camera.oy += (oy - camera.oy) * VICTORY.pull * e
     }
     // secousse d'impact : elle déplace tous les plans ensemble
     this.shake *= Math.exp(-delta * SHAKE.decay)
@@ -402,7 +535,8 @@ export class StageEngine {
     // impact du coup de marteau de l'adversaire : dessiné par la cinématique, devant les combattants, au même endroit
     // du stage qu'eux (même caméra, secousse comprise)
     if (this.cinematic.blasting) {
-      const view = this.mirrored ? -camera.ox : camera.ox
+      const fighterOx = camera.ox - pan / PLACEMENT.depth
+      const view = this.mirrored ? -fighterOx : fighterOx
       const x = (this.rival.hammerX + PLACEMENT.depth * view - 0.5) * camera.zoom + 0.5
       this.cinematic.blastAt = {
         x: this.mirrored ? 1 - x : x,
@@ -432,7 +566,13 @@ export class StageEngine {
       this.stop -= delta
       this.frozen += delta
     }
-    const fight: FrameInfo = { ...info, time: time - this.frozen, delta: stopped ? 0 : delta }
+    // ralenti après le K.O. de l'attaque finale : le combat avance moins vite que le reste
+    const slowed = !stopped && this.slow > 0
+    if (slowed) {
+      this.slow -= delta
+      this.frozen += delta * (1 - SUPER_KO.scale)
+    }
+    const fight: FrameInfo = { ...info, time: time - this.frozen, delta: stopped ? 0 : slowed ? delta * SUPER_KO.scale : delta }
     this.hero.update(fight, locked ? 0 : this.walk * this.side, locked ? false : this.crouch, locked ? false : this.block)
     // contrôlé par le joueur, il marche et pare à la demande ; sinon il pare selon l'option et garde ses distances
     const controlled = this.options.rivalControl === true
@@ -442,6 +582,8 @@ export class StageEngine {
     // il ne se déplace pas avant le « Fight », ni pendant la mise au point de la frappe au sol
     this.rival.moves = this.options.rivalMoves !== false && !locked && !controlled
     this.rival.heroX = this.hero.position
+    // attaque finale de Moussa : sonné par la rafale, il reste figé dans le coup reçu jusqu'à la frappe de la paume
+    this.rival.held = this.hero.holdingTarget
     const target = this.opponent()
     target.update(fight)
     // l'adversaire décolle : forte secousse de l'écran
@@ -529,8 +671,19 @@ export class StageEngine {
     this.hud.update(delta)
     if (this.koWait >= 0) {
       this.koWait += delta
-      if (this.koWait >= DAMAGE.koSeconds) {
+      if (this.koWait >= this.koLength) {
+        // victoire : animation de fin de round de Moussa, puis passage au noir et round suivant
         this.koWait = -1
+        this.victoryTime = 0
+        this.hero.exit()
+      }
+    }
+    if (this.victoryTime >= 0) {
+      const before = this.victoryTime
+      this.victoryTime += delta
+      if (before < VICTORY.black && this.victoryTime >= VICTORY.black) this.cinematic.fadeToBlack()
+      if (this.victoryTime >= VICTORY.black + BLACK.in + BLACK.hold / 2) {
+        this.victoryTime = -1
         this.nextRound()
       }
     }
@@ -569,7 +722,9 @@ export class StageEngine {
     this.opponentCanvases.dummy.style.visibility = target === this.dummy ? 'visible' : 'hidden'
     this.opponentCanvases.rival.style.visibility = target === this.rival ? 'visible' : 'hidden'
     // plans retournés en miroir : la parallaxe horizontale s'inverse aussi, pour rester calée sur le décor
-    const view = this.mirrored ? { ...camera, ox: -camera.ox } : camera
+    // les combattants suivent aussi le travelling (`pan`), exprimé dans leur décalage de parallaxe
+    const fighterOx = camera.ox - (camera.pan ?? 0) / PLACEMENT.depth
+    const view = { ...camera, ox: this.mirrored ? -fighterOx : fighterOx }
     target.draw(fight, view, calm)
     this.hero.draw(fight, view, calm)
     this.weather.draw(info, -camera.ox * 0.5, this.options)
