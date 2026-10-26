@@ -98,6 +98,8 @@ const TIMELINE = {
 }
 /** Annonce « K.O. » : début et fin, en secondes depuis le K.O. du personnage au sol. */
 const KO_ANNOUNCE: [number, number] = [0, 1.7]
+/** Passage au noir de fin de round : l'écran s'assombrit en `in` secondes, reste noir `hold` secondes, puis s'éclaircit en `out` secondes. */
+export const BLACK = { in: 0.45, hold: 0.35, out: 0.55 }
 /**
  * K.O. de l'attaque finale de Moussa : éclair blanc (`flash` secondes), voile rouge et noir avec des rayons qui
  * jaillissent du centre, ondes de choc (`rings`, durée `ring`), puis « K.O. » géant (`size`, affiché pendant `announce`).
@@ -168,6 +170,8 @@ export class CinematicLayer {
   private cutInTime = -1
   /** Temps écoulé depuis l'impact de la frappe au sol, ou -1 : un éclair blanc puis rouge sur tout l'écran. */
   private impactTime = -1
+  /** Passage au noir entre deux rounds, en secondes depuis son début (-1 : aucun). */
+  private blackTime = -1
   /** Temps écoulé depuis le début de la mise au point, ou -1 : traits de vitesse qui convergent vers le centre. */
   private focusTime = -1
   private cutInImage: HTMLImageElement | null = null
@@ -266,6 +270,11 @@ export class CinematicLayer {
     return this.blastTime >= 0
   }
 
+  /** L'écran passe au noir, puis revient : le moteur change de round pendant qu'il est noir. */
+  fadeToBlack(): void {
+    this.blackTime = 0
+  }
+
   /** K.O. spectaculaire de l'attaque finale de Moussa, le temps de `SUPER_KO.seconds`. */
   superKO(): void {
     this.superKoTime = 0
@@ -292,6 +301,10 @@ export class CinematicLayer {
     if (this.cutInTime >= 0) {
       this.cutInTime += delta
       if (this.cutInTime >= CUT_IN_SECONDS) this.cutInTime = -1
+    }
+    if (this.blackTime >= 0) {
+      this.blackTime += delta
+      if (this.blackTime >= BLACK.in + BLACK.hold + BLACK.out) this.blackTime = -1
     }
     if (this.superKoTime >= 0) {
       this.superKoTime += delta
@@ -334,6 +347,12 @@ export class CinematicLayer {
     if (this.cutInTime >= 0) this.drawCutIn(ctx, this.cutInTime, frame, calm)
     if (this.koTime >= 0) this.announce(ctx, this.koTime, KO_ANNOUNCE, 'K.O.', 0.3, RED, w, h, calm)
     if (this.superKoTime >= 0) this.drawSuperKO(ctx, this.superKoTime, w, h, calm)
+    // passage au noir entre deux rounds : par-dessus le combat, sous les annonces du round suivant
+    if (this.blackTime >= 0) {
+      const b = this.blackTime
+      const alpha = b < BLACK.in ? b / BLACK.in : b < BLACK.in + BLACK.hold ? 1 : 1 - (b - BLACK.in - BLACK.hold) / BLACK.out
+      this.flash(ctx, w, h, alpha, '0, 0, 0')
+    }
     const t = this.time
     if (t < 0) return
 

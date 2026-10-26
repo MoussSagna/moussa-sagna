@@ -1,4 +1,4 @@
-import { CUT_IN_SECONDS, FOCUS_SECONDS, CinematicLayer } from '../cinematic/CinematicLayer'
+import { BLACK, CUT_IN_SECONDS, FOCUS_SECONDS, CinematicLayer } from '../cinematic/CinematicLayer'
 import { HUD, HudLayer } from '../hud/HudLayer'
 import { DummyLayer } from '../dummy/DummyLayer'
 import { HeroLayer, PLACEMENT } from '../hero/HeroLayer'
@@ -46,6 +46,13 @@ const DAMAGE = { perPower: 0.05, dive: 0.08, hammer: 0.2, koSeconds: 3 }
  * caméra se resserre sur l'adversaire, puis il s'envole au ralenti (`scale` de la vitesse normale pendant `slow`
  * secondes). Le round suivant arrive `extra` secondes plus tard qu'après un K.O. ordinaire.
  */
+/**
+ * Victoire : après le K.O. de l'adversaire, Moussa fait son animation de fin de round pendant que la caméra se
+ * resserre un peu sur lui (`zoom` en plus, atteint en `ease` secondes, recentrage partiel `pull`, visée à `height`
+ * de la hauteur de l'écran). L'écran passe au noir `black` secondes après le début ; quand il est noir, les
+ * combattants sont replacés au centre de l'arène et le round suivant est annoncé.
+ */
+const VICTORY = { zoom: 0.16, ease: 0.6, pull: 0.5, height: 0.72, black: 0.8 }
 const SUPER_KO = { freeze: 0.7, slow: 1.6, scale: 0.3, shake: 3.5, extra: 2 }
 /**
  * Secousse verticale de l'impact du coup de marteau de l'adversaire : l'écran rebondit de haut en bas `frequency`
@@ -92,6 +99,8 @@ export class StageEngine {
   private covered = false
   /** Temps écoulé depuis le début de la mise au point, ou -1. */
   private focusTime = -1
+  /** Temps écoulé depuis le début de l'animation de victoire de Moussa (-1 : aucune). */
+  private victoryTime = -1
   /** Celui sur qui la caméra se resserre pendant la mise au point. */
   private focusOn: 'hero' | 'rival' = 'hero'
   /** Plans assombris pendant l'attaque ultime de l'adversaire : tout sauf lui. */
@@ -251,6 +260,10 @@ export class StageEngine {
   /** Passe au round suivant : les deux combattants reviennent en garde à leur place de départ. */
   private nextRound(): void {
     this.quake = -1
+    this.victoryTime = -1
+    this.focusTime = -1
+    // la caméra se recentre d'un coup sur les combattants replacés au centre de l'arène
+    this.track = 0.5 - (PLACEMENT.x + RivalLayer.START_X) / 2
     this.slow = 0
     this.comboHits = 0
     this.round += 1
@@ -283,6 +296,7 @@ export class StageEngine {
     this.round = 1
     this.hud.reset(false)
     this.koWait = -1
+    this.victoryTime = -1
     // Moussa revient à sa place s'il était sorti ou s'il avait changé de côté
     if (this.roundEnding || this.mirrored) this.hero.reenter()
     this.rival.reset()
@@ -493,6 +507,18 @@ export class StageEngine {
       camera.ox += (ox - camera.ox) * FOCUS.pull * e
       camera.oy += (oy - camera.oy) * FOCUS.pull * e
     }
+    // victoire : la caméra se resserre un peu sur Moussa pendant son animation de fin de round
+    if (this.victoryTime >= 0 && !calm) {
+      const k = Math.min(1, this.victoryTime / VICTORY.ease)
+      const e = k * k * (3 - 2 * k)
+      const zoom = camera.zoom + VICTORY.zoom * e
+      const screen = this.mirrored ? 1 - this.hero.position : this.hero.position
+      const ox = (0.5 - screen + pan) / PLACEMENT.depth
+      const oy = (0.5 + 0.05 / zoom - VICTORY.height) / PLACEMENT.depth
+      camera.zoom = zoom
+      camera.ox += (ox - camera.ox) * VICTORY.pull * e
+      camera.oy += (oy - camera.oy) * VICTORY.pull * e
+    }
     // secousse d'impact : elle déplace tous les plans ensemble
     this.shake *= Math.exp(-delta * SHAKE.decay)
     if (!calm) {
@@ -646,7 +672,18 @@ export class StageEngine {
     if (this.koWait >= 0) {
       this.koWait += delta
       if (this.koWait >= this.koLength) {
+        // victoire : animation de fin de round de Moussa, puis passage au noir et round suivant
         this.koWait = -1
+        this.victoryTime = 0
+        this.hero.exit()
+      }
+    }
+    if (this.victoryTime >= 0) {
+      const before = this.victoryTime
+      this.victoryTime += delta
+      if (before < VICTORY.black && this.victoryTime >= VICTORY.black) this.cinematic.fadeToBlack()
+      if (this.victoryTime >= VICTORY.black + BLACK.in + BLACK.hold / 2) {
+        this.victoryTime = -1
         this.nextRound()
       }
     }
