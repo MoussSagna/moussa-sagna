@@ -24,7 +24,20 @@ export function feetOf(name: PoseName): [number, number] {
  * Certaines illustrations sont dessinées plus petit ou plus grand : valeurs mesurées sur la hauteur de la
  * tête. Les poses absentes de la liste sont à l'échelle 1.
  */
-const POSE_SCALE: Partial<Record<PoseName, number>> = { dashForward: 1.07, dashBack: 1.15, jumpPeak: 0.93, kickStart: 1.07, kickHit: 1.12 };
+const POSE_SCALE: Partial<Record<PoseName, number>> = {
+  dashForward: 1.07,
+  dashBack: 1.15,
+  jumpPeak: 0.93,
+  kickStart: 1.07,
+  kickHit: 1.12,
+  // jab : dessiné un peu plus petit que la garde (mesuré sur la hauteur, de la tête aux semelles)
+  jab1: 1.024,
+  jab2: 1.024,
+  jab3: 1.024,
+  jab4: 1.024,
+  jab5: 1.024,
+  jab6: 1.024,
+};
 
 /** Poses dessinées par le rig articulé (plusieurs calques animés séparément, rubans ondulés). */
 type RiggedPose = 'guard' | 'walk';

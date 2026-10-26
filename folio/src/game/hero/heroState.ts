@@ -69,13 +69,14 @@ interface Punch {
   /** Dessins du démarrage, qui se partagent sa durée. */
   start: PoseName[];
   hit: PoseName;
-  recover: PoseName;
+  /** Dessins de la récupération, qui se partagent sa durée. */
+  recover: PoseName[];
 }
 
 /**
  * Coups de poing debout. Durées en secondes, calquées sur des coups de jeu de combat à 60 images par
- * seconde (démarrage, actif, récupération). Le léger réutilise son dessin de démarrage pour la
- * récupération. Le moyen ne s'obtient qu'en enchaînant après le léger : son démarrage est fait des deux
+ * seconde (démarrage, actif, récupération). Le léger est un jab de boxeur en six dessins : quatre au
+ * démarrage, le bras tendu, puis le retour en garde en repassant par les dessins du démarrage. Le moyen ne s'obtient qu'en enchaînant après le léger : son démarrage est fait des deux
  * dessins de transition entre le jab et le direct. Le fort, un uppercut du bras avant, ne s'obtient qu'en
  * enchaînant après le moyen, et le coup de pied haut, quatrième et dernier coup, après le fort.
  */
@@ -85,9 +86,9 @@ export const PUNCHES = {
     active: 3 / 60,
     recovery: 7 / 60,
     reach: 580,
-    start: ['punchStart'],
-    hit: 'punchHit',
-    recover: 'punchStart',
+    start: ['jab1', 'jab2', 'jab3', 'jab4'],
+    hit: 'jab5',
+    recover: ['jab6', 'jab4', 'jab2', 'jab1'],
   },
   medium: {
     startup: 6 / 60,
@@ -96,7 +97,7 @@ export const PUNCHES = {
     reach: 560,
     start: ['punchChain1', 'punchChain2'],
     hit: 'punchMidHit',
-    recover: 'punchMidRecover',
+    recover: ['punchMidRecover'],
   },
   heavy: {
     startup: 11 / 60,
@@ -105,7 +106,7 @@ export const PUNCHES = {
     reach: 480,
     start: ['punchHeavyStart'],
     hit: 'punchHeavyHit',
-    recover: 'punchHeavyRecover',
+    recover: ['punchHeavyRecover'],
   },
   kick: {
     startup: 6 / 60,
@@ -114,7 +115,7 @@ export const PUNCHES = {
     reach: 700,
     start: ['kickStart'],
     hit: 'kickHit',
-    recover: 'kickStart',
+    recover: ['kickStart'],
   },
 } satisfies Record<string, Punch>;
 export type PunchStrength = keyof typeof PUNCHES;
@@ -295,7 +296,12 @@ export class HeroState {
       const index = Math.floor((this.punchTime / move.startup) * move.start.length);
       return move.start[Math.min(move.start.length - 1, index)] ?? move.hit;
     }
-    return this.punchTime < move.startup + move.active ? move.hit : move.recover;
+    if (this.punchTime < move.startup + move.active) {
+      return move.hit;
+    }
+    const k = (this.punchTime - move.startup - move.active) / move.recovery;
+    const index = Math.floor(k * move.recover.length);
+    return move.recover[Math.max(0, Math.min(move.recover.length - 1, index))] ?? move.hit;
   }
 
   /**

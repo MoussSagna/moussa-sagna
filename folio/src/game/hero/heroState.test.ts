@@ -223,11 +223,11 @@ describe('coups de poing', () => {
   it('joue le coup léger seul : démarrage, bras tendu, retour, puis garde', () => {
     const hero = new HeroState();
     hero.attack();
-    expect(hero.illustration).toBe('punchStart');
+    expect(hero.illustration).toBe('jab1');
     run(hero, light.startup + FRAME / 2, 0);
-    expect(hero.illustration).toBe('punchHit');
+    expect(hero.illustration).toBe('jab5');
     run(hero, light.active, 0);
-    expect(hero.illustration).toBe('punchStart');
+    expect(hero.illustration).toBe('jab6');
     run(hero, light.recovery + FRAME, 0);
     expect(hero.pose).toBe('guard');
   });
@@ -244,14 +244,12 @@ describe('coups de poing', () => {
       }
       hero.update(FRAME, 0, ASPECT);
     }
-    expect(order).toEqual([
-      'punchStart',
-      'punchHit',
-      'punchChain1',
-      'punchChain2',
-      'punchMidHit',
-      'punchMidRecover',
-    ]);
+    // le jab (démarrage en quatre dessins, un par image : le premier est passé avant le second appui), puis le coup
+    // moyen à la place de sa récupération
+    expect(order[0]).toBe('jab2');
+    expect(order).toContain('jab5');
+    expect(order).not.toContain('jab6');
+    expect(order.slice(order.indexOf('punchChain1'))).toEqual(['punchChain1', 'punchChain2', 'punchMidHit', 'punchMidRecover']);
     expect(hero.punchStrength).toBe('medium');
     expect(hero.pose).toBe('guard');
   });
