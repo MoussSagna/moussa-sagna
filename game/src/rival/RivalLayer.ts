@@ -509,6 +509,11 @@ const GUARDED_LEAN = 0.035
  * puissance) en `seconds`, vite puis en freinant. Contre le bord, ce qu'il ne peut pas reculer revient à Moussa.
  */
 const GUARD_PUSH = { distance: 0.01, seconds: 0.14 }
+/**
+ * Attaque ultime parée : après son uppercut, il reste figé dans ce dessin pendant `punish` secondes, sans pouvoir ni
+ * parer ni bouger, avant de revenir en garde. Moussa a le temps de le punir.
+ */
+const BLOCKED_ULTIMATE = { punish: 0.65 }
 const REFLECTION = { alpha: 0.2, squash: 0.5 }
 /** « Réduire les mouvements » : part de la respiration et du recul conservée. */
 const CALM_AMPLITUDE = 0.35
@@ -609,8 +614,13 @@ export class RivalLayer implements Opponent {
   /** Recul d'un coup paré en cours, et la part de recul que le bord lui a refusée (reprise par `takeCornerPush`). */
   private guardSlide: { from: number; distance: number; time: number } | null = null
   private cornerPush = 0
-  /** Fin anticipée du coup en cours (attaque ultime parée), en secondes depuis son début. */
+  /**
+   * Fin anticipée du coup en cours (attaque ultime parée), en secondes depuis son début ; à partir de `stopHold`, il
+   * reste figé dans `stopPose`.
+   */
   private stopAt = Infinity
+  private stopHold = Infinity
+  private stopPose: RivalPose = 'guard'
   private velocity = 0
 
   constructor(canvas: HTMLCanvasElement) {
@@ -865,11 +875,13 @@ export class RivalLayer implements Opponent {
     this.landedStep = null
     this.pose = MOVES[move].steps[0].pose
     this.stopAt = Infinity
+    this.stopHold = Infinity
   }
 
   /**
    * Son attaque ultime a été parée : elle ne se poursuit pas. Le coup en cours va au bout de ses images actives
-   * (l'uppercut entier), puis il revient en garde, sans l'envol ni la suite.
+   * (l'uppercut entier), il reste figé dans le dernier dessin (`BLOCKED_ULTIMATE.punish`), punissable, puis revient
+   * en garde, sans l'envol ni la suite.
    */
   stopAfterHit(): void {
     if (this.attackTime < 0) return
@@ -882,7 +894,10 @@ export class RivalLayer implements Opponent {
       index++
     }
     while (index + 1 < steps.length && steps[index + 1].active) end += steps[++index].seconds
-    this.stopAt = Math.min(this.stopAt, end)
+    if (end + BLOCKED_ULTIMATE.punish >= this.stopAt) return
+    this.stopHold = end
+    this.stopPose = steps[Math.min(index, steps.length - 1)].pose
+    this.stopAt = end + BLOCKED_ULTIMATE.punish
   }
 
   /** L'étape en cours du coup. */
@@ -1108,6 +1123,7 @@ export class RivalLayer implements Opponent {
         // attaque parée : elle s'arrête là
         this.attackTime = -1
         this.stopAt = Infinity
+        this.stopHold = Infinity
         this.pose = 'guard'
       } else if (this.ultimateQueued && this.move !== 'ultimate' && this.attackTime >= moveActiveEnd(move)) {
         // l'attaque ultime annule la suite du coup en cours
@@ -1128,7 +1144,8 @@ export class RivalLayer implements Opponent {
           this.pose = 'ultFly'
         }
       } else {
-        this.pose = this.moveStep().pose
+        // attaque parée : figé dans le dernier dessin de son coup, sans enchaîner la suite
+        this.pose = this.attackTime >= this.stopHold ? this.stopPose : this.moveStep().pose
       }
     }
     // recul d'un coup paré : il part vite et freine ; une attaque ou une téléportation l'interrompt
