@@ -460,7 +460,7 @@ const HURT = { stun: 0.24, recover: 0.13, push: 0, pushSeconds: 0.24, front: 200
  * largeur du stage, pour un coup de pleine puissance) en `pushSeconds`. `height` : hauteur de l'étincelle sur ses
  * avant-bras, debout et accroupi, en pixels de la toile.
  */
-const GUARD_HIT = { stun: 0.2, push: 0.03, pushSeconds: 0.18, height: 1050, crouchHeight: 720 }
+const GUARD_HIT = { stun: 0.2, push: 0.01, pushSeconds: 0.18, height: 1050, crouchHeight: 720 }
 /** Couleurs des étincelles (bord, intermédiaire) : rouge et orangé pour un coup porté, bleu pour un coup paré. */
 const SPARK_COLORS = { hit: [[0.91, 0.15, 0.18], [1, 0.6, 0.25]], guard: [[0.2, 0.5, 1], [0.6, 0.85, 1]] }
 

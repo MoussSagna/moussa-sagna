@@ -508,7 +508,7 @@ const GUARDED_LEAN = 0.035
  * Recul d'un coup paré : il glisse en arrière de `distance` (fraction de la largeur du stage, pour un coup de pleine
  * puissance) en `seconds`, vite puis en freinant. Contre le bord, ce qu'il ne peut pas reculer revient à Moussa.
  */
-const GUARD_PUSH = { distance: 0.03, seconds: 0.18 }
+const GUARD_PUSH = { distance: 0.01, seconds: 0.14 }
 const REFLECTION = { alpha: 0.2, squash: 0.5 }
 /** « Réduire les mouvements » : part de la respiration et du recul conservée. */
 const CALM_AMPLITUDE = 0.35
