@@ -479,6 +479,8 @@ export interface Strike {
   launch?: 'pop' | 'fly'
   /** La frappe de la paume, qui finit l'attaque finale de Moussa : un K.O. sur ce coup est spectaculaire. */
   finisher?: boolean
+  /** Un des coups d'une attaque à plusieurs coups (rafale, paume) : paré, il ne repousse pas, pour que la suite touche. */
+  sticky?: boolean
 }
 /** Instant du lancer et durée totale de l'attaque spéciale. */
 const SPECIAL_LAUNCH = SPECIAL.steps.slice(0, SPECIAL.steps.findIndex((step) => step.launch)).reduce((sum, step) => sum + step.seconds, 0)
@@ -814,11 +816,11 @@ export class HeroLayer {
         if (step.flurry === this.flurryLanded) return null
         const pose = this.flurry[step.flurry]
         const heavy = step.heavy === true
-        return { x: this.x + FLURRY.reach * pixel, height: FLURRY.heights[pose] ?? 1000, power: heavy ? HEAVY.power : FLURRY.power, stop: heavy ? HEAVY.stop : FLURRY.stop }
+        return { x: this.x + FLURRY.reach * pixel, height: FLURRY.heights[pose] ?? 1000, power: heavy ? HEAVY.power : FLURRY.power, stop: heavy ? HEAVY.stop : FLURRY.stop, sticky: true }
       }
       const t = this.groundTime - GROUND_PALM
       if (t < 0 || t >= GROUND.active || this.groundLanded) return null
-      return { x: this.x + GROUND.reach * pixel, height: GROUND.height, power: GROUND.power, stop: GROUND.stop, finisher: true }
+      return { x: this.x + GROUND.reach * pixel, height: GROUND.height, power: GROUND.power, stop: GROUND.stop, finisher: true, sticky: true }
     }
     if (this.pose !== 'punch' || this.punchLanded) return null
     const move = PUNCHES[this.punchStrength]
