@@ -45,7 +45,7 @@ export const TRAINING_MODULES: TrainingModule[] = [
   {
     id: 'deplacements',
     label: 'Déplacements',
-    description: 'Marche avant et arrière, au clavier ou avec les boutons.',
+    description: 'Marche avant et arrière, au clavier, jusqu’à Shigaraki.',
     available: true,
   },
   {
@@ -57,7 +57,7 @@ export const TRAINING_MODULES: TrainingModule[] = [
   {
     id: 'combos',
     label: 'Combos',
-    description: 'Coup de poing léger, puis moyen sur un second appui. D’autres coups viendront.',
+    description: 'Léger, moyen, fort, puis coup de pied : chaque coup qui touche fait vaciller Shigaraki.',
     available: true,
   },
   {

@@ -233,6 +233,27 @@ franchement différentes.
 État repris : `lab/` au commit `75c9232` (11 octobre 2026). Toute nouvelle pose doit garder la même vue et la
 même taille de tête, sinon le personnage saute au changement d'état.
 
+## Shigaraki dans l'arène
+
+Depuis le 27 octobre, l'adversaire se tient en garde face à Moussa, à sa place de départ du lab (`RIVAL_X`). Il
+ne se déplace pas, ne pare pas et n'attaque pas encore : c'est une cible.
+
+- **État** : `src/game/rival/rivalState.ts` (sans Phaser, testé) : garde, coup reçu (`hurt`) puis retour
+  (`hurtRecover`) pendant les durées de `HIT`, et une inclinaison en arrière qui revient comme un ressort amorti.
+  Poses, points d'appui et échelles repris de `RivalLayer` (`../lab/src/game/rival/RivalLayer.ts`).
+- **Dessin** : `ArenaScene.drawRival` place une image par pose sur le même plan du sol et avec la même caméra que
+  Moussa, avec son reflet et son ombre, et la respiration de la garde (étirement vertical). L'inclinaison est une
+  rotation autour des pieds. Ses trois images sont chargées avec le décor (`preload`) ; sans elles, l'arène reste
+  sans adversaire. Il est dessiné derrière Moussa.
+- **Contact** : `HeroState.wall` empêche Moussa de le traverser en marchant, en dashant ou en sautant
+  (`RIVAL_BODY.gap`). Pendant les images actives d'un coup (`HeroState.strike`), si le bout du coup atteint
+  `RIVAL_BODY.surface`, le coup touche une fois (`land`) : Shigaraki encaisse, le combat se fige un instant
+  (`stop` du coup, deux fois moins avec « Réduire les animations »), l'écran tremble (`SHAKE`, pas avec « Réduire
+  les animations ») et une étincelle jaillit au point d'impact (texture dessinée au démarrage, `SPARK`).
+- **Pas repris** : ses déplacements en lévitation, sa parade, ses téléportations et le changement de côté, ses
+  coups, l'attaque ultime, les barres de vie, le combo, le drive rush et le K.O. Dans le folio, l'enchaînement de
+  Moussa continue même quand un coup ne touche pas (dans le lab, il s'arrête).
+
 ## Cinématique d'entrée
 
 À l'ouverture de l'arène, une cinématique présente Moussa puis son adversaire, avant « Face your destiny », « Round 1 » et « Fight! ». Elle est reprise du lab : `src/game/cinematic/cinematic.ts` est une copie adaptée de `../lab/src/game/cinematic/CinematicLayer.ts`, sans dépendance à Phaser, qui dessine en Canvas 2D (plans, caméra, pluie, pétales, lanternes, transitions, cartons, annonces). Les plans sont les WebP de `public/assets/cinematic/`, repris du lab.

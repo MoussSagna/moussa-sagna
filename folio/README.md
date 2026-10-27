@@ -44,7 +44,7 @@ Dans l'arène :
 | S'accroupir | maintenir ↓ ou S |
 | Parer, debout ou accroupi | maintenir Espace |
 | Sauter | ↑ ou Z ; avec ← ou → maintenu, saut arrière ou avant |
-| Attaquer | J, puis J à nouveau pour enchaîner le coup moyen, le coup fort, puis le coup de pied |
+| Attaquer | J, puis J à nouveau pour enchaîner le coup moyen, le coup fort, puis le coup de pied ; Shigaraki encaisse les coups qui le touchent |
 
 L'arène n'a plus de boutons de commande : elle se joue au clavier. Échap passe l'intro ; F, ou le bouton dans le coin de l'écran de jeu, met l'arène en plein écran (Échap ou F pour en sortir).
 

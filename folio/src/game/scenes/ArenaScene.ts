@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { STAGE_BACKGROUND_URL, STAGE_DEPTH_URL, cinematicShotUrl } from '../../assets';
+import { STAGE_BACKGROUND_URL, STAGE_DEPTH_URL, cinematicShotUrl, rivalPoseUrl } from '../../assets';
 import { CINEMATIC_TEXTS } from '../../data/cinematic';
 import { CINEMATIC_SHOTS, Cinematic } from '../cinematic/cinematic';
 import { HeroAtlases } from '../hero/HeroAtlases';
@@ -10,6 +10,8 @@ import { CANVAS, POSES } from '../hero/poseData';
 import { guardMatrices, heldMatrix, scaleAbout, walkMatrices } from '../hero/poseRig';
 import type { Affine } from '../hero/poseRig';
 import { ArenaKeyboard } from '../input';
+import { RIVAL_BODY, RIVAL_POSES, RivalState } from '../rival/rivalState';
+import type { RivalPoseName } from '../rival/rivalState';
 import { computeCamera } from '../stage/camera';
 import type { StageCamera } from '../stage/camera';
 import { STAGE_FRAGMENT, STAGE_TEXTURE_DATA, STAGE_UNIFORMS } from '../stage/shaders';
@@ -34,7 +36,10 @@ const TRAIN_RUN = 7;
 const REFLECTION_DEPTH = 1;
 const SHADOW_DEPTH = 2;
 const GHOST_DEPTH = 3;
+/** Shigaraki, derrière Moussa, et les étincelles des coups, devant les deux. */
+const RIVAL_DEPTH = 3.5;
 const HERO_DEPTH = 4;
+const SPARK_DEPTH = 5;
 const WEATHER_DEPTH = 100;
 /** La cinématique d'entrée recouvre tout, météo comprise. */
 const CINEMATIC_DEPTH = 200;
@@ -42,6 +47,20 @@ const CINEMATIC_KEY = 'arena-cinematic';
 const cinematicShotKey = (shot: string): string => `cinematic-${shot}`;
 
 const SHADOW_KEY = 'hero-shadow';
+const SPARK_KEY = 'hit-spark';
+const rivalPoseKey = (pose: RivalPoseName): string => `rival-${pose}`;
+const RIVAL_POSE_NAMES = Object.keys(RIVAL_POSES) as RivalPoseName[];
+/** Taille des images de Shigaraki : la toile de 1024 × 1536, comme celle de Moussa. */
+const RIVAL_IMAGE: [number, number] = [1024, 1536];
+
+/**
+ * Secousse de l'écran quand un coup touche : décalage maximal (fraction de l'écran) pour une puissance de 1,
+ * et vitesse à laquelle elle s'éteint.
+ */
+const SHAKE = { amplitude: 0.006, decay: 9 };
+
+/** Étincelle d'un coup qui touche : durée de vie et de croissance (secondes), taille (pixels de la toile), nombre à la fois. */
+const SPARK = { seconds: 0.22, grow: 0.06, size: 520, pool: 4 };
 
 /** Reflet sur le sol mouillé : le personnage retourné sous ses pieds, écrasé et presque transparent. */
 const REFLECTION = { alpha: 0.2, squash: 0.5 };
@@ -77,6 +96,22 @@ const HELD_POSES: PoseName[] = ['crouch', 'block', 'crouchBlock'];
 /** Texture toujours présente dans Phaser, donnée aux images fantômes au repos. */
 const BLANK_TEXTURE = '__DEFAULT';
 
+interface Rival {
+  state: RivalState;
+  body: Phaser.GameObjects.Image;
+  reflection: Phaser.GameObjects.Image;
+  shadow: Phaser.GameObjects.Image;
+}
+
+interface Spark {
+  image: Phaser.GameObjects.Image;
+  /** Point d'impact, en fraction de la largeur du stage, et hauteur au-dessus du sol (pixels de la toile). */
+  x: number;
+  height: number;
+  power: number;
+  age: number;
+}
+
 interface Hero {
   state: HeroState;
   atlases: HeroAtlases;
@@ -91,6 +126,12 @@ export class ArenaScene extends Phaser.Scene {
   private weatherGraphics: Phaser.GameObjects.Graphics | null = null;
   private weather = new Weather();
   private hero: Hero | null = null;
+  private rival: Rival | null = null;
+  private sparks: Spark[] = [];
+  /** Arrêt sur image restant quand un coup touche, en secondes : le combat se fige, le décor continue. */
+  private stop = 0;
+  /** Force de la secousse de l'écran, qui s'éteint d'elle-même. */
+  private shake = 0;
   private atlases: HeroAtlases | null = null;
   private keyboard: ArenaKeyboard | null = null;
   private taps = new DoubleTap();
@@ -121,6 +162,9 @@ export class ArenaScene extends Phaser.Scene {
     this.load.image(DEPTH_KEY, STAGE_DEPTH_URL);
     for (const shot of CINEMATIC_SHOTS) {
       this.load.image(cinematicShotKey(shot), cinematicShotUrl(shot));
+    }
+    for (const pose of RIVAL_POSE_NAMES) {
+      this.load.image(rivalPoseKey(pose), rivalPoseUrl(pose));
     }
   }
 
@@ -162,6 +206,16 @@ export class ArenaScene extends Phaser.Scene {
     pointer.x += (pointer.targetX - pointer.x) * 0.06;
     pointer.y += (pointer.targetY - pointer.y) * 0.06;
     const camera = computeCamera(time, time * 1000, pointer, this.calm);
+    // secousse d'impact : elle déplace tous les plans ensemble
+    this.shake *= Math.exp(-delta * SHAKE.decay);
+    if (!this.calm) {
+      camera.ox += Math.sin(time * 97) * this.shake * SHAKE.amplitude;
+      camera.oy += Math.cos(time * 83) * this.shake * SHAKE.amplitude * 0.6;
+    }
+    // arrêt sur image : le combat se fige un instant, le décor, la météo et les étincelles continuent
+    const stopped = this.stop > 0;
+    this.stop = Math.max(0, this.stop - delta);
+    const fight = stopped ? 0 : delta;
 
     // éclair : un flash franc puis une réplique
     if (time > this.nextBolt) {
@@ -183,9 +237,19 @@ export class ArenaScene extends Phaser.Scene {
     this.stage.setUniform('uOff.value.x', -camera.ox);
     this.stage.setUniform('uOff.value.y', -camera.oy);
 
-    if (this.hero) {
-      this.updateHero(this.hero, time, delta, camera);
+    if (this.rival) {
+      this.rival.state.update(fight);
     }
+    if (this.hero) {
+      this.updateHero(this.hero, time, fight, camera);
+    }
+    if (this.hero && this.rival && !stopped) {
+      this.resolveHits(this.hero, this.rival);
+    }
+    if (this.rival) {
+      this.drawRival(this.rival, time, camera);
+    }
+    this.updateSparks(delta, camera);
 
     this.weather.draw(this.weatherGraphics, {
       time,
@@ -205,6 +269,7 @@ export class ArenaScene extends Phaser.Scene {
       .shader(shader, 0, 0, width, height, [BACKGROUND_KEY, DEPTH_KEY], STAGE_TEXTURE_DATA)
       .setOrigin(0);
     this.weatherGraphics = this.add.graphics().setDepth(WEATHER_DEPTH);
+    this.addRival();
     void this.loadHero();
 
     this.input.on(Phaser.Input.Events.POINTER_MOVE, (pointer: Phaser.Input.Pointer) => {
@@ -246,6 +311,26 @@ export class ArenaScene extends Phaser.Scene {
 
   /** Moussa : reflet, ombre et personnage, plus le clavier et les boutons de l'interface. */
   private addHero(atlases: HeroAtlases): void {
+    this.addShadowTexture();
+    const reflection = new HeroRig(this, atlases, REFLECTION.alpha);
+    reflection.container.setDepth(REFLECTION_DEPTH);
+    const shadow = this.add.image(0, 0, SHADOW_KEY).setDepth(SHADOW_DEPTH);
+    const body = new HeroRig(this, atlases);
+    body.container.setDepth(HERO_DEPTH);
+    const ghosts = DASH_GHOSTS.map(() =>
+      this.add.image(0, 0, BLANK_TEXTURE).setOrigin(0).setDepth(GHOST_DEPTH).setVisible(false),
+    );
+    this.hero = { state: new HeroState(), atlases, body, reflection, shadow, ghosts };
+
+    this.keyboard = new ArenaKeyboard({
+      onTap: (direction, at) => this.tap(direction, at),
+      onJump: () => this.jump(),
+      onAttack: () => this.attack(),
+    });
+  }
+
+  /** Ombre au sol, partagée par les deux combattants : un disque noir qui s'estompe vers le bord. */
+  private addShadowTexture(): void {
     if (!this.textures.exists(SHADOW_KEY)) {
       // ombre au sol : un disque noir qui s'estompe vers le bord
       const size = 128;
@@ -263,21 +348,67 @@ export class ArenaScene extends Phaser.Scene {
         canvas.refresh();
       }
     }
-    const reflection = new HeroRig(this, atlases, REFLECTION.alpha);
-    reflection.container.setDepth(REFLECTION_DEPTH);
-    const shadow = this.add.image(0, 0, SHADOW_KEY).setDepth(SHADOW_DEPTH);
-    const body = new HeroRig(this, atlases);
-    body.container.setDepth(HERO_DEPTH);
-    const ghosts = DASH_GHOSTS.map(() =>
-      this.add.image(0, 0, BLANK_TEXTURE).setOrigin(0).setDepth(GHOST_DEPTH).setVisible(false),
-    );
-    this.hero = { state: new HeroState(), atlases, body, reflection, shadow, ghosts };
+  }
 
-    this.keyboard = new ArenaKeyboard({
-      onTap: (direction, at) => this.tap(direction, at),
-      onJump: () => this.jump(),
-      onAttack: () => this.attack(),
-    });
+  /**
+   * Shigaraki : reflet, ombre et personnage, en garde à sa place. Ses images sont chargées avec le décor ; sans
+   * elles, l'arène reste sans adversaire. Les étincelles des coups sont préparées en même temps.
+   */
+  private addRival(): void {
+    if (!RIVAL_POSE_NAMES.every((pose) => this.textures.exists(rivalPoseKey(pose)))) {
+      return;
+    }
+    this.addShadowTexture();
+    const key = rivalPoseKey('guard');
+    const reflection = this.add.image(0, 0, key).setDepth(REFLECTION_DEPTH).setAlpha(REFLECTION.alpha);
+    const shadow = this.add.image(0, 0, SHADOW_KEY).setDepth(SHADOW_DEPTH);
+    const body = this.add.image(0, 0, key).setDepth(RIVAL_DEPTH);
+    this.rival = { state: new RivalState(), body, reflection, shadow };
+    this.addSparkTexture();
+    this.sparks = Array.from({ length: SPARK.pool }, () => ({
+      image: this.add.image(0, 0, SPARK_KEY).setDepth(SPARK_DEPTH).setBlendMode(Phaser.BlendModes.ADD).setVisible(false),
+      x: 0,
+      height: 0,
+      power: 0,
+      age: SPARK.seconds,
+    }));
+  }
+
+  /** Étincelle d'impact : une étoile à huit branches, cœur blanc, bords rouge et orangé, sur un halo. */
+  private addSparkTexture(): void {
+    if (this.textures.exists(SPARK_KEY)) {
+      return;
+    }
+    const size = 256;
+    const canvas = this.textures.createCanvas(SPARK_KEY, size, size);
+    if (!canvas) {
+      return;
+    }
+    const context = canvas.getContext();
+    const center = size / 2;
+    const glow = context.createRadialGradient(center, center, 0, center, center, center);
+    glow.addColorStop(0, 'rgba(255, 240, 220, 0.9)');
+    glow.addColorStop(0.25, 'rgba(255, 150, 70, 0.45)');
+    glow.addColorStop(1, 'rgba(232, 38, 45, 0)');
+    context.fillStyle = glow;
+    context.fillRect(0, 0, size, size);
+    for (let ray = 0; ray < 8; ray++) {
+      const angle = (ray / 8) * Math.PI * 2 + 0.2;
+      const length = center * (ray % 2 === 0 ? 0.98 : 0.6);
+      const width = ray % 2 === 0 ? 0.13 : 0.1;
+      const gradient = context.createLinearGradient(center, center, center + Math.cos(angle) * length, center + Math.sin(angle) * length);
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+      gradient.addColorStop(0.45, 'rgba(255, 170, 80, 0.9)');
+      gradient.addColorStop(1, 'rgba(232, 38, 45, 0)');
+      context.fillStyle = gradient;
+      context.beginPath();
+      context.moveTo(center + Math.cos(angle - width) * size * 0.04, center + Math.sin(angle - width) * size * 0.04);
+      context.lineTo(center + Math.cos(angle) * length, center + Math.sin(angle) * length);
+      context.lineTo(center + Math.cos(angle + width) * size * 0.04, center + Math.sin(angle + width) * size * 0.04);
+      context.closePath();
+      context.fill();
+    }
+    canvas.refresh();
   }
 
   /** Vrai si les images de cette action sont arrivées, et que la cinématique d'entrée laisse jouer. */
@@ -332,7 +463,6 @@ export class ArenaScene extends Phaser.Scene {
     texture.refresh();
   }
 
-  /** Les boutons de l'interface passent par le registre : un passage à 1 ou -1 est un appui. */
   /** Un appui sur une direction : le second appui rapproché dans le même sens lance un dash. */
   private tap(direction: number, at: number): void {
     if (this.taps.tap(direction, at) && this.can('dash')) {
@@ -430,6 +560,84 @@ export class ArenaScene extends Phaser.Scene {
         .setAlpha(alpha)
         .setVisible(true);
     });
+  }
+
+  /**
+   * Moussa ne traverse pas Shigaraki ; un coup qui l'atteint le fait réagir : coup reçu, inclinaison, arrêt sur
+   * image, secousse et étincelle au point d'impact.
+   */
+  private resolveHits(hero: Hero, rival: Rival): void {
+    const { width, height } = this.scale;
+    // largeur d'un pixel de la toile, en fraction de la largeur du stage
+    const pixel = (PLACEMENT.scale / CANVAS[1]) * (height / width);
+    hero.state.wall = rival.state.x - RIVAL_BODY.gap * pixel;
+    const surface = rival.state.x - RIVAL_BODY.surface * pixel;
+    const strike = hero.state.strike(pixel);
+    if (!strike || strike.x < surface) {
+      return;
+    }
+    hero.state.land();
+    rival.state.hit(strike.power);
+    this.stop = strike.stop * (this.calm ? 0.5 : 1);
+    this.shake = Math.max(this.shake, strike.power);
+    const spark = this.sparks.reduce((oldest, other) => (other.age > oldest.age ? other : oldest));
+    Object.assign(spark, { x: surface, height: strike.height, power: strike.power, age: 0 });
+  }
+
+  /** Shigaraki, son reflet et son ombre, sur le même plan du sol et avec la même caméra que Moussa. */
+  private drawRival(rival: Rival, time: number, camera: StageCamera): void {
+    const { width, height } = this.scale;
+    const { state } = rival;
+    const pose = RIVAL_POSES[state.pose];
+    const key = rivalPoseKey(state.pose);
+    const amplitude = this.calm ? CALM_AMPLITUDE : 1;
+    const groundX = ((state.x + PLACEMENT.depth * camera.ox - 0.5) * camera.zoom + 0.5) * width;
+    const groundY = ((PLACEMENT.y + PLACEMENT.depth * camera.oy - 0.5) * camera.zoom + 0.5) * height;
+    const unit = (PLACEMENT.scale * camera.zoom * height) / CANVAS[1];
+    const scaleX = pose.scale * unit;
+    // il respire en s'étirant depuis le sol ; touché, il penche en arrière, pieds fixes (une rotation autour du
+    // point posé au sol, très proche de l'inclinaison du lab pour de si petits angles)
+    const scaleY = pose.scale * state.breath(time, amplitude) * unit;
+    const lean = Math.atan(state.lean * amplitude);
+    const origin: [number, number] = [pose.ground[0] / RIVAL_IMAGE[0], pose.ground[1] / RIVAL_IMAGE[1]];
+    rival.body
+      .setTexture(key)
+      .setOrigin(...origin)
+      .setPosition(groundX, groundY)
+      .setScale(scaleX, scaleY)
+      .setRotation(lean);
+    // reflet : le même dessin retourné et écrasé sous ses pieds
+    rival.reflection
+      .setTexture(key)
+      .setOrigin(...origin)
+      .setPosition(groundX, groundY)
+      .setScale(scaleX, -scaleY * REFLECTION.squash)
+      .setRotation(-lean);
+    const tall = unit * CANVAS[1];
+    rival.shadow.setPosition(groundX, groundY - tall * 0.006).setDisplaySize(tall * 0.34, tall * 0.033);
+  }
+
+  /** Les étincelles grossissent d'un coup puis s'éteignent, même pendant l'arrêt sur image. */
+  private updateSparks(delta: number, camera: StageCamera): void {
+    const { width, height } = this.scale;
+    const unit = (PLACEMENT.scale * camera.zoom * height) / CANVAS[1];
+    const groundY = ((PLACEMENT.y + PLACEMENT.depth * camera.oy - 0.5) * camera.zoom + 0.5) * height;
+    for (const spark of this.sparks) {
+      spark.age += delta;
+      const k = spark.age / SPARK.seconds;
+      if (k >= 1) {
+        spark.image.setVisible(false);
+        continue;
+      }
+      const grow = 1 - (1 - Math.min(1, spark.age / SPARK.grow)) ** 3;
+      const size = SPARK.size * (0.55 + 0.45 * spark.power) * (0.5 + 0.6 * grow) * (this.calm ? 0.7 : 1);
+      spark.image
+        .setVisible(true)
+        .setPosition(((spark.x + PLACEMENT.depth * camera.ox - 0.5) * camera.zoom + 0.5) * width, groundY - spark.height * unit)
+        .setDisplaySize(size * unit, size * unit)
+        .setRotation(spark.power * 3 + spark.x * 40)
+        .setAlpha(1 - k * k);
+    }
   }
 
   private onMotionChange = (event: MediaQueryListEvent): void => {

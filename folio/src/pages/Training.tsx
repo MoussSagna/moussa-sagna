@@ -58,7 +58,7 @@ export function Training() {
         <PageHead
           eyebrow="Arène · Mode entraînement"
           title="Premiers pas dans l’arène"
-          lead="Une cinématique présente Moussa et son adversaire, Shigaraki, puis Moussa se tient en garde dans l’arène, rendue en temps réel ci-dessous et jouable au clavier, en plein écran si tu veux. Il marche, dashe, s’accroupit, pare, saute sur place, en avant ou en arrière, et enchaîne trois coups de poing et un coup de pied. Shigaraki n’entre pas encore dans l’arène : les coups ne touchent rien."
+          lead="Une cinématique présente Moussa et son adversaire, Shigaraki, puis Moussa se tient en garde dans l’arène, rendue en temps réel ci-dessous et jouable au clavier, en plein écran si tu veux. Il marche, dashe, s’accroupit, pare, saute sur place, en avant ou en arrière, et enchaîne trois coups de poing et un coup de pied. Shigaraki l’attend en garde : il encaisse les coups, mais ne riposte pas encore."
         />
 
         <figure className="arena-frame rise" style={{ animationDelay: '240ms' }}>

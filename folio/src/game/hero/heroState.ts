@@ -64,8 +64,14 @@ interface Punch {
   startup: number;
   active: number;
   recovery: number;
-  /** Distance entre l'aplomb des hanches et le bout du poing tendu, en pixels de la toile, pour la future zone de frappe. */
+  /** Distance entre l'aplomb des hanches et le bout du poing tendu, en pixels de la toile : là où le coup touche. */
   reach: number;
+  /** Hauteur du coup au-dessus du sol, en pixels de la toile (où jaillit l'étincelle). */
+  height: number;
+  /** Puissance : 1 pour un coup fort. Elle règle l'inclinaison de l'adversaire et la secousse. */
+  power: number;
+  /** Arrêt sur image quand le coup touche, en secondes. */
+  stop: number;
   /** Dessins du démarrage, qui se partagent sa durée. */
   start: PoseName[];
   hit: PoseName;
@@ -76,9 +82,11 @@ interface Punch {
 /**
  * Coups de poing debout. Durées en secondes, calquées sur des coups de jeu de combat à 60 images par
  * seconde (démarrage, actif, récupération). Le léger est un jab de boxeur en six dessins : quatre au
- * démarrage, le bras tendu, puis le retour en garde en repassant par les dessins du démarrage. Le moyen ne s'obtient qu'en enchaînant après le léger : son démarrage est fait des deux
- * dessins de transition entre le jab et le direct. Le fort, un uppercut du bras avant, ne s'obtient qu'en
- * enchaînant après le moyen, et le coup de pied haut, quatrième et dernier coup, après le fort.
+ * démarrage, le bras tendu, puis le retour en garde en repassant par les dessins du démarrage. Le moyen
+ * ne s'obtient qu'en enchaînant après le léger : son démarrage est fait des deux dessins de transition
+ * entre le jab et le direct. Le fort, un uppercut du bras avant, ne s'obtient qu'en
+ * enchaînant après le moyen, et le coup de pied haut, quatrième et dernier coup, après le fort. Portée, hauteur,
+ * puissance et arrêt sur image sont ceux du lab.
  */
 export const PUNCHES = {
   light: {
@@ -86,6 +94,9 @@ export const PUNCHES = {
     active: 3 / 60,
     recovery: 7 / 60,
     reach: 580,
+    height: 1010,
+    power: 0.35,
+    stop: 0.06,
     start: ['jab1', 'jab2', 'jab3', 'jab4'],
     hit: 'jab5',
     recover: ['jab6', 'jab4', 'jab2', 'jab1'],
@@ -95,6 +106,9 @@ export const PUNCHES = {
     active: 4 / 60,
     recovery: 11 / 60,
     reach: 560,
+    height: 960,
+    power: 0.6,
+    stop: 0.09,
     start: ['punchChain1', 'punchChain2'],
     hit: 'punchMidHit',
     recover: ['punchMidRecover'],
@@ -104,6 +118,9 @@ export const PUNCHES = {
     active: 6 / 60,
     recovery: 20 / 60,
     reach: 480,
+    height: 1150,
+    power: 1,
+    stop: 0.15,
     start: ['punchHeavyStart'],
     hit: 'punchHeavyHit',
     recover: ['punchHeavyRecover'],
@@ -113,6 +130,9 @@ export const PUNCHES = {
     active: 4 / 60,
     recovery: 11 / 60,
     reach: 700,
+    height: 1220,
+    power: 1,
+    stop: 0.17,
     start: ['kickStart'],
     hit: 'kickHit',
     recover: ['kickStart'],
@@ -146,6 +166,14 @@ export class DoubleTap {
     this.last = { direction, at: now };
     return false;
   }
+}
+
+/** Un coup qui peut toucher à cet instant : son bout (fraction de la largeur du stage), sa hauteur, sa puissance. */
+export interface Strike {
+  x: number;
+  height: number;
+  power: number;
+  stop: number;
 }
 
 /** Dessin, hauteur des pieds (pixels de la toile) et déformation (largeur, hauteur) à un instant du saut. */
@@ -183,6 +211,18 @@ export class HeroState {
   jumping = { direction: 0, from: PLACEMENT.x };
   /** Temps restant dans la pose de passage. */
   private stepLeft = 0;
+  /** Vrai une fois que le coup de poing en cours a touché : il ne touche qu'une fois. */
+  private punchLanded = false;
+  /**
+   * Limite avant imposée par l'adversaire (fraction de la largeur du stage) : le personnage ne le traverse pas.
+   * Le bord du stage reste la limite tant qu'il est plus près.
+   */
+  wall: number = PLACEMENT.maxX;
+
+  /** Limite avant : le bord du stage, ou l'adversaire s'il est plus près. */
+  private get limit(): number {
+    return Math.min(PLACEMENT.maxX, this.wall);
+  }
 
   /** Vrai en garde ou en marche : les seuls états d'où partent un dash, un saut ou un coup. */
   private get free(): boolean {
@@ -218,7 +258,7 @@ export class HeroState {
     const k = Math.max(0, Math.min(1, time / move.seconds));
     const eased = 1 - (1 - k) ** 3;
     const x = this.dashing.from + this.dashing.direction * move.distance * eased;
-    return Math.max(PLACEMENT.minX, Math.min(PLACEMENT.maxX, x));
+    return Math.max(PLACEMENT.minX, Math.min(this.limit, x));
   }
 
   /**
@@ -287,6 +327,27 @@ export class HeroState {
     this.punchStrength = next ?? 'light';
     this.punchTime = 0;
     this.punchQueued = false;
+    this.punchLanded = false;
+  }
+
+  /**
+   * Le coup qui peut toucher à cet instant : pendant ses images actives, tant qu'il n'a pas déjà touché.
+   * `pixel` : largeur d'un pixel de la toile, en fraction de la largeur du stage.
+   */
+  strike(pixel: number): Strike | null {
+    if (this.pose !== 'punch' || this.punchLanded) {
+      return null;
+    }
+    const move: Punch = PUNCHES[this.punchStrength];
+    if (this.punchTime < move.startup || this.punchTime >= move.startup + move.active) {
+      return null;
+    }
+    return { x: this.x + move.reach * pixel, height: move.height, power: move.power, stop: move.stop };
+  }
+
+  /** Le coup en cours a touché : il ne touchera plus. */
+  land(): void {
+    this.punchLanded = true;
   }
 
   /** Dessin du coup de poing en cours : démarrage, bras tendu pendant les images actives, puis récupération. */
@@ -338,6 +399,7 @@ export class HeroState {
         this.punchStrength = next;
         this.punchTime = 0;
         this.punchQueued = false;
+        this.punchLanded = false;
         return;
       }
       if (this.punchTime < move.startup + move.active + move.recovery) {
@@ -352,7 +414,7 @@ export class HeroState {
       const { direction: jumpDirection, from } = this.jumping;
       if (jumpDirection !== 0) {
         const distance = jumpDirection > 0 ? JUMP.forward : JUMP.back;
-        this.x = Math.max(PLACEMENT.minX, Math.min(PLACEMENT.maxX, from + jumpDirection * distance * this.jumpFlight()));
+        this.x = Math.max(PLACEMENT.minX, Math.min(this.limit, from + jumpDirection * distance * this.jumpFlight()));
       }
       if (this.jumpTime < JUMP.start + JUMP.rise + JUMP.fall + JUMP.land) {
         return;
@@ -391,7 +453,7 @@ export class HeroState {
       this.pass(crouch ? 'crouchStep' : 'blockStep');
       return;
     }
-    const blocked = (direction > 0 && this.x >= PLACEMENT.maxX) || (direction < 0 && this.x <= PLACEMENT.minX);
+    const blocked = (direction > 0 && this.x >= this.limit) || (direction < 0 && this.x <= PLACEMENT.minX);
     // demander l'accroupi ou la parade en marchant arrête d'abord la marche : le personnage repasse par la garde
     const moving = direction !== 0 && !blocked && !crouch && !block;
     // garde <-> pose intermédiaire <-> marche : on ne saute jamais directement d'un bout à l'autre
@@ -411,7 +473,7 @@ export class HeroState {
     this.phase = (((this.phase + (direction * delta) / GAIT.period) % 1) + 1) % 1;
     // le corps avance à la vitesse du pied posé ; jouer le cycle à l'envers donne la marche arrière
     const pixel = (PLACEMENT.scale / CANVAS[1]) * aspect;
-    this.x = Math.max(PLACEMENT.minX, Math.min(PLACEMENT.maxX, this.x + direction * WALK_SPEED * pixel * delta));
+    this.x = Math.max(PLACEMENT.minX, Math.min(this.limit, this.x + direction * WALK_SPEED * pixel * delta));
   }
 
   private pass(pose: 'crouchStep' | 'blockStep'): void {
