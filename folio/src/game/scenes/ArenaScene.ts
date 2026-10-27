@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import { STAGE_BACKGROUND_URL, STAGE_DEPTH_URL, cinematicShotUrl } from '../../assets';
 import { CINEMATIC_TEXTS } from '../../data/cinematic';
 import { CINEMATIC_SHOTS, Cinematic } from '../cinematic/cinematic';
-import { CONTROLS } from '../controls';
 import { HeroAtlases } from '../hero/HeroAtlases';
 import { GROUND, HeroRig, feetOf, singleLayerPlacement } from '../hero/HeroRig';
 import { DoubleTap, HeroState, JUMP, PLACEMENT } from '../hero/heroState';
@@ -279,9 +278,6 @@ export class ArenaScene extends Phaser.Scene {
       onJump: () => this.jump(),
       onAttack: () => this.attack(),
     });
-    this.registry.events.on(`changedata-${CONTROLS.walk}`, this.onWalkButton, this);
-    this.registry.events.on(`changedata-${CONTROLS.jump}`, this.jump, this);
-    this.registry.events.on(`changedata-${CONTROLS.attack}`, this.attack, this);
   }
 
   /** Vrai si les images de cette action sont arrivées, et que la cinématique d'entrée laisse jouer. */
@@ -309,17 +305,7 @@ export class ArenaScene extends Phaser.Scene {
     );
     void Cinematic.loadFonts();
     this.cinematic.start();
-    this.registry.events.on(`changedata-${CONTROLS.skipCinematic}`, this.skipCinematic, this);
-    this.registry.events.on(`changedata-${CONTROLS.replayCinematic}`, this.replayCinematic, this);
     window.addEventListener('keydown', this.onCinematicKey);
-  }
-
-  private skipCinematic(): void {
-    this.cinematic.skip();
-  }
-
-  private replayCinematic(): void {
-    this.cinematic.start();
   }
 
   /** Échap passe les plans de la cinématique. */
@@ -347,12 +333,6 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   /** Les boutons de l'interface passent par le registre : un passage à 1 ou -1 est un appui. */
-  private onWalkButton(_parent: unknown, value: unknown): void {
-    if (value === 1 || value === -1) {
-      this.tap(value, performance.now());
-    }
-  }
-
   /** Un appui sur une direction : le second appui rapproché dans le même sens lance un dash. */
   private tap(direction: number, at: number): void {
     if (this.taps.tap(direction, at) && this.can('dash')) {
@@ -374,22 +354,17 @@ export class ArenaScene extends Phaser.Scene {
     }
   }
 
-  /** Déplacement demandé : le clavier d'abord, sinon les boutons de l'interface. */
+  /** Déplacement demandé au clavier. */
   private walkDirection(): number {
     if (this.cinematic.locked) {
       return 0;
     }
-    const direction = this.keyboard?.direction ?? 0;
-    if (direction !== 0) {
-      return direction;
-    }
-    const held: unknown = this.registry.get(CONTROLS.walk);
-    return held === 1 || held === -1 ? held : 0;
+    return this.keyboard?.direction ?? 0;
   }
 
-  /** Vrai tant qu'une touche ou un bouton demande l'accroupi ou la parade, et que ses images sont là. */
+  /** Vrai tant qu'une touche demande l'accroupi ou la parade, et que ses images sont là. */
   private holds(action: 'crouch' | 'block'): boolean {
-    return this.can(action) && ((this.keyboard?.[action] ?? false) || this.registry.get(CONTROLS[action]) === true);
+    return this.can(action) && (this.keyboard?.[action] ?? false);
   }
 
   private updateHero(hero: Hero, time: number, delta: number, camera: StageCamera): void {
@@ -463,11 +438,6 @@ export class ArenaScene extends Phaser.Scene {
 
   private stopListening(): void {
     this.motionQuery?.removeEventListener('change', this.onMotionChange);
-    this.registry.events.off(`changedata-${CONTROLS.walk}`, this.onWalkButton, this);
-    this.registry.events.off(`changedata-${CONTROLS.jump}`, this.jump, this);
-    this.registry.events.off(`changedata-${CONTROLS.attack}`, this.attack, this);
-    this.registry.events.off(`changedata-${CONTROLS.skipCinematic}`, this.skipCinematic, this);
-    this.registry.events.off(`changedata-${CONTROLS.replayCinematic}`, this.replayCinematic, this);
     window.removeEventListener('keydown', this.onCinematicKey);
     this.keyboard?.destroy();
     this.keyboard = null;

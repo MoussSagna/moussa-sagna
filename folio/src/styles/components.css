@@ -842,38 +842,64 @@ a:focus-visible > .btn--primary {
   color: var(--grey);
 }
 
-.arena-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 18px;
-  padding: 14px 6px 4px;
-}
-
-.arena-controls__hint {
-  flex-basis: 100%;
-}
-
-/* Boutons à maintenir : pas de défilement ni de sélection de texte pendant l'appui. */
-.arena-controls__button {
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.arena-controls__hint {
+.arena-hint {
   margin: 0;
+  padding: 14px 6px 4px;
   font-size: 0.875rem;
   color: var(--text-soft);
 }
 
-.arena-controls__hint kbd {
+.arena-hint kbd {
   padding: 1px 6px;
   border: 1px solid var(--line);
   background: var(--night);
   font-family: var(--font-hud);
   font-size: 0.8125rem;
   color: var(--white);
+}
+
+/* Bouton plein écran, dans le coin haut droit de l'écran de jeu, discret tant qu'on ne le survole pas. */
+.arena-frame__fullscreen {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--night) 70%, transparent);
+  color: var(--white);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+}
+
+.arena-frame__fullscreen:hover,
+.arena-frame__fullscreen:focus-visible {
+  opacity: 1;
+}
+
+.arena-frame__fullscreen svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: square;
+}
+
+/* En plein écran, l'écran de jeu occupe tout l'écran ; Phaser (mode FIT) y garde le 16:9, sur fond noir. */
+.arena-frame__screen:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  aspect-ratio: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arena-frame__fullscreen {
+    transition: none;
+  }
 }
 
 .arena-frame__caption {

@@ -31,7 +31,7 @@ Il n'y a pas de script de lint.
 | `/projets/:slug` | Étude de cas d'un projet |
 | `/a-propos` | À propos |
 | `/parcours` | Expérience |
-| `/entrainement` | Cinématique d’entrée, puis arène Phaser jouable, au clavier ou aux boutons |
+| `/entrainement` | Cinématique d’entrée, puis arène Phaser jouable au clavier, en plein écran si on veut |
 | `/contact` | Contact |
 | toute autre adresse | Page de secours |
 
@@ -46,7 +46,7 @@ Dans l'arène :
 | Sauter | ↑ ou Z ; avec ← ou → maintenu, saut arrière ou avant |
 | Attaquer | J, puis J à nouveau pour enchaîner le coup moyen, le coup fort, puis le coup de pied |
 
-Les boutons sous l'arène font la même chose à la souris et au doigt.
+L'arène n'a plus de boutons de commande : elle se joue au clavier. Échap passe l'intro ; F, ou le bouton dans le coin de l'écran de jeu, met l'arène en plein écran (Échap ou F pour en sortir).
 
 ## Structure
 

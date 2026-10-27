@@ -59,7 +59,7 @@ export function Splash() {
           <div className="splash__fighter splash__fighter--p1">
             <FighterPortrait fighter={FIGHTERS.moussa} variant="splash" showTag />
           </div>
-          <p className="splash__vs" aria-label="Moussa contre un adversaire à venir">
+          <p className="splash__vs" aria-label="Moussa contre Shigaraki">
             <span aria-hidden="true">VS</span>
           </p>
           <div className="splash__fighter splash__fighter--cpu">

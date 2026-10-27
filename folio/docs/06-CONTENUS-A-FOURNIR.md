@@ -7,13 +7,12 @@ tout passe par les fichiers de `src/data/`.
 ## Personnages — priorité 1
 
 **Moussa est intégré** (accueil, intro, à propos). Détail des fichiers, du découpage et des limites :
-`07-PERSONNAGE-MOUSSA.md`. **L'adversaire n'a pas de visuel** : l'accueil et l'intro affichent un emplacement vide.
+`07-PERSONNAGE-MOUSSA.md`. **L'adversaire, Shigaraki, est intégré** à l'accueil et à l'intro : portrait et personnage en pied générés à partir des images du lab ; il n'entre pas encore dans l'arène.
 
 Reste à fournir :
 
 | À fournir | Pourquoi |
 |---|---|
-| Un adversaire original : portrait et personnage en pied sur fond transparent | Son emplacement est vide sur l'accueil et dans l'intro |
 | Pose de face de Moussa deux fois plus grande | Pour rester nette sur les écrans haute densité |
 | Feuilles de sprites des deux personnages | Indispensables avant toute animation ; les planches actuelles ne suffisent pas |
 
