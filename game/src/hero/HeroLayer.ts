@@ -429,6 +429,24 @@ const IMPACT = { spark: { seconds: 0.24, radius: 420 }, blast: { seconds: 0.42, 
  */
 const HIT_FX = { count: 8, frame: 0.035, size: 448, origin: [96, 224] as [number, number], scale: 2.6, unit: 7 }
 const HIT_FX_SECONDS = HIT_FX.count * HIT_FX.frame
+/**
+ * Boule de feu dessinée (24 dessins, `fx/fireball-N.webp`, préparés par `tools/prepare_fx.py`) : toile commune de
+ * `size` pixels, cœur blanc (l'avant de la boule) en `origin`. Dessins 1 à 4 pendant la charge, dans les mains ;
+ * 5 à 8 au lancer (`born` secondes chacun) ; 9 à 16 en vol, en boucle (`fly` secondes chacun) ; 17 à 24 quand elle
+ * touche, où elle se disperse (`fade` secondes chacun). `scale` : taille d'un pixel du dessin, en pixels de la toile
+ * du personnage. Sans ces dessins, la boule calculée (`FIRE_FRAGMENT`) les remplace.
+ */
+const FIREBALL_FX = {
+  count: 24,
+  size: [320, 300] as [number, number],
+  origin: [272, 150] as [number, number],
+  scale: 2.4,
+  born: 0.04,
+  fly: 0.05,
+  fade: 0.045,
+  unit: 7,
+}
+const FIREBALL_FADE_SECONDS = 8 * FIREBALL_FX.fade
 
 /**
  * Coup encaissé. Le personnage affiche le dessin du coup reçu pendant `stun` secondes, puis celui du retour
@@ -565,6 +583,7 @@ export class HeroLayer {
   private impacts: { x: number; height: number; age: number; power: number; blast: boolean; guard?: boolean; seed: number; dir?: number }[] = []
   /** Les dessins de l'étincelle d'un coup qui touche. */
   private hitFx: (WebGLTexture | null)[] = []
+  private fireballFx: (WebGLTexture | null)[] = []
   /** Temps écoulé depuis le coup encaissé en cours. */
   private hurtTime = 0
   /** Vrai si le coup encaissé en cours le prend au ventre (un coup sur deux) : autre dessin, sans dessin de retour. */
@@ -680,6 +699,8 @@ export class HeroLayer {
     this.smoke = puffs.map((image, index) => (image ? uploadTexture(gl, SMOKE_UNIT + index, image, { alpha: true, premultiply: true }) : null))
     const hits = await Promise.all(Array.from({ length: HIT_FX.count }, (_, i) => loadImage(asset(`fx/hit-${i + 1}.webp`))))
     this.hitFx = hits.map((image) => (image ? uploadTexture(gl, HIT_FX.unit, image, { alpha: true, premultiply: true }) : null))
+    const balls = await Promise.all(Array.from({ length: FIREBALL_FX.count }, (_, i) => loadImage(asset(`fx/fireball-${i + 1}.webp`))))
+    this.fireballFx = balls.map((image) => (image ? uploadTexture(gl, FIREBALL_FX.unit, image, { alpha: true, premultiply: true }) : null))
 
     // texture hors écran du reflet, sur sa propre unité
     gl.activeTexture(gl.TEXTURE0 + REFLECTION_UNIT)
@@ -1910,12 +1931,17 @@ export class HeroLayer {
         gl.uniform4f(fire.u.uRect, x * 2 - 1, 1 - y * 2, rx * unitX, ry * unitY)
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
       }
+      // les dessins de la boule, posés après les lueurs calculées : dessin, cœur en coordonnées d'écran
+      const drawnBall = this.fireballFx.length === FIREBALL_FX.count && this.fireballFx.every(Boolean)
+      const sprites: { index: number; x: number; y: number; alpha: number }[] = []
       if (charging) {
         const k = this.specialTime / SPECIAL_LAUNCH
         const hands = this.specialStep().hands ?? feet
         const x = left + ((hands[0] - feet[0]) * scale + GROUND_POINT[0]) * (w / CANVAS[0])
         const y = top + ((hands[1] - feet[1]) * scale + GROUND_POINT[1]) * (h / CANVAS[1])
-        ball(x, y, SPECIAL.chargeRadius * k, SPECIAL.chargeRadius * k, 0.5 + 0.5 * k, 0)
+        // dessins 1 à 4 : elle naît et grossit dans les mains
+        if (drawnBall) sprites.push({ index: Math.min(3, Math.floor(k * 4)), x, y, alpha: 1 })
+        else ball(x, y, SPECIAL.chargeRadius * k, SPECIAL.chargeRadius * k, 0.5 + 0.5 * k, 0)
       }
       if (this.fireball) {
         const x = (this.fireball.x + PLACEMENT.depth * camera.ox - 0.5) * camera.zoom + 0.5
@@ -1923,18 +1949,50 @@ export class HeroLayer {
         const grow = Math.min(1, 0.5 + this.fireball.age / 0.08)
         // lueur sur le sol mouillé, sous la boule
         ball(x, sy, SPECIAL.radius * 2.2, SPECIAL.radius * 0.28, 0.3 * grow, 0)
-        // le quad est une fois et demie plus large que haut ; le cœur est au tiers avant
-        ball(x - (SPECIAL.radius * 0.5 * unitX) / 2, y, SPECIAL.radius * 1.5 * grow, SPECIAL.radius * grow, 1, 1)
+        if (drawnBall) {
+          // dessins 5 à 8 au lancer, puis 9 à 16 en boucle
+          const born = Math.floor(this.fireball.age / FIREBALL_FX.born)
+          const index = born < 4 ? 4 + born : 8 + (Math.floor((this.fireball.age - 4 * FIREBALL_FX.born) / FIREBALL_FX.fly) % 8)
+          sprites.push({ index, x, y, alpha: 1 })
+        } else {
+          // le quad est une fois et demie plus large que haut ; le cœur est au tiers avant
+          ball(x - (SPECIAL.radius * 0.5 * unitX) / 2, y, SPECIAL.radius * 1.5 * grow, SPECIAL.radius * grow, 1, 1)
+        }
       }
-      // explosion : la boule se dilate d'un coup puis s'éteint, avec un éclair sur le sol
+      // explosion : un éclair sur le sol et la boule qui se dilate d'un coup puis s'éteint (plus petite quand la
+      // boule dessinée se disperse en même temps, dessins 17 à 24)
       for (const impact of this.impacts) {
         if (!impact.blast) continue
         const k = impact.age / IMPACT.blast.seconds
         const x = (impact.x + PLACEMENT.depth * camera.ox - 0.5) * camera.zoom + 0.5
         const y = sy - impact.height * (h / CANVAS[1])
-        const radius = IMPACT.blast.radius * (0.35 + 0.65 * (1 - (1 - k) ** 3))
+        const radius = IMPACT.blast.radius * (0.35 + 0.65 * (1 - (1 - k) ** 3)) * (drawnBall ? 0.6 : 1)
         ball(x, sy, radius * 1.6, radius * 0.2, 0.5 * (1 - k) ** 2, 0)
-        ball(x, y, radius, radius, 1.3 * (1 - k) ** 2, 0)
+        ball(x, y, radius, radius, (drawnBall ? 0.9 : 1.3) * (1 - k) ** 2, 0)
+        if (drawnBall && impact.age < FIREBALL_FADE_SECONDS) sprites.push({ index: 16 + Math.floor(impact.age / FIREBALL_FX.fade), x, y, alpha: 1 })
+      }
+      if (sprites.length > 0) {
+        gl.useProgram(flat.program)
+        gl.enableVertexAttribArray(flat.attribute)
+        gl.vertexAttribPointer(flat.attribute, 2, gl.FLOAT, false, 0, 0)
+        gl.uniform1f(flat.u.uShadow, 0)
+        gl.uniform1i(flat.u.uTex, FIREBALL_FX.unit)
+        gl.activeTexture(gl.TEXTURE0 + FIREBALL_FX.unit)
+        const [width, height] = FIREBALL_FX.size
+        const [ox, oy] = FIREBALL_FX.origin
+        const ux = (unitX / 2) * FIREBALL_FX.scale
+        const uy = (unitY / 2) * FIREBALL_FX.scale
+        for (const sprite of sprites) {
+          gl.bindTexture(gl.TEXTURE_2D, this.fireballFx[sprite.index])
+          gl.uniform1f(flat.u.uAlpha, sprite.alpha * (calm ? 0.85 : 1))
+          // centre du dessin : décalé du cœur, qui est à l'avant de la boule
+          const cx = sprite.x + (width / 2 - ox) * ux
+          const cy = sprite.y + (height / 2 - oy) * uy
+          // hauteur négative : l'image est envoyée tête en bas
+          gl.uniform4f(flat.u.uRect, cx * 2 - 1, 1 - cy * 2, width * ux, -height * uy)
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+        }
+        gl.uniform1i(flat.u.uTex, REFLECTION_UNIT)
       }
     }
 
