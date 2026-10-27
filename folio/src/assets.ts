@@ -22,3 +22,9 @@ export const STAGE_DEPTH_URL = `${base}assets/backgrounds/depth.png`;
 export const cinematicShotUrl = (shot: string): string => `${base}assets/cinematic/${shot}.webp`;
 
 export const heroPoseUrl = (pose: string): string => `${base}assets/fighters/moussa/poses/${pose}.webp`;
+
+/**
+ * Poses de Shigaraki : public/assets/fighters/challenger/poses/ (1024 × 1536, WebP). Recadrées et compressées à
+ * partir des images de `../lab/public/assets/rival/`, préparées par `tools/prepare_rival.py`.
+ */
+export const rivalPoseUrl = (pose: string): string => `${base}assets/fighters/challenger/poses/${pose}.webp`;

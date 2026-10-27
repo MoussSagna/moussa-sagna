@@ -12,6 +12,7 @@ import {
   PUNCHES,
   STEP_SECONDS,
 } from './heroState';
+import { CANVAS } from './poseData';
 
 const ASPECT = 720 / 1280;
 const FRAME = 1 / 60;
@@ -295,6 +296,47 @@ describe('coups de poing', () => {
     run(hero, 0.5, 0, true);
     hero.attack();
     expect(hero.pose).toBe('crouch');
+  });
+});
+
+describe('adversaire', () => {
+  const pixel = (PLACEMENT.scale / CANVAS[1]) * ASPECT;
+
+  it('s’arrête contre lui en marchant, en dashant et en sautant', () => {
+    const walker = new HeroState();
+    walker.wall = PLACEMENT.x + 0.05;
+    run(walker, 3, 1);
+    expect(walker.x).toBeCloseTo(PLACEMENT.x + 0.05, 6);
+
+    const dasher = new HeroState();
+    dasher.wall = PLACEMENT.x + 0.03;
+    dasher.dash(1);
+    run(dasher, DASH.forward.seconds + FRAME, 0);
+    expect(dasher.x).toBeLessThanOrEqual(PLACEMENT.x + 0.03 + 1e-9);
+
+    const jumper = new HeroState();
+    jumper.wall = PLACEMENT.x + 0.04;
+    jumper.jump(1);
+    run(jumper, JUMP.start + JUMP.rise + JUMP.fall + JUMP.land + FRAME, 0);
+    expect(jumper.x).toBeLessThanOrEqual(PLACEMENT.x + 0.04 + 1e-9);
+  });
+
+  it('frappe seulement pendant les images actives, et une seule fois par coup', () => {
+    const hero = new HeroState();
+    hero.attack();
+    expect(hero.strike(pixel)).toBeNull();
+    run(hero, PUNCHES.light.startup + FRAME / 2, 0);
+    const strike = hero.strike(pixel);
+    expect(strike).not.toBeNull();
+    expect(strike?.x).toBeCloseTo(PLACEMENT.x + PUNCHES.light.reach * pixel, 6);
+    expect(strike?.power).toBe(PUNCHES.light.power);
+    hero.land();
+    expect(hero.strike(pixel)).toBeNull();
+    // le coup suivant de l'enchaînement peut toucher à son tour
+    hero.attack();
+    run(hero, PUNCHES.light.active + PUNCHES.medium.startup + FRAME / 2, 0);
+    expect(hero.punchStrength).toBe('medium');
+    expect(hero.strike(pixel)).not.toBeNull();
   });
 });
 
