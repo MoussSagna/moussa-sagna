@@ -1,26 +1,26 @@
 # Consignes pour travailler dans `lab/`
 
-Le lab est le moteur WebGL d'essai du portfolio de Moussa Sagna : on y met au point le stage et les animations du personnage avant de les reporter dans `folio/`. Les consignes communes sont dans le `CLAUDE.md` à la racine du dépôt. Lire `docs/ARCHITECTURE.md` avant de toucher au rendu.
+Le lab est le banc d'essai du jeu de Moussa Sagna : on y met au point le stage, les personnages et les coups. Le moteur et ses images vivent dans `../game/` (alias `@game`), partagé avec le site (`../folio/`), qui l'affiche tel quel : ce qui est validé ici arrive sur le site sans report. Les consignes communes sont dans le `CLAUDE.md` à la racine du dépôt. Lire `docs/ARCHITECTURE.md` avant de toucher au rendu.
 
-Tous les chemins ci-dessous sont relatifs à `lab/`, et toutes les commandes se lancent depuis `lab/`.
+Les chemins ci-dessous sont relatifs à `lab/` (le moteur : `../game/src/`, ses images : `../game/public/assets/`), et toutes les commandes se lancent depuis `lab/`.
 
 ## Commandes
 
 - `npm run dev` : développement
-- `npm run build` : `tsc -b` puis build Vite. Doit passer avant tout commit.
-- `npm run lint` : oxlint. Zéro avertissement.
+- `npm run build` : `tsc -b` (lab et `../game/src`) puis build Vite. Doit passer avant tout commit.
+- `npm run lint` : oxlint, sur le lab et sur `../game/src`. Zéro avertissement.
 
-Il n'y a pas encore de tests automatisés.
+Le lab n'a pas de tests ; ceux de `../game/src` (`*.test.ts`) se lancent depuis `../folio/` (`npm run test`).
 
 ## Règles du projet
 
-- **Séparation jeu / interface** : `src/game/` ne dépend pas de React. React (`src/components/`) crée les canvas, instancie le moteur dans un `useEffect` et le détruit au démontage.
+- **Séparation jeu / interface** : `../game/src/` ne dépend pas de React (ni d'aucun paquet : il n'a pas de `package.json`). React (`src/components/`) crée les canvas, instancie le moteur dans un `useEffect` et le détruit au démontage.
 - **Une seule boucle, une seule caméra** : `StageEngine` possède le `requestAnimationFrame` et calcule la caméra ; chaque plan reçoit `FrameInfo` et `Camera`. Ne pas ajouter de seconde boucle.
 - **TypeScript** : `erasableSyntaxOnly` est actif, donc pas d'`enum` ni de propriétés déclarées dans les paramètres de constructeur.
 - **Dépendances** : n'en ajouter que lorsqu'un écran en a réellement besoin (voir la feuille de route).
 - **Couleurs et polices** : uniquement via les jetons `@theme` de `src/index.css`.
 - **Accessibilité** : respecter l'option « Réduire les mouvements » (`options.calm`) dans tout nouvel effet, et `prefers-reduced-motion` pour les animations CSS.
-- **Assets** : les images vivent dans `public/assets/` et sont chargées avec `asset('dossier/fichier')`. Rien n'est chargé depuis un autre site, sauf les polices Google.
+- **Assets** : les images vivent dans `../game/public/assets/` (dossier public du lab) et sont chargées avec `asset('dossier/fichier')`. Rien n'est chargé depuis un autre site, sauf les polices Google.
 
 ## Vérifier un changement de rendu
 
@@ -28,10 +28,10 @@ Lancer `npm run build && npm run preview`, ouvrir la page et regarder réellemen
 
 ## Pièges connus
 
-- `src/game/hero/poseData.ts` et les atlas de `public/assets/hero/` sont générés par `tools/prepare_poses.py` à partir des illustrations de `../art/`. Ne pas les modifier à la main.
+- `../game/src/hero/poseData.ts` et les atlas de `../game/public/assets/hero/` sont générés par `tools/prepare_poses.py` à partir des illustrations de `../art/`. Ne pas les modifier à la main.
 - Les polygones de découpe et les articulations, en haut de `tools/prepare_poses.py`, sont tracés à la main pour les illustrations actuelles : une autre image demande de les retracer.
 - Toutes les poses du personnage doivent garder la même vue (trois quarts à profil, tourné vers la droite) et la même taille de tête. Une pose dans une autre vue fait sauter le personnage au changement d'état.
-- Les illustrations générées ne sont pas toutes à la même échelle : `POSE_SCALE`, dans `src/game/hero/HeroLayer.ts`, ramène chaque pose à la taille de tête de la garde. À mesurer pour chaque nouvelle image.
+- Les illustrations générées ne sont pas toutes à la même échelle : `POSE_SCALE`, dans `../game/src/hero/HeroLayer.ts`, ramène chaque pose à la taille de tête de la garde. À mesurer pour chaque nouvelle image.
 - Ne pas faire alterner plusieurs illustrations dans une même animation continue : chaque changement de dessin se voit comme une saccade (essai abandonné sur la marche, voir `docs/ROADMAP.md`). Une animation = une illustration animée par le moteur.
 - Les illustrations générées portent parfois un logo de marque sur les baskets : `LOGOS`, dans `tools/prepare_poses.py`, l'efface. À vérifier pour chaque nouvelle image.
 - `moussa_rig/` est l'ancien rig de face. Le moteur ne l'utilise plus ; il est gardé comme source pour un éventuel écran de présentation.

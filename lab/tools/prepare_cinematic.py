@@ -6,8 +6,8 @@ devant le temple), cinematic-closeup.png (gros plan) et les trois cinematic-riva
 plus près, puis qui se retourne), illustrations plein cadre d'environ 1670 x 941. Lit aussi cinematic-cutin.png
 (gros plan de Moussa qui charge, sur fond vert) : son fond est retiré et il est écrit en cutin.webp, avec sa
 transparence, pour le plan de coupe de la frappe au sol.
-Efface le logo des baskets du plan en pied, puis écrit les six plans en WebP dans public/assets/cinematic/.
-Affiche aussi la position des lanternes de chaque plan, reprise à la main dans src/game/cinematic/CinematicLayer.ts.
+Efface le logo des baskets du plan en pied, puis écrit les six plans en WebP dans ../game/public/assets/cinematic/.
+Affiche aussi la position des lanternes de chaque plan, reprise à la main dans ../game/src/cinematic/CinematicLayer.ts.
 """
 import sys
 from pathlib import Path
@@ -18,7 +18,8 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent    # le dossier lab/
 ART = ROOT.parent / 'art'
-OUT = ROOT / 'public' / 'assets' / 'cinematic'
+GAME = ROOT.parent / 'game'                      # moteur et images du jeu, communs au lab et au folio
+OUT = GAME / 'public' / 'assets' / 'cinematic'
 DEBUG = Path(sys.argv[sys.argv.index('--debug') + 1]) if '--debug' in sys.argv else None
 
 # Logos de marque sur les baskets : dans chaque rectangle (x0, y0, x1, y1), serré autour du logo, les pixels

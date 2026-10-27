@@ -5,6 +5,10 @@ import '@fontsource/anton/400.css';
 import '@fontsource/chakra-petch/500.css';
 import '@fontsource/chakra-petch/600.css';
 import '@fontsource/chakra-petch/700.css';
+// polices du jeu (interface de combat, cinématique, écran de chargement)
+import '@fontsource/barlow-semi-condensed/400.css';
+import '@fontsource/barlow-semi-condensed/600.css';
+import '@fontsource/barlow-semi-condensed/700-italic.css';
 import './styles/main.css';
 import './styles/components.css';
 import './styles/pages.css';

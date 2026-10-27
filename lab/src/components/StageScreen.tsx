@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { asset } from '../game/gl'
-import { StageEngine } from '../game/stage/StageEngine'
-import type { StageOptions } from '../game/types'
+import { asset } from '@game/gl'
+import { StageEngine } from '@game/stage/StageEngine'
+import type { StageOptions } from '@game/types'
 
 const STAGE_NAME = 'Tokyo Underground'
 /** Durée du carton de titre, en millisecondes (alignée sur l'animation CSS). */

@@ -19,6 +19,15 @@
   --panel: rgba(9, 14, 23, 0.84);
   --line: rgba(242, 244, 247, 0.16);
 
+  /* Palette et police du jeu (moteur de `../game/`, repris du lab) : écran de chargement de l'arène */
+  --game-ink: #08060d;
+  --game-line: #f4efe9;
+  --game-muted: #b8afc4;
+  --game-blood: #e8262d;
+  --game-sakura: #ff8fc0;
+  --game-violet: #8b6bff;
+  --font-game: 'Barlow Semi Condensed', 'Arial Narrow', system-ui, sans-serif;
+
   --font-display: 'Anton', Impact, 'Arial Narrow', sans-serif;
   --font-hud: 'Chakra Petch', 'Trebuchet MS', sans-serif;
   --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;

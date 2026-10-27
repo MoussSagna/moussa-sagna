@@ -4,7 +4,7 @@ Usage (depuis lab/) : python3 tools/prepare_poses.py [--debug dossier]
 Lit, dans art/ à la racine du dépôt, hero-guard.png, hero-step.png, hero-walk.png, hero-dash-forward.png, hero-dash-back.png,
 hero-crouch-step.png, hero-crouch.png, hero-block-step.png, hero-block.png, hero-crouch-block.png les quatre hero-jump-*.png les neuf hero-punch-*.png, les six hero-jab-*.png, les six hero-special-*.png, les deux hero-hurt*.png, les trois hero-ground-*.png, les quatre hero-ko-*.png, les quatre hero-exit-*.png et les deux hero-kick-*.png
 (fond vert uni, 1024 x 1536).
-Écrit un atlas par pose dans public/assets/hero/ et src/game/hero/poseData.ts.
+Écrit un atlas par pose dans ../game/public/assets/hero/ et ../game/src/hero/poseData.ts.
 Les polygones et les articulations sont tracés à la main pour ces illustrations.
 """
 import sys
@@ -16,8 +16,9 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent    # le dossier lab/
 ART = ROOT.parent / 'art'                        # les illustrations sont à la racine du dépôt, communes au lab et au folio
-OUT = ROOT / 'public' / 'assets' / 'hero'
-DATA = ROOT / 'src' / 'game' / 'hero' / 'poseData.ts'
+GAME = ROOT.parent / 'game'                      # moteur et images du jeu, communs au lab et au folio
+OUT = GAME / 'public' / 'assets' / 'hero'
+DATA = GAME / 'src' / 'hero' / 'poseData.ts'
 DEBUG = Path(sys.argv[sys.argv.index('--debug') + 1]) if '--debug' in sys.argv else None
 PAD = 8
 W, H = 1024, 1536

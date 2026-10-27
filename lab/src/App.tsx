@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { LoadingScreen } from './components/LoadingScreen'
 import { StageScreen } from './components/StageScreen'
-import type { StageOptions } from './game/types'
+import type { StageOptions } from '@game/types'
 
 const prefersCalm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 

@@ -6,25 +6,25 @@ L'écran du stage empile six canvas dans un même conteneur, pilotés par une se
 
 | Ordre | Plan | Fichier | Technique |
 | --- | --- | --- | --- |
-| 1 (fond) | Décor | `src/game/stage/StageBackdrop.ts` | WebGL, un shader plein écran |
-| 2 | Mannequin | `src/game/dummy/DummyLayer.ts` | WebGL, deux quads (socle, buste) ou un seul (coup reçu), plus le reflet et l'ombre |
-| 2 | Adversaire | `src/game/rival/RivalLayer.ts` | WebGL, un quad, plus le reflet et l'ombre. Affiché à la place du mannequin selon `options.opponent` |
-| 3 | Personnage | `src/game/hero/HeroLayer.ts` | WebGL, un quad par calque de la pose, plus le reflet et l'ombre |
-| 4 | Météo | `src/game/stage/WeatherLayer.ts` | Canvas 2D |
-| 5 (devant) | Cinématique | `src/game/cinematic/CinematicLayer.ts` | Canvas 2D : la cinématique d'entrée puis les annonces avant le combat ; placé après le carton de titre HTML pour le recouvrir |
+| 1 (fond) | Décor | `../game/src/stage/StageBackdrop.ts` | WebGL, un shader plein écran |
+| 2 | Mannequin | `../game/src/dummy/DummyLayer.ts` | WebGL, deux quads (socle, buste) ou un seul (coup reçu), plus le reflet et l'ombre |
+| 2 | Adversaire | `../game/src/rival/RivalLayer.ts` | WebGL, un quad, plus le reflet et l'ombre. Affiché à la place du mannequin selon `options.opponent` |
+| 3 | Personnage | `../game/src/hero/HeroLayer.ts` | WebGL, un quad par calque de la pose, plus le reflet et l'ombre |
+| 4 | Météo | `../game/src/stage/WeatherLayer.ts` | Canvas 2D |
+| 5 (devant) | Cinématique | `../game/src/cinematic/CinematicLayer.ts` | Canvas 2D : la cinématique d'entrée puis les annonces avant le combat ; placé après le carton de titre HTML pour le recouvrir |
 
 Par-dessus, React affiche le carton de titre et l'étiquette du stage en HTML (`src/components/StageScreen.tsx`).
 
 ## La boucle
 
-`StageEngine` (`src/game/stage/StageEngine.ts`) :
+`StageEngine` (`../game/src/stage/StageEngine.ts`) :
 
 1. redimensionne les canvas à la taille du conteneur (densité de pixels plafonnée à 2) ;
 2. calcule le temps écoulé et la caméra ;
 3. fait avancer le personnage et le mannequin, puis décide si un coup touche (voir « Les coups qui touchent ») ;
 4. appelle `draw` sur chaque plan, du fond vers l'avant.
 
-La caméra (`Camera` dans `src/game/types.ts`) combine trois mouvements : le travelling d'ouverture (zoom arrière sur 3,6 s), une respiration lente, et la position de la souris. Avec « Réduire les mouvements », seule la souris reste.
+La caméra (`Camera` dans `../game/src/types.ts`) combine trois mouvements : le travelling d'ouverture (zoom arrière sur 3,6 s), une respiration lente, et la position de la souris. Avec « Réduire les mouvements », seule la souris reste.
 
 ## Le décor
 
@@ -34,7 +34,7 @@ Une seule image (`stage.webp`) et une carte (`depth.png`) dont chaque canal port
 - **vert** : le ciel. Les nuages, le halo de la lune et les éclairs n'apparaissent que là.
 - **bleu** : les écrans géants. La valeur sert d'identifiant pour désynchroniser leurs animations.
 
-Les lanternes, les néons et le trajet du métro sont positionnés par leurs coordonnées dans l'image, directement dans `src/game/stage/shaders.ts`.
+Les lanternes, les néons et le trajet du métro sont positionnés par leurs coordonnées dans l'image, directement dans `../game/src/stage/shaders.ts`.
 
 ## Le personnage
 
@@ -70,14 +70,14 @@ Le personnage est fait de vingt-neuf illustrations dans la même vue (trois quar
 | `punchMidHit`, `punchMidRecover` | `../art/hero-punch-mid-*.png` | coup de poing moyen : bras tendu, retour |
 | `punchHeavyStart`, `punchHeavyHit`, `punchHeavyRecover` | `../art/hero-punch-heavy-*.png` | coup de poing fort : armé, uppercut, retour |
 
-- **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas par pose et génère `src/game/hero/poseData.ts` (calques, articulations, point d'appui).
+- **Données** : `tools/prepare_poses.py` retire le fond vert, efface les logos des baskets, découpe chaque illustration, range ses calques dans un atlas par pose et génère `../game/src/hero/poseData.ts` (calques, articulations, point d'appui).
 - **Dessin** : `HeroLayer` dessine un quad par calque, du fond vers le premier plan. Le vertex shader applique la matrice du calque ; le fragment shader retrouve le pixel d'origine dans la toile (1024 × 1536) et y ajoute l'ondulation des rubans, nulle à la racine et maximale à la pointe.
 - **Alignement** : chaque pose a un point d'appui (milieu des pieds, ligne des semelles). Toutes sont posées au même endroit du sol, placé par `PLACEMENT`, et suivent la caméra du décor avec la profondeur du sol. `POSE_SCALE` agrandit autour de ce point les poses dessinées plus petit que la garde, pour que la tête garde la même taille.
 - **Reflet et ombre** : le personnage entier est d'abord dessiné une fois dans une texture hors écran, qui sert au reflet.
 
 ### La garde
 
-`guardMatrices` (`src/game/hero/poseRig.ts`) : le corps se tasse légèrement vers la ligne du sol (les semelles ne bougent pas), le buste respire en s'agrandissant autour de la taille, la tête et les rubans suivent avec un retard. La tête est un calque dessiné une seconde fois par-dessus le buste, ce qui lui permet de bouger sans laisser de trou. `GUARD` règle les durées et les amplitudes ; « Réduire les mouvements » les ramène à 35 %.
+`guardMatrices` (`../game/src/hero/poseRig.ts`) : le corps se tasse légèrement vers la ligne du sol (les semelles ne bougent pas), le buste respire en s'agrandissant autour de la taille, la tête et les rubans suivent avec un retard. La tête est un calque dessiné une seconde fois par-dessus le buste, ce qui lui permet de bouger sans laisser de trou. `GUARD` règle les durées et les amplitudes ; « Réduire les mouvements » les ramène à 35 %.
 
 ### La marche
 
@@ -143,13 +143,13 @@ Le champ `reach` donne la portée de chaque coup, `height` sa hauteur : c'est ce
 
 `HeroLayer.special()` lance une boule de feu, depuis la garde ou la marche (`SPECIAL` règle les durées, les tailles et la vitesse). Le personnage enchaîne six dessins, listés avec leur durée dans `SPECIAL.steps` : un intermédiaire, la charge, mains jointes à la hanche, un intermédiaire, le lancer, bras tendus, un intermédiaire, puis le retour. Il ne peut rien faire d'autre avant la fin.
 
-La boule de feu n'est pas une image : elle est entièrement calculée par `FIRE_FRAGMENT` (`src/game/hero/shaders.ts`), avec un cœur presque blanc, un corps orangé puis rouge, des flammes qui ondulent et une queue en vol. Elle grossit dans les mains pendant la charge, en suivant la position des mains de chaque dessin (`hands`), part des mains au dessin marqué `launch`, traverse le stage et explose sur le mannequin (ou disparaît au bord si elle le manque). Une lueur aplatie la suit sur le sol. Elle vit indépendamment du personnage, et il ne peut y en avoir qu'une à la fois. « Réduire les mouvements » atténue l'ondulation des flammes.
+La boule de feu n'est pas une image : elle est entièrement calculée par `FIRE_FRAGMENT` (`../game/src/hero/shaders.ts`), avec un cœur presque blanc, un corps orangé puis rouge, des flammes qui ondulent et une queue en vol. Elle grossit dans les mains pendant la charge, en suivant la position des mains de chaque dessin (`hands`), part des mains au dessin marqué `launch`, traverse le stage et explose sur le mannequin (ou disparaît au bord si elle le manque). Une lueur aplatie la suit sur le sol. Elle vit indépendamment du personnage, et il ne peut y en avoir qu'une à la fois. « Réduire les mouvements » atténue l'ondulation des flammes.
 
 Les illustrations ont les mains vides et aucun éclairage d'effet : une lueur peinte sur le personnage resterait figée pendant que la boule s'éloigne. `App.tsx` déclenche l'attaque avec L ou le bouton « Spécial ».
 
 ### La cinématique d'entrée
 
-`CinematicLayer` (`src/game/cinematic/CinematicLayer.ts`) joue au chargement et à chaque « Rejouer l'intro », avant le combat. Six plans illustrés plein cadre (`../art/cinematic-*.png`, préparés par `tools/prepare_cinematic.py`), trois pour Moussa puis trois pour l'adversaire :
+`CinematicLayer` (`../game/src/cinematic/CinematicLayer.ts`) joue au chargement et à chaque « Rejouer l'intro », avant le combat. Six plans illustrés plein cadre (`../art/cinematic-*.png`, préparés par `tools/prepare_cinematic.py`), trois pour Moussa puis trois pour l'adversaire :
 
 1. **Le temple vide** : la caméra descend de la lune vers l'esplanade.
 2. **Un pétale passe devant l'objectif** : il traverse l'écran en tournant et le recouvre entièrement à mi-course, au moment de la coupe vers Moussa en pied, sur lequel la caméra s'approche.
@@ -190,13 +190,13 @@ Les effets sont des morceaux d'une planche dessinée (`../art/fx-ground-special.
 
 ### Le mannequin
 
-`DummyLayer` (`src/game/dummy/DummyLayer.ts`) est une cible fixe, posée sur le même plan du sol que le personnage. Ses deux illustrations (`../art/dummy-idle.png`, `../art/dummy-hit.png`) sont rangées côte à côte dans un seul atlas par `tools/prepare_dummy.py`.
+`DummyLayer` (`../game/src/dummy/DummyLayer.ts`) est une cible fixe, posée sur le même plan du sol que le personnage. Ses deux illustrations (`../art/dummy-idle.png`, `../art/dummy-hit.png`) sont rangées côte à côte dans un seul atlas par `tools/prepare_dummy.py`.
 
 Au repos, le dessin est coupé en deux rectangles : le socle, immobile, et le buste avec son ressort, qui bascule autour du pied du ressort. Quand il reçoit un coup (`hit(power)`), il affiche le dessin du coup reçu pendant l'arrêt sur image et un instant après, puis le buste au repos repart penché et oscille comme un ressort amorti jusqu'à se redresser (`HIT` règle l'inclinaison, la fréquence et l'amortissement). « Réduire les mouvements » ramène l'oscillation à 35 %.
 
 ### L'adversaire
 
-`RivalLayer` (`src/game/rival/RivalLayer.ts`) est l'adversaire, un personnage original tourné vers la gauche. Il a sa garde (pose neutre, main ouverte levée), sa marche, sa parade et son coup encaissé (`../art/rival-*.png`, préparées par `tools/prepare_rival.py`), un dessin par pose, chacun avec son point posé au sol et son échelle (`POSES`). La garde et la marche sont agrandies de 10 % : il dépasse Moussa d'une demi-tête. La parade et le coup encaissé sont encore les anciens dessins, à refaire au nouveau modèle. Il respire en s'étirant depuis le sol et, quand il encaisse un coup, il affiche le dessin du coup reçu puis celui du retour, en penchant légèrement en arrière comme un ressort (`HIT`). Il n'attaque pas encore.
+`RivalLayer` (`../game/src/rival/RivalLayer.ts`) est l'adversaire, un personnage original tourné vers la gauche. Il a sa garde (pose neutre, main ouverte levée), sa marche, sa parade et son coup encaissé (`../art/rival-*.png`, préparées par `tools/prepare_rival.py`), un dessin par pose, chacun avec son point posé au sol et son échelle (`POSES`). La garde et la marche sont agrandies de 10 % : il dépasse Moussa d'une demi-tête. La parade et le coup encaissé sont encore les anciens dessins, à refaire au nouveau modèle. Il respire en s'étirant depuis le sol et, quand il encaisse un coup, il affiche le dessin du coup reçu puis celui du retour, en penchant légèrement en arrière comme un ressort (`HIT`). Il n'attaque pas encore.
 
 **Son déplacement** est une lévitation (`FLOAT`, `float`) : il ne marche pas, il s'élève légèrement et glisse. Un seul dessin par sens (`floatForward` penché vers l'avant pour avancer, `floatBack` droit pour reculer), animé en continu par le moteur : accélération et freinage en douceur, montée à `FLOAT.height` (il rase le sol), flottement sinusoïdal, inclinaison dans le sens du déplacement, ombre qui rétrécit et reflet qui pâlit. Il se repose en garde à l'arrêt. Au décollage, au changement de sens et pendant qu'il se repose, un dessin de passage (`floatStart`, droit, en l'air) s'affiche `FLOAT.bridge` secondes ; les dessins s'enchaînent sans fondu (un fondu rendait le personnage transparent un instant). Démarrage et arrêt sont rapides (`accel`, `rise`, `land`). Ces dessins sont calés sur le ceinturon de la garde, pour que le buste ne saute pas. Une première version en pas chassés, à quatre dessins qui alternaient, a été abandonnée : elle saccadait.
 
@@ -214,7 +214,7 @@ Au repos, le dessin est coupé en deux rectangles : le socle, immobile, et le bu
 
 Tant que `options.rivalBlocks` est vrai (case « L'adversaire pare »), il passe en parade par un dessin de passage. Un coup ou une boule de feu qui l'atteint en parade est paré : `Opponent.hit` retourne vrai, l'étincelle est bleue, l'arrêt sur image deux fois plus court, la secousse plus faible et il penche à peine. Un coup paré permet quand même de poursuivre l'enchaînement, comme un coup porté.
 
-Le mannequin et l'adversaire suivent la même interface, `Opponent` (`src/game/opponent.ts`) : position, surface du corps, distance minimale, `hit`, `attack`, `strike`. `StageEngine` ne connaît que cette interface et affiche celui que désigne `options.opponent` (case « Mannequin d'entraînement » dans `App.tsx`).
+Le mannequin et l'adversaire suivent la même interface, `Opponent` (`../game/src/opponent.ts`) : position, surface du corps, distance minimale, `hit`, `attack`, `strike`. `StageEngine` ne connaît que cette interface et affiche celui que désigne `options.opponent` (case « Mannequin d'entraînement » dans `App.tsx`).
 
 ### Les coups qui touchent
 
@@ -227,7 +227,7 @@ C'est `StageEngine.resolveHits` qui arbitre, à chaque image :
 Un coup qui touche déclenche quatre choses : le mannequin réagit, une étincelle part du point d'impact, le combat se fige un instant, et la caméra tremble. Chaque coup a sa puissance (`power`) et sa durée d'arrêt (`stop`), dans `PUNCHES` et `SPECIAL`.
 
 - **Arrêt sur image** : pendant `stop` secondes, le personnage et le mannequin reçoivent une image de durée nulle et une horloge figée ; le décor, la météo et les étincelles continuent. Un appui sur la touche d'attaque pendant l'arrêt est bien retenu pour l'enchaînement.
-- **Étincelle** : calculée par `SPARK_FRAGMENT` (`src/game/hero/shaders.ts`), une étoile à huit branches et une onde de choc. L'explosion de la boule de feu y ajoute une boule qui se dilate et s'éteint, avec un éclair au sol. `IMPACT` règle durées et tailles. Elles sont dessinées par `HeroLayer`, sur le plan du personnage, donc par-dessus le mannequin.
+- **Étincelle** : calculée par `SPARK_FRAGMENT` (`../game/src/hero/shaders.ts`), une étoile à huit branches et une onde de choc. L'explosion de la boule de feu y ajoute une boule qui se dilate et s'éteint, avec un éclair au sol. `IMPACT` règle durées et tailles. Elles sont dessinées par `HeroLayer`, sur le plan du personnage, donc par-dessus le mannequin.
 - **Secousse** : `SHAKE` dans `StageEngine`, proportionnelle à la puissance du coup. Elle déplace tous les plans ensemble.
 
 « Réduire les mouvements » supprime la secousse, divise l'arrêt sur image par deux et atténue les étincelles.
@@ -274,7 +274,7 @@ Quand un coup touche (ceux de Moussa comme ceux de l'adversaire), l'étincelle e
 
 ## L'écran de chargement
 
-`LoadingScreen` (`src/components/`) recouvre la scène au lancement : fond partagé en rouge et violet, Moussa et Shigaraki face à face, « VS », leurs noms, une astuce de jeu qui change, et une jauge qui suit le vrai chargement des images (`onLoadProgress`, dans `src/game/gl.ts`, compte les images demandées et arrivées par `loadImage` ; la jauge ne recule jamais et attend que `StageEngine.run` ait tout chargé pour atteindre 100 %). Les noms (« Mouss, combattant » et « Shigaraki, le boss final ») sont en bas, sous les visages. Une fois tout chargé, la jauge reste pleine un instant (« Fight! », `AUTO_START_MS`), puis la partie se lance d'elle-même : la cinématique démarre derrière l'écran, qui s'efface par-dessus dans un éclair (le stage n'apparaît jamais entre les deux) et `App` lance la cinématique d'entrée (`replayIntro`), qui ne part plus toute seule au chargement. Tant qu'il est affiché, les touches du jeu sont ignorées.
+`LoadingScreen` (`src/components/`) recouvre la scène au lancement : fond partagé en rouge et violet, Moussa et Shigaraki face à face, « VS », leurs noms, une astuce de jeu qui change, et une jauge qui suit le vrai chargement des images (`onLoadProgress`, dans `../game/src/gl.ts`, compte les images demandées et arrivées par `loadImage` ; la jauge ne recule jamais et attend que `StageEngine.run` ait tout chargé pour atteindre 100 %). Les noms (« Mouss, combattant » et « Shigaraki, le boss final ») sont en bas, sous les visages. Une fois tout chargé, la jauge reste pleine un instant (« Fight! », `AUTO_START_MS`), puis la partie se lance d'elle-même : la cinématique démarre derrière l'écran, qui s'efface par-dessus dans un éclair (le stage n'apparaît jamais entre les deux) et `App` lance la cinématique d'entrée (`replayIntro`), qui ne part plus toute seule au chargement. Tant qu'il est affiché, les touches du jeu sont ignorées.
 
 Les attaques ultimes s'annulent en combo. Pour Moussa, la frappe au sol (I) demandée pendant un coup part dès que le coup a touché, à la place de sa récupération (`groundQueued`, comme l'attaque spéciale). Pour Shigaraki, l'attaque ultime (N) demandée pendant un coup de son enchaînement ou pendant son coup spécial part dès la fin des images actives (`ultimateQueued`).
 
@@ -282,7 +282,7 @@ Les sauts sont hauts (`JUMP.height`) : un saut avant qui retombe au-delà de Shi
 
 ## L'interface de combat
 
-`HudLayer` (`src/game/hud/`) tient et dessine les barres, à la manière de Street Fighter 6, Moussa à gauche et l'adversaire à droite. Elle se dessine sur la toile de la cinématique (`CinematicLayer.hud`), sous les annonces et les plans de coupe, et seulement quand les plans de l'intro ne couvrent plus l'écran.
+`HudLayer` (`../game/src/hud/`) tient et dessine les barres, à la manière de Street Fighter 6, Moussa à gauche et l'adversaire à droite. Elle se dessine sur la toile de la cinématique (`CinematicLayer.hud`), sous les annonces et les plans de coupe, et seulement quand les plans de l'intro ne couvrent plus l'écran.
 
 - **Vie**, en haut, de part et d'autre du numéro de round : ancrée au centre, elle perd par l'extérieur ; la part perdue s'efface d'abord en rouge, puis rattrape la vie. Un coup retire `DAMAGE.perPower` × sa puissance (`StageEngine`) ; la retombée et le coup de marteau de l'attaque ultime de l'adversaire retirent `DAMAGE.dive` et `DAMAGE.hammer`. Seul l'adversaire a une vie, pas le mannequin.
 - **Super**, en bas, depuis les bords : elle se remplit à chaque coup donné ou reçu, brille quand elle est pleine (« SUPER MAX ») et se vide quand l'attaque ultime part (`useSuper`). Pour les essais, l'attaque ultime ne demande pas encore une barre pleine.

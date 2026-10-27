@@ -77,7 +77,7 @@ export const PROJECTS: Project[] = [
       "Le projet avance par étapes validées séparément : d'abord le socle technique et l'arène, puis l'interface " +
       'du portfolio, et seulement ensuite la présence du personnage et une mini-expérience jouable.',
     solutions: [
-      'Arène rendue en WebGL avec Phaser, en résolution logique 1280 × 720.',
+      'Arène rendue par un moteur WebGL écrit à la main (shaders), partagé avec le banc d’essai du jeu.',
       'Interface du portfolio en React, séparée du moteur de jeu.',
       'Design system maison : palette néon, panneaux HUD et typographie d’affiche de combat.',
     ],
@@ -87,7 +87,7 @@ export const PROJECTS: Project[] = [
         alt: 'Le stage Tokyo Underground, décor signature du portfolio.',
       },
     ],
-    technologies: ['TypeScript', 'React', 'Phaser 3', 'Vite', 'CSS'],
+    technologies: ['TypeScript', 'React', 'WebGL', 'Vite', 'CSS'],
     links: [],
   },
   {

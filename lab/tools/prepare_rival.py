@@ -2,15 +2,15 @@
 
 Usage (depuis lab/) : python3 tools/prepare_rival.py
 Lit, dans art/ à la racine du dépôt, les rival-*.png (fond vert uni, 1024 x 1536, personnage tourné vers la gauche).
-Écrit une image par pose dans public/assets/rival/, sur une toile de 1024 x 2048 (le dessin occupe le haut).
-Le point posé au sol et les réglages de chaque pose sont dans src/game/rival/RivalLayer.ts.
+Écrit une image par pose dans ../game/public/assets/rival/, sur une toile de 1024 x 2048 (le dessin occupe le haut).
+Le point posé au sol et les réglages de chaque pose sont dans ../game/src/rival/RivalLayer.ts.
 """
 import numpy as np
 from PIL import Image
 
-from prepare_poses import ART, H, ROOT, W, key_green
+from prepare_poses import ART, GAME, H, ROOT, W, key_green
 
-OUT = ROOT / 'public' / 'assets' / 'rival'
+OUT = GAME / 'public' / 'assets' / 'rival'
 # largeur, en pixels, de l'estompage d'un dessin coupé par le bord droit de l'illustration
 EDGE_FADE = 140
 # dessins dont la botte d'appui est coupée par le bord droit : pas d'estompage

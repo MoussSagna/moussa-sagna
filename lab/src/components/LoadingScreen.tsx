@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { asset, onLoadProgress } from '../game/gl'
+import { asset, onLoadProgress } from '@game/gl'
 
 interface Props {
   /** Vrai quand le moteur a fini de charger toutes ses images. */
