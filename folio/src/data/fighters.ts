@@ -32,6 +32,7 @@ export interface Fighter {
 // Les visuels de Moussa sont extraits de `references/planche-moussa-transparente.png` (dossier local, hors du dépôt).
 // Zones découpées et limites connues : voir `docs/07-PERSONNAGE-MOUSSA.md`.
 const MOUSSA_ASSETS = 'assets/fighters/moussa';
+const CHALLENGER_ASSETS = 'assets/fighters/challenger';
 
 export const FIGHTERS: Record<FighterId, Fighter> = {
   moussa: {
@@ -50,16 +51,17 @@ export const FIGHTERS: Record<FighterId, Fighter> = {
     ],
     mirrored: false,
   },
-  // Emplacement réservé : l'adversaire sera un personnage original, pas encore dessiné.
-  // Pour l'intégrer, déposer ses visuels dans `public/assets/fighters/challenger/` et renseigner `portrait` et `stance`.
+  // Shigaraki, l'adversaire original du lab. Ses visuels sont générés à partir de ceux du lab : le portrait est découpé
+  // dans son gros plan de plan de coupe (`../lab/public/assets/cinematic/cutin-rival.webp`), le personnage en pied
+  // est celui de l'écran de chargement (`../lab/public/assets/loading/rival.webp`), réduit à la hauteur de Moussa.
   challenger: {
     id: 'challenger',
-    name: 'Adversaire',
-    initial: '?',
+    name: 'Shigaraki',
+    initial: 'S',
     slot: 'CPU',
-    tagline: 'Personnage original à venir',
-    portrait: null,
-    stance: null,
+    tagline: 'Le boss final',
+    portrait: { src: `${CHALLENGER_ASSETS}/portrait.webp`, width: 500, height: 520 },
+    stance: { src: `${CHALLENGER_ASSETS}/stance.webp`, width: 445, height: 663 },
     expressions: [],
     mirrored: true,
   },

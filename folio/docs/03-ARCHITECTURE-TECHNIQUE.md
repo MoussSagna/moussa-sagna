@@ -143,20 +143,22 @@ arrière, et enchaîne trois coups de poing et un coup de pied. Il n'a pas d'adv
 | `src/game/hero/HeroRig.ts` | Dessin : un objet Phaser par calque pour la garde et la marche, quelques images partagées pour les autres poses. |
 | `src/game/hero/shaders.ts` | Shader des rubans : déplacement nul à la racine, maximal à la pointe. |
 | `src/game/input.ts` | Clavier de l'arène. |
-| `src/game/controls.ts` | Clés du registre Phaser par lesquelles React transmet les commandes des boutons. |
 
 ### Commandes
 
-| Action | Clavier | Bouton |
-|---|---|---|
-| Marcher | maintenir ← → ou Q D (A en QWERTY) | maintenir « Reculer » ou « Avancer » |
-| Dasher | deux appuis sur la même direction en moins de 260 ms | deux appuis sur le même bouton |
-| S'accroupir | maintenir ↓ ou S | maintenir « S'accroupir » |
-| Parer | maintenir Espace | maintenir « Parer » |
-| Sauter | ↑ ou Z (W en QWERTY) ; avec ← ou → maintenu, saut arrière ou avant | « Sauter », avec « Reculer » ou « Avancer » maintenu |
-| Attaquer | J : un appui pour le coup léger, puis un nouvel appui pendant chaque coup pour enchaîner le moyen, le fort et le coup de pied | « Attaquer » |
+| Action | Clavier |
+|---|---|
+| Marcher | maintenir ← → ou Q D (A en QWERTY) |
+| Dasher | deux appuis sur la même direction en moins de 260 ms |
+| S'accroupir | maintenir ↓ ou S |
+| Parer | maintenir Espace |
+| Sauter | ↑ ou Z (W en QWERTY) ; avec ← ou → maintenu, saut arrière ou avant |
+| Attaquer | J : un appui pour le coup léger, puis un nouvel appui pendant chaque coup pour enchaîner le moyen, le fort et le coup de pied |
+| Plein écran | F, ou le bouton dans le coin de l'écran de jeu (géré par la page, pas par la scène) |
 
-Le clavier est lu par la scène (`ArenaKeyboard`) ; les boutons passent par le registre du jeu. Tant que l'arène
+Il n'y a plus de boutons de commande sous l'arène (retirés le 27 octobre) : l'arène se joue au clavier. Le plein
+écran met `.arena-frame__screen` en plein écran ; Phaser (mode FIT) y recale le canvas en 16:9. Le clavier est
+lu par la scène (`ArenaKeyboard`). Tant que l'arène
 est affichée, les touches de l'arène n'ont plus leur effet dans la page : les flèches haut et bas et Espace ne
 la font pas défiler. Deux exceptions : une saisie de texte, et Espace sur un bouton ou une case qui a le focus.
 
@@ -236,8 +238,8 @@ même taille de tête, sinon le personnage saute au changement d'état.
 À l'ouverture de l'arène, une cinématique présente Moussa puis son adversaire, avant « Face your destiny », « Round 1 » et « Fight! ». Elle est reprise du lab : `src/game/cinematic/cinematic.ts` est une copie adaptée de `../lab/src/game/cinematic/CinematicLayer.ts`, sans dépendance à Phaser, qui dessine en Canvas 2D (plans, caméra, pluie, pétales, lanternes, transitions, cartons, annonces). Les plans sont les WebP de `public/assets/cinematic/`, repris du lab.
 
 - **Dans la scène** : `ArenaScene` charge les plans, crée une `CanvasTexture` de la taille de la scène et une image par-dessus tout (`CINEMATIC_DEPTH`). À chaque image, la cinématique avance et se redessine dans cette texture ; il n'y a ni second canvas ni seconde boucle. Elle suit le temps réel même si l'affichage ralentit (pas plafonné à 0,05 s comme le combat).
-- **Commandes** : le personnage ne répond à rien avant le « Fight! » (`can` et `walkDirection`). Échap ou le bouton « Passer l'intro » sautent les plans ; « Rejouer l'intro » la relance (`CONTROLS.skipCinematic`, `CONTROLS.replayCinematic`).
-- **Textes** : dans `src/data/cinematic.ts`. Le carton de Moussa reprend le nom et le titre de `PROFILE` ; l'adversaire, sans nom, garde « ??? ».
+- **Commandes** : le personnage ne répond à rien avant le « Fight! » (`can` et `walkDirection`). Échap saute les plans ; recharger la page la rejoue.
+- **Textes** : dans `src/data/cinematic.ts`. Le carton de Moussa reprend le nom et le titre de `PROFILE` ; celui de l'adversaire, le nom et la devise de Shigaraki (`FIGHTERS.challenger`).
 - **Sans ses plans** (un fichier manquant), la cinématique ne joue pas et l'arène s'ouvre directement.
 - « Réduire les animations » fixe la caméra, remplace le pétale et la coupe en diagonale par des fondus et adoucit les éclairs.
 
