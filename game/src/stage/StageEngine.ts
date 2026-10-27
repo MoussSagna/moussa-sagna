@@ -42,8 +42,6 @@ const CAMERA_MAX_SHIFT = CAMERA_MAX_PAN + PLACEMENT.depth * CAMERA.parallax
  * `hammer`. Après un K.O. de l'adversaire, le round suivant commence au bout de `koSeconds`.
  */
 const DAMAGE = { perPower: 0.05, dive: 0.08, hammer: 0.2, koSeconds: 3 }
-/** Attaque ultime parée : temps entre son envol et son plongeon sur Moussa resté debout, en secondes. */
-const GUARD_DIVE_WAIT = 0.6
 /**
  * K.O. sur la frappe de la paume de l'attaque finale de Moussa : le combat se fige `freeze` secondes sur l'impact, la
  * caméra se resserre sur l'adversaire, puis il s'envole au ralenti (`scale` de la vitesse normale pendant `slow`
@@ -118,12 +116,6 @@ export class StageEngine {
   private rival: RivalLayer
   /** L'IA de l'adversaire, quand l'option `rivalAI` est active. */
   private brain = new RivalBrain()
-  /**
-   * Attaque ultime parée : temps écoulé depuis son envol (-1 sinon), avant qu'il retombe sur Moussa resté debout ;
-   * puis vrai pendant ce plongeon et le coup de marteau, que Moussa pare ou encaisse debout.
-   */
-  private guardDive = -1
-  private guardDiving = false
   private opponentCanvases: { dummy: HTMLCanvasElement; rival: HTMLCanvasElement }
   private hero: HeroLayer
   /** Arrêt sur image en cours : temps restant, et temps total passé à l'arrêt depuis le démarrage. */
@@ -239,18 +231,6 @@ export class StageEngine {
     if (!this.cinematic.locked && this.options.rivalControl === true) this.rival.teleport(direction * this.side)
   }
 
-  /**
-   * Plongeon ou coup de marteau de l'attaque ultime sur Moussa resté debout : il le pare s'il tient sa garde (il
-   * recule un peu et perd du drive), sinon il l'encaisse. `amount` : vie perdue s'il l'encaisse.
-   */
-  private standingBlow(amount: number, power: number, info: FrameInfo): void {
-    const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)
-    const blow: Strike = { x: this.hero.front(pixel), height: 1350, power: Math.min(power, 1.6), stop: 0.2 }
-    if (this.hero.takeHit(blow, pixel)) this.hud.block('hero', power)
-    else this.hud.damage('hero', amount, power)
-    this.shake = Math.max(this.shake, 3.5)
-  }
-
   /** L'IA regarde le combat et pilote l'adversaire : marche, parade, coups (sens propres à l'adversaire). */
   private driveRival(fight: FrameInfo, info: FrameInfo): void {
     const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)
@@ -313,8 +293,6 @@ export class StageEngine {
   /** Passe au round suivant : les deux combattants reviennent en garde à leur place de départ. */
   private nextRound(): void {
     this.brain.reset()
-    this.guardDive = -1
-    this.guardDiving = false
     this.quake = -1
     this.victoryTime = -1
     this.focusTime = -1
@@ -453,7 +431,7 @@ export class StageEngine {
     const react = (strike: Strike): boolean => {
       // combo : le coup touche alors qu'il est encore sonné par le précédent
       const stunned = rivalTarget && this.rival.stunned
-      const guarded = target.hit(strike.power, !strike.sticky)
+      const guarded = target.hit(strike.power)
       // paré par un adversaire coincé contre le bord : Moussa recule à sa place
       if (guarded && rivalTarget) this.hero.recoil(this.rival.takeCornerPush())
       if (rivalTarget && this.koWait < 0) {
@@ -653,24 +631,10 @@ export class StageEngine {
     // le rebond, l'adversaire retombe sur lui d'un coup de poing qui le recloue au sol (même secousse). Pour la
     // démo, le round suivant commence quand il est resté sur son coup (tout de suite si Moussa n'était pas propulsé)
     const tookOff = this.rival.takeTakeoff()
-    // Moussa a paré l'uppercut : il est resté debout, et l'adversaire retombe sur lui quand même (sur sa garde s'il
-    // la tient) ; seul un Moussa déjà K.O. fait passer au round suivant
-    if (tookOff && !this.hero.slam()) {
-      if (this.hero.knockedOut) this.nextRound()
-      else this.guardDive = 0
-    }
-    if (this.guardDive >= 0) {
-      this.guardDive += fight.delta
-      if (this.guardDive >= GUARD_DIVE_WAIT) {
-        this.guardDive = -1
-        this.guardDiving = this.rival.dive(this.hero.position, (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width), true)
-      }
-    }
+    if (tookOff && !this.hero.slam()) this.nextRound()
     if (this.hero.takeSlamImpact()) this.shake = Math.max(this.shake, 3.5)
     if (this.hero.slamHanging) this.rival.dive(this.hero.position, (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width))
-    const dived = this.rival.takeDiveImpact()
-    if (dived && this.guardDiving) this.standingBlow(DAMAGE.dive, 1.2, info)
-    else if (dived) {
+    if (this.rival.takeDiveImpact()) {
       this.hud.damage('hero', DAMAGE.dive, 1.2)
       this.shake = Math.max(this.shake, 3.5)
       this.hero.pin()
@@ -681,8 +645,7 @@ export class StageEngine {
       this.stop = CUT_IN_SECONDS
     }
     if (this.rival.takeHammerImpact()) {
-      if (this.guardDiving) this.standingBlow(DAMAGE.hammer, 2, info)
-      else this.hud.damage('hero', DAMAGE.hammer, 2)
+      this.hud.damage('hero', DAMAGE.hammer, 2)
       this.cinematic.blast()
       this.cinematic.impactFlash()
       this.quake = 0
@@ -690,11 +653,7 @@ export class StageEngine {
     // coup final terminé : l'adversaire repart à sa place et Moussa se relève, le combat reprend
     if (this.rival.takeFinish()) {
       // plus de vie : il reste au sol, « K.O. », puis round suivant ; sinon il se relève
-      if (this.guardDiving) {
-        // resté debout : rien à relever ; K.O. s'il n'a plus de vie
-        this.guardDiving = false
-        if (this.hud.health('hero') <= 0) this.knockOut()
-      } else if (this.hud.health('hero') <= 0) {
+      if (this.hud.health('hero') <= 0) {
         this.koWait = 0
         this.cinematic.showKO()
       } else {

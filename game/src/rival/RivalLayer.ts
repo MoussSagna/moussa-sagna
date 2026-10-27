@@ -609,8 +609,6 @@ export class RivalLayer implements Opponent {
   /** Recul d'un coup paré en cours, et la part de recul que le bord lui a refusée (reprise par `takeCornerPush`). */
   private guardSlide: { from: number; distance: number; time: number } | null = null
   private cornerPush = 0
-  /** Vrai quand il plonge sur Moussa resté debout (l'uppercut a été paré). */
-  private diveStanding = false
   private velocity = 0
 
   constructor(canvas: HTMLCanvasElement) {
@@ -640,13 +638,13 @@ export class RivalLayer implements Opponent {
     return this.ready
   }
 
-  hit(power: number, push = true): boolean {
+  hit(power: number): boolean {
     // à terre, il n'encaisse plus rien
     if (this.koTime >= 0) return false
     const guarded = this.pose === 'block'
     this.lean = (guarded ? GUARDED_LEAN : HIT.lean) * (0.45 + 0.55 * power)
     this.velocity = 0
-    if (guarded && push) {
+    if (guarded) {
       const distance = GUARD_PUSH.distance * (0.5 + 0.5 * power)
       const room = Math.max(0, Math.min(distance, RANGE.maxX - this.x))
       this.guardSlide = { from: this.x, distance: room, time: 0 }
@@ -776,14 +774,12 @@ export class RivalLayer implements Opponent {
    * Fin de l'attaque ultime : envolé hors de l'écran, il retombe sur Moussa (milieu du corps en `heroX`) en le
    * frappant du poing. `pixel` : largeur d'un pixel de la toile, en fraction du stage.
    */
-  dive(heroX: number, pixel: number, standing = false): boolean {
+  dive(heroX: number, pixel: number): boolean {
     if (!this.away) return false
     this.away = false
     this.diveTime = 0
     this.pose = 'ultLand'
-    // Moussa debout (il a paré l'uppercut) : il retombe à distance de combat, devant lui, et y reste pour le marteau
-    this.diveStanding = standing
-    this.x = Math.min(RANGE.maxX, heroX + (standing ? this.gap : DIVE.target + DIVE.fist) * pixel)
+    this.x = Math.min(RANGE.maxX, heroX + (DIVE.target + DIVE.fist) * pixel)
     this.diveTarget = [heroX, pixel]
     return true
   }
@@ -1026,7 +1022,7 @@ export class RivalLayer implements Opponent {
       if (before < DIVE_CUT_IN && this.diveTime >= DIVE_CUT_IN) {
         this.hammerCutIn = true
         const [heroX, pixel] = this.diveTarget
-        if (!this.diveStanding) this.x = Math.min(RANGE.maxX, heroX + (HAMMER.target + HAMMER.fists) * pixel)
+        this.x = Math.min(RANGE.maxX, heroX + (HAMMER.target + HAMMER.fists) * pixel)
       }
       if (before < HAMMER_IMPACT && this.diveTime >= HAMMER_IMPACT) this.hammerImpact = true
       // coup fini : il fait un bond en arrière d'une distance de dash, et Moussa se relève
