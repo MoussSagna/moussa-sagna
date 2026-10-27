@@ -609,6 +609,8 @@ export class RivalLayer implements Opponent {
   /** Recul d'un coup paré en cours, et la part de recul que le bord lui a refusée (reprise par `takeCornerPush`). */
   private guardSlide: { from: number; distance: number; time: number } | null = null
   private cornerPush = 0
+  /** Fin anticipée du coup en cours (attaque ultime parée), en secondes depuis son début. */
+  private stopAt = Infinity
   private velocity = 0
 
   constructor(canvas: HTMLCanvasElement) {
@@ -862,6 +864,25 @@ export class RivalLayer implements Opponent {
     this.warped = false
     this.landedStep = null
     this.pose = MOVES[move].steps[0].pose
+    this.stopAt = Infinity
+  }
+
+  /**
+   * Son attaque ultime a été parée : elle ne se poursuit pas. Le coup en cours va au bout de ses images actives
+   * (l'uppercut entier), puis il revient en garde, sans l'envol ni la suite.
+   */
+  stopAfterHit(): void {
+    if (this.attackTime < 0) return
+    const steps = MOVES[this.move].steps
+    let end = 0
+    let index = 0
+    while (index < steps.length) {
+      end += steps[index].seconds
+      if (this.attackTime < end) break
+      index++
+    }
+    while (index + 1 < steps.length && steps[index + 1].active) end += steps[++index].seconds
+    this.stopAt = Math.min(this.stopAt, end)
   }
 
   /** L'étape en cours du coup. */
@@ -1083,7 +1104,12 @@ export class RivalLayer implements Opponent {
       const [min] = this.bounds(this.pixel(frame))
       const target = this.attackFrom - move.advance * (1 - (1 - k) ** 2)
       this.x = Math.max(Math.min(this.x, min), target)
-      if (this.ultimateQueued && this.move !== 'ultimate' && this.attackTime >= moveActiveEnd(move)) {
+      if (this.attackTime >= this.stopAt) {
+        // attaque parée : elle s'arrête là
+        this.attackTime = -1
+        this.stopAt = Infinity
+        this.pose = 'guard'
+      } else if (this.ultimateQueued && this.move !== 'ultimate' && this.attackTime >= moveActiveEnd(move)) {
         // l'attaque ultime annule la suite du coup en cours
         this.startUltimate()
       } else if (this.specialQueued && this.attackTime >= moveActiveEnd(move)) {

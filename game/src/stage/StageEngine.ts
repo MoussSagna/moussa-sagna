@@ -468,6 +468,8 @@ export class StageEngine {
     if (blow && !this.hero.exiting && !this.hero.knockedOut && this.hero.front(pixel) >= blow.x) {
       target.land()
       const guarded = this.hero.takeHit(blow, pixel)
+      // attaque ultime parée : le premier coup va au bout, puis elle ne se poursuit pas
+      if (guarded && this.rival.ultimateActive) this.rival.stopAfterHit()
       if (guarded) this.hud.block('hero', blow.power)
       else if (this.koWait < 0) {
         this.hud.damage('hero', blow.power * DAMAGE.perPower, blow.power)

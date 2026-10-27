@@ -591,6 +591,8 @@ export class HeroLayer {
   private gut = false
   /** Temps écoulé depuis le début de la frappe au sol, et vrai dès qu'elle a touché. */
   private groundTime = 0
+  /** Fin anticipée de la frappe au sol : son premier coup a été paré, elle s'arrête à la fin de ce coup. */
+  private groundStopAt = Infinity
   private groundLanded = false
   /** Vrai dès que le plan de coupe de la frappe au sol en cours a été lancé. */
   private cutInTaken = false
@@ -834,6 +836,15 @@ export class HeroLayer {
     const flurry = this.pose === 'ground' ? this.groundStep().flurry : undefined
     if (flurry !== undefined) {
       this.flurryLanded = flurry
+      // parée : l'attaque ne se poursuit pas, elle s'arrête à la fin de ce coup
+      if (guarded) {
+        let end = 0
+        for (const step of GROUND.steps) {
+          end += step.seconds
+          if (this.groundTime < end) break
+        }
+        this.groundStopAt = Math.min(this.groundStopAt, end)
+      }
       const heavy = this.groundStep().heavy === true
       this.flurryFx.push({ x, height: strike.height, age: 0, index: flurry, heavy })
       // les trois coups lourds explosent sur la cible
@@ -1153,6 +1164,7 @@ export class HeroLayer {
     this.specialQueued = false
     this.pose = 'ground'
     this.groundTime = 0
+    this.groundStopAt = Infinity
     this.groundLanded = false
     this.cutInTaken = false
     this.groundFrom = this.x
@@ -1501,7 +1513,7 @@ export class HeroLayer {
         const k = Math.min(1, (this.groundTime - GROUND_PALM) / GROUND.advanceSeconds)
         this.x = Math.max(PLACEMENT.minX, Math.min(this.limit(), this.groundFrom + GROUND.advance * (1 - (1 - k) ** 3)))
       }
-      if (this.groundTime < GROUND_TOTAL) return
+      if (this.groundTime < Math.min(GROUND_TOTAL, this.groundStopAt)) return
       this.pose = 'guard'
     }
     if (this.pose === 'special') {
