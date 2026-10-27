@@ -3,8 +3,8 @@ frappe au sol.
 
 Usage (depuis lab/) : python3 tools/prepare_fx.py
 Lit ../art/fx-smoke.png (plusieurs bouffées côte à côte sur fond vert uni), retire le fond vert, sépare les
-bouffées là où une colonne entière est vide, et écrit chacune dans public/assets/fx/smoke-N.webp, de la plus
-petite à la plus grande. Affiche leur taille, reprise dans SMOKE (src/game/hero/HeroLayer.ts).
+bouffées là où une colonne entière est vide, et écrit chacune dans ../game/public/assets/fx/smoke-N.webp, de la plus
+petite à la plus grande. Affiche leur taille, reprise dans SMOKE (../game/src/hero/HeroLayer.ts).
 Lit aussi ../art/fx-ground-special.png (planche d'effets déjà détourée) et l'écrit telle quelle dans
 public/assets/fx/ground-special.webp ; les rectangles de chaque effet sont dans FX (HeroLayer.ts).
 Les huit dessins de l'étincelle d'un coup qui touche (../art/fx-hit-N.png), voir `hit`.
@@ -13,9 +13,9 @@ Et les douze dessins de l'impact du coup de marteau de l'adversaire (../art/fx-h
 import numpy as np
 from PIL import Image
 
-from prepare_poses import ART, ROOT, key_green
+from prepare_poses import ART, GAME, ROOT, key_green
 
-OUT = ROOT / 'public' / 'assets' / 'fx'
+OUT = GAME / 'public' / 'assets' / 'fx'
 PAD = 4
 
 
@@ -56,7 +56,7 @@ def hit() -> None:
     """Les huit dessins de l'étincelle d'un coup qui touche (../art/fx-hit-N.png, petites images à la même échelle) :
     détourés et posés sur une toile commune, sans changer d'échelle. Le premier (une étoile) est centré sur le point
     d'impact ; les suivants (la gerbe, puis l'onde qui part vers la droite) y ont leur bord gauche. Écrits dans
-    public/assets/fx/hit-N.webp."""
+    ../game/public/assets/fx/hit-N.webp."""
     for index in range(1, 9):
         rgb = np.asarray(Image.open(ART / f'fx-hit-{index}.png').convert('RGB')).copy()
         # les bords des images portent parfois un trait sombre (fin de la capture) : repeints en vert
@@ -82,7 +82,7 @@ HAMMER = dict(width=1480, height=1080, ground=(740, 1070), tall=1000)
 def hammer() -> None:
     """Les douze dessins de l'impact du coup de marteau (../art/fx-hammer-N.png, en hauteur ou en largeur, à des
     échelles différentes) : détourés, ramenés à la même hauteur de colonne (`tall`, sans dépasser la largeur de la
-    toile) et posés avec le pied de la colonne lumineuse en `ground`, dans public/assets/fx/hammer-N.webp."""
+    toile) et posés avec le pied de la colonne lumineuse en `ground`, dans ../game/public/assets/fx/hammer-N.webp."""
     for index in range(1, 13):
         rgb = np.asarray(Image.open(ART / f'fx-hammer-{index}.png').convert('RGB')).copy()
         art = key_green(rgb)

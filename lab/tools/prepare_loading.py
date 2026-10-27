@@ -3,15 +3,15 @@
 Usage (depuis lab/) : python3 tools/prepare_loading.py
 Lit, dans art/ à la racine du dépôt, loading-bg.png (le fond, 1672 x 941), loading-hero.png et loading-rival.png
 (les deux combattants en pied, sur fond vert uni, 1024 x 1536). Efface les logos des baskets de Moussa, retire le
-fond vert, recadre au plus juste et écrit le tout dans public/assets/loading/.
+fond vert, recadre au plus juste et écrit le tout dans ../game/public/assets/loading/.
 """
 import cv2
 import numpy as np
 from PIL import Image
 
-from prepare_poses import ART, ROOT, key_green
+from prepare_poses import ART, GAME, ROOT, key_green
 
-OUT = ROOT / 'public' / 'assets' / 'loading'
+OUT = GAME / 'public' / 'assets' / 'loading'
 # logos rouges sur le panneau blanc des baskets : les pixels rouges sont repeints d'après leur voisinage
 RED_LOGOS = [(784, 1362, 850, 1418), (95, 1362, 118, 1396)]
 # petits logos clairs sur la languette noire des deux baskets : les pixels clairs sont repeints d'après le noir

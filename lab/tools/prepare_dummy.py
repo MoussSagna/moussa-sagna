@@ -2,17 +2,17 @@
 
 Usage (depuis lab/) : python3 tools/prepare_dummy.py
 Lit, dans art/ à la racine du dépôt, dummy-idle.png et dummy-hit.png (fond vert uni, 1024 x 1536).
-Écrit public/assets/dummy/dummy.webp : les deux dessins côte à côte, le repos à gauche, le coup reçu à droite.
-Les rectangles des calques sont décrits dans src/game/dummy/DummyLayer.ts.
+Écrit ../game/public/assets/dummy/dummy.webp : les deux dessins côte à côte, le repos à gauche, le coup reçu à droite.
+Les rectangles des calques sont décrits dans ../game/src/dummy/DummyLayer.ts.
 """
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 
-from prepare_poses import ART, H, ROOT, W, key_green
+from prepare_poses import ART, GAME, H, ROOT, W, key_green
 
-OUT = ROOT / 'public' / 'assets' / 'dummy'
+OUT = GAME / 'public' / 'assets' / 'dummy'
 
 
 def main() -> None:

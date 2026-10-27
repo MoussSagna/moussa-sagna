@@ -1,7 +1,7 @@
 """Prépare le décor : efface le titre incrusté et écrit la carte de profondeur.
 
 Usage : python3 tools/prepare_stage.py decor.png
-Écrit public/assets/stage/stage.webp et depth.png.
+Écrit ../game/public/assets/stage/stage.webp et depth.png.
 
 La carte est tracée à la main : les polygones ci-dessous sont en pixels de
 l'image d'origine (1672 x 941) et valent pour le stage Tokyo Underground.
@@ -13,7 +13,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-OUT = Path(__file__).resolve().parent.parent / 'public' / 'assets' / 'stage'
+OUT = Path(__file__).resolve().parent.parent.parent / 'game' / 'public' / 'assets' / 'stage'
 TITLE_BOX = (38, 28, 392, 132)  # titre incrusté en haut à gauche, à effacer (None pour ne rien effacer)
 
 SKY = [(560, 0), (1480, 0), (1380, 60), (1255, 125), (1125, 160), (1150, 205), (1200, 240), (1200, 258), (1140, 262),
