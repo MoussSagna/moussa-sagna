@@ -68,11 +68,11 @@ Aucune bibliothèque de jeu n'est installée pour l'instant : le premier écran 
 ## Organisation
 
 ```
-../art/          illustrations du personnage (une par pose), à la racine du dépôt
-moussa_rig/      ancien rig de face, plus utilisé par le moteur
-public/assets/   images du stage et du personnage
-src/game/        moteur de rendu, indépendant de React
-src/components/  écrans et interface React
+../art/                 illustrations du personnage (une par pose), à la racine du dépôt
+../game/src/            moteur du jeu, indépendant de React, partagé avec le site (alias @game)
+../game/public/assets/  images du stage et des personnages (dossier public du lab)
+moussa_rig/             ancien rig de face, plus utilisé par le moteur
+src/components/         écrans et interface React du banc d'essai
 docs/            architecture, assets, feuille de route
 tools/           scripts Python de préparation des images
 ```

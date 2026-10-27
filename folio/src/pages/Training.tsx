@@ -4,18 +4,18 @@ import { ArcadeLink } from '../components/ArcadeButton';
 import { HudPanel, PageHead } from '../components/Hud';
 import { Reveal } from '../components/Reveal';
 import { ROUTES, TRAINING_MODULES } from '../data/navigation';
-import { leavesKeyAlone } from '../game/input';
+import { leavesKeyAlone } from '@game/controls';
 import { usePageTitle } from '../hooks/usePageTitle';
 
-// Phaser n'est téléchargé que sur cette page : le reste du portfolio n'en dépend pas.
-const ArenaCanvas = lazy(() => import('../components/ArenaCanvas'));
+// Le moteur du jeu n'est téléchargé que sur cette page : le reste du portfolio n'en dépend pas.
+const GameArena = lazy(() => import('../components/GameArena'));
 
 /** Vrai si le navigateur sait mettre un élément en plein écran (pas l'iPhone, par exemple). */
 const canFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled;
 
 /**
- * Plein écran de l'arène : le bouton dans un coin de l'écran de jeu, ou la touche F. Phaser (mode FIT) recale le
- * canvas en 16:9 dans l'écran entier ; Échap ou un nouvel appui en sort.
+ * Plein écran de l'arène : le bouton dans un coin de l'écran de jeu, ou la touche F. Le jeu y garde son format
+ * 16:9, centré sur fond noir ; Échap ou un nouvel appui en sort.
  */
 function useFullscreen(target: RefObject<HTMLElement | null>) {
   const [active, setActive] = useState(false);
@@ -58,13 +58,13 @@ export function Training() {
         <PageHead
           eyebrow="Arène · Mode entraînement"
           title="Premiers pas dans l’arène"
-          lead="Une cinématique présente Moussa et son adversaire, Shigaraki, puis Moussa se tient en garde dans l’arène, rendue en temps réel ci-dessous et jouable au clavier, en plein écran si tu veux. Il marche, dashe, s’accroupit, pare, saute sur place, en avant ou en arrière, et enchaîne trois coups de poing et un coup de pied. Shigaraki l’attend en garde : il encaisse les coups, mais ne riposte pas encore."
+          lead="Une cinématique présente Moussa et Shigaraki, puis le combat commence, rendu en temps réel ci-dessous et jouable au clavier, en plein écran si tu veux. Enchaîne les coups, annule-les en drive rush, place l’attaque finale en plein combo, et mets Shigaraki K.O."
         />
 
         <figure className="arena-frame rise" style={{ animationDelay: '240ms' }}>
           <div className="arena-frame__screen" ref={screen}>
             <Suspense fallback={<p className="arena-frame__loading">Chargement de l’arène…</p>}>
-              <ArenaCanvas />
+              <GameArena />
             </Suspense>
             {canFullscreen && (
               <button
@@ -91,14 +91,16 @@ export function Training() {
           </div>
           <figcaption className="arena-frame__caption">
             <span className="status">Jouable</span>
-            <span>Stage 01 · Tokyo Underground · rendu Phaser</span>
+            <span>Stage 01 · Tokyo Underground · rendu WebGL</span>
           </figcaption>
           <p className="arena-hint">
             Maintiens <kbd>←</kbd> <kbd>→</kbd> ou <kbd>Q</kbd> <kbd>D</kbd> pour marcher, appuie deux fois vite pour un
             dash. Maintiens <kbd>↓</kbd> ou <kbd>S</kbd> pour t’accroupir, <kbd>Espace</kbd> pour parer. <kbd>↑</kbd> ou{' '}
             <kbd>Z</kbd> pour sauter (avec <kbd>←</kbd> ou <kbd>→</kbd> maintenu : saut arrière ou avant), <kbd>J</kbd>{' '}
             pour attaquer : un appui pour le coup léger, puis un par coup pour enchaîner le moyen, le fort et le coup de
-            pied. <kbd>Échap</kbd> passe l’intro, <kbd>F</kbd> met l’arène en plein écran.
+            pied. Pendant un coup qui touche, deux appuis vite vers l’avant lancent un drive rush (2 blocs de drive).{' '}
+            <kbd>L</kbd> lance la boule de feu, <kbd>I</kbd> l’attaque finale. <kbd>Échap</kbd> passe l’intro,{' '}
+            <kbd>F</kbd> met l’arène en plein écran.
           </p>
         </figure>
 

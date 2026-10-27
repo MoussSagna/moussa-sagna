@@ -803,7 +803,7 @@ a:focus-visible > .btn--primary {
 .petals__petal:nth-child(8) { --n: 7; }
 .petals__petal:nth-child(9) { --n: 8; }
 
-/* ---------- Arène Phaser ---------- */
+/* ---------- Arène (jeu de ../game/) ---------- */
 
 .arena-frame {
   padding: clamp(8px, 1.5vw, 14px);
@@ -819,14 +819,388 @@ a:focus-visible > .btn--primary {
   background: #000;
 }
 
-/* Phaser (mode FIT) cale le canvas sur la taille de ce conteneur 16:9. */
-.arena-canvas {
+/* L'arène du jeu (moteur de `../game/`) : des canvas superposés, en 16:9, centrés dans l'écran de jeu. */
+.arena-frame__screen {
+  display: grid;
+  place-items: center;
+}
+
+.game-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background-color: var(--game-ink);
+  background-position: center;
+  background-size: cover;
+}
+
+.game-stage__layer {
+  position: absolute;
+  inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
 }
 
-.arena-canvas canvas {
-  display: block;
+/* seul le décor suit le pointeur (parallaxe) ; les plans au-dessus le laissent passer */
+.game-stage__layer + .game-stage__layer {
+  pointer-events: none;
+}
+
+.game-stage__skip {
+  position: absolute;
+  right: 2.4%;
+  bottom: 10%;
+  z-index: 1;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 2px solid rgba(242, 244, 247, 0.6);
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--white);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transform: skewX(-10deg);
+  cursor: pointer;
+}
+
+.game-stage__skip:hover,
+.game-stage__skip:focus-visible {
+  border-color: var(--white);
+}
+
+.game-stage__skip-key {
+  font-family: var(--font-hud);
+  font-size: 13px;
+  font-style: normal;
+  text-transform: none;
+  opacity: 0.7;
+}
+
+/* ---------- Écran de chargement de l'arène (repris du lab) ---------- */
+
+.arena-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  background: var(--game-ink);
+  color: var(--game-line);
+  font-family: var(--font-game);
+  cursor: default;
+  container-type: inline-size;
+}
+
+.arena-loading__bg {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+  animation: loading-drift 18s ease-in-out infinite alternate;
+}
+
+.arena-loading__shade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 45%, transparent 35%, rgb(8 6 13 / 0.75) 100%),
+    linear-gradient(to top, rgb(8 6 13 / 0.92) 0%, transparent 34%);
+}
+
+.arena-loading__fighter {
+  position: absolute;
+  bottom: 0;
+  height: 96%;
+  width: auto;
+  user-select: none;
+}
+
+.arena-loading__fighter--hero {
+  left: 3%;
+  filter: drop-shadow(0 0 22px rgb(232 38 45 / 0.45));
+  animation: loading-in-left 0.7s cubic-bezier(0.2, 0.9, 0.2, 1) both, loading-breathe 3.6s ease-in-out 0.7s infinite;
+}
+
+.arena-loading__fighter--rival {
+  right: 3%;
+  filter: drop-shadow(0 0 22px rgb(139 107 255 / 0.5));
+  animation: loading-in-right 0.7s cubic-bezier(0.2, 0.9, 0.2, 1) 0.1s both, loading-breathe 3.6s ease-in-out 1.6s infinite;
+}
+
+.arena-loading__vs {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 11cqi;
+  font-style: italic;
+  line-height: 1;
+  translate: -50% 0;
+  background: linear-gradient(100deg, var(--game-blood) 0 48%, #fff 48% 52%, var(--game-violet) 52% 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 0.025em #fff;
+  filter: drop-shadow(0 0.04em 0 #000) drop-shadow(0 0 0.2em rgb(255 255 255 / 0.35));
+  pointer-events: none;
+  animation: loading-vs 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 0.55s both;
+}
+
+.arena-loading__name {
+  position: absolute;
+  bottom: 5%;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  text-shadow: 0.05em 0.05em 0 #000;
+  pointer-events: none;
+  animation: loading-fade 0.5s ease-out 0.8s both;
+}
+
+.arena-loading__name--hero {
+  left: 4%;
+}
+
+.arena-loading__name--rival {
+  right: 4%;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.arena-loading__fighter-name {
+  font-family: var(--font-display);
+  font-size: 4.2cqi;
+  font-style: italic;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.arena-loading__fighter-title {
+  font-size: 1.3cqi;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--game-blood);
+}
+
+.arena-loading__name--rival .arena-loading__fighter-title {
+  color: var(--game-violet);
+}
+
+.arena-loading__panel {
+  position: absolute;
+  right: 27%;
+  bottom: 7%;
+  left: 27%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6em;
+  font-size: max(10px, 1.25cqi);
+  animation: loading-fade 0.5s ease-out 0.4s both;
+}
+
+.arena-loading__status {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+
+.arena-loading__percent {
+  font-variant-numeric: tabular-nums;
+}
+
+.arena-loading__spinner {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  margin-right: 0.6em;
+  border: 2px solid var(--game-line);
+  border-right-color: transparent;
+  rotate: 45deg;
+  animation: loading-spin 0.9s linear infinite;
+}
+
+.is-ready .arena-loading__spinner {
+  border-color: var(--game-blood);
+  background: var(--game-blood);
+  animation: none;
+}
+
+.arena-loading__dots::after {
+  content: '';
+  animation: loading-dots 1.2s steps(4) infinite;
+}
+
+.arena-loading__bar {
+  position: relative;
+  width: 100%;
+  height: 0.9em;
+  transform: skewX(-24deg);
+  background: rgb(8 6 13 / 0.8);
+  outline: 2px solid rgb(244 239 233 / 0.85);
+  outline-offset: 2px;
+}
+
+.arena-loading__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, var(--game-blood), var(--game-sakura) 55%, var(--game-violet));
+  box-shadow: 0 0 14px rgb(255 143 192 / 0.6);
+  transition: width 0.25s ease-out;
+}
+
+.arena-loading__fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: loading-sheen 1.3s linear infinite;
+}
+
+.arena-loading__tip {
+  margin: 0;
+  text-align: center;
+  color: var(--game-muted);
+  animation: loading-fade 0.4s ease-out both;
+}
+
+.arena-loading__start {
+  margin: 0;
+  padding: 0.1em 0.3em;
+  font-family: var(--font-display);
+  font-size: 1.7em;
+  font-style: italic;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0.06em 0.06em 0 var(--game-blood);
+  animation: loading-blink 1.1s ease-in-out infinite;
+}
+
+.arena-loading.is-leaving {
+  animation: loading-out 0.45s ease-in forwards;
+}
+
+@keyframes loading-in-left {
+  from {
+    transform: translateX(-60%);
+    opacity: 0;
+  }
+}
+
+@keyframes loading-in-right {
+  from {
+    transform: translateX(60%);
+    opacity: 0;
+  }
+}
+
+@keyframes loading-breathe {
+  50% {
+    transform: translateY(-0.8%) scale(1.008);
+  }
+}
+
+@keyframes loading-vs {
+  from {
+    scale: 2.6;
+    opacity: 0;
+  }
+}
+
+@keyframes loading-fade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes loading-drift {
+  to {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes loading-sheen {
+  from {
+    background-position: -60% 0;
+  }
+  to {
+    background-position: 160% 0;
+  }
+}
+
+@keyframes loading-spin {
+  to {
+    rotate: 405deg;
+  }
+}
+
+@keyframes loading-dots {
+  0% {
+    content: '';
+  }
+  25% {
+    content: '.';
+  }
+  50% {
+    content: '..';
+  }
+  75% {
+    content: '...';
+  }
+}
+
+@keyframes loading-blink {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes loading-out {
+  0% {
+    filter: brightness(1);
+  }
+  30% {
+    filter: brightness(3);
+  }
+  100% {
+    filter: brightness(3);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arena-loading__bg,
+  .arena-loading__fighter--hero,
+  .arena-loading__fighter--rival,
+  .arena-loading__vs,
+  .arena-loading__name,
+  .arena-loading__panel,
+  .arena-loading__tip,
+  .arena-loading__start,
+  .arena-loading__fill::after,
+  .arena-loading__spinner {
+    animation: none;
+  }
+
+  .arena-loading.is-leaving {
+    animation: loading-out 0.2s linear forwards;
+  }
 }
 
 .arena-frame__loading {
@@ -858,11 +1232,12 @@ a:focus-visible > .btn--primary {
   color: var(--white);
 }
 
-/* Bouton plein écran, dans le coin haut droit de l'écran de jeu, discret tant qu'on ne le survole pas. */
+/* Bouton plein écran, en bas au milieu de l'écran de jeu (entre les jauges), discret tant qu'on ne le survole pas. */
 .arena-frame__fullscreen {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  bottom: 10px;
+  left: 50%;
+  translate: -50% 0;
   z-index: 1;
   display: grid;
   place-items: center;
@@ -889,11 +1264,16 @@ a:focus-visible > .btn--primary {
   stroke-linecap: square;
 }
 
-/* En plein écran, l'écran de jeu occupe tout l'écran ; Phaser (mode FIT) y garde le 16:9, sur fond noir. */
+/* En plein écran, l'écran de jeu occupe tout l'écran ; le jeu y garde son 16:9, centré sur fond noir. */
 .arena-frame__screen:fullscreen {
   width: 100vw;
   height: 100vh;
   aspect-ratio: auto;
+}
+
+/* en plein écran, le jeu garde son 16:9 et tient dans l'écran, en largeur ou en hauteur */
+.arena-frame__screen:fullscreen .game-stage {
+  width: min(100vw, calc(100vh * 16 / 9));
 }
 
 @media (prefers-reduced-motion: reduce) {

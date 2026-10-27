@@ -14,7 +14,9 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": { "@game/*": ["../game/src/*"] }
   },
-  "include": ["src"]
+  "include": ["src", "../game/src"],
+  "exclude": ["../game/src/**/*.test.ts"]
 }

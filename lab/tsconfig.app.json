@@ -23,5 +23,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "../game/src"]
+  "include": ["src", "../game/src"],
+  "exclude": ["../game/src/**/*.test.ts"]
 }

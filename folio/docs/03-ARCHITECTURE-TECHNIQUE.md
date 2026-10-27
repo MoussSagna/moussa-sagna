@@ -1,5 +1,7 @@
 # Architecture technique cible
 
+> Cible d'origine (sprint 1). Phaser y est prévu pour l'arène ; il a depuis été remplacé par le jeu de `../game/`. Voir « Architecture réelle » plus bas, qui fait foi.
+
 ## Stack
 
 - Vite
@@ -79,190 +81,39 @@ Cette section décrit le code tel qu'il existe. En cas d'écart avec la cible ci
 
 ## Stack installée
 
-- Vite 8, TypeScript 7 (strict), React 19, React Router 7, Phaser 3.90.
-- Polices auto-hébergées via `@fontsource` : Anton (titres) et Chakra Petch (HUD). Le texte courant utilise la
-  police système.
-- Vitest pour les tests unitaires.
+- Vite 8, TypeScript 7 (strict), React 19, React Router 7.
+- Le jeu de l'arène : le moteur WebGL de `../game/` (TypeScript, shaders écrits à la main, sans bibliothèque),
+  importé par l'alias `@game`. Phaser a été retiré le 27 octobre 2026.
+- Polices auto-hébergées via `@fontsource` : Anton (titres), Chakra Petch (HUD du site), Barlow Semi Condensed
+  (interface de combat, cinématique et écran de chargement du jeu). Le texte courant utilise la police système.
+- Vitest pour les tests unitaires (ceux du site et ceux de `../game/src`).
 - CSS natif, sans préprocesseur ni bibliothèque d'animation.
 
-## Séparation React / Phaser
+## L'arène : le jeu de `../game/`
 
-- React gère toutes les pages et la navigation. Phaser n'est utilisé que pour l'arène.
-- `src/components/ArenaCanvas.tsx` est le seul fichier React qui touche à Phaser. Il crée le jeu au montage via
-  `createArenaGame(parent)` (`src/game/config.ts`) et appelle `game.destroy(true)` au démontage. L'effet n'a
-  aucune dépendance : un nouveau rendu React ne recrée jamais le moteur.
-- `ArenaCanvas` est chargé à la demande (`React.lazy`) depuis la page `/entrainement`. Le fichier Phaser
-  (environ 1,2 Mo) n'est donc téléchargé que sur cette page.
-- `ArenaScene` affiche le décor animé décrit plus bas. Le canvas s'adapte à son conteneur 16:9 grâce au mode
-  `Scale.FIT`.
-- `src/assets.ts` centralise les chemins d'assets partagés entre React et Phaser.
-
-## Décor animé de l'arène
-
-Le décor vient de `lab/`, le moteur WebGL d'essai du dépôt, où il tourne sur un moteur écrit à la main. Il a été
-porté dans la scène Phaser : une seule boucle (celle de Phaser), un seul contexte WebGL.
+Jusqu'au 27 octobre 2026, l'arène était une réécriture en Phaser du lab, reportée à la main et toujours en retard.
+Elle affiche désormais le jeu lui-même : moteur et images dans `../game/`, mis au point dans le lab, reçus ici sans
+report (voir `../game/README.md`).
 
 | Fichier | Rôle |
 |---|---|
-| `src/game/stage/shaders.ts` | Shader du décor, dessiné par un objet `Shader` Phaser qui couvre toute la scène. |
-| `src/game/stage/camera.ts` | Calcul de la caméra : travelling d'ouverture de 3,6 s, respiration lente, pointeur. |
-| `src/game/stage/Weather.ts` | Pluie, ronds dans l'eau et pétales, dessinés dans un `Graphics` Phaser. |
-| `src/game/scenes/ArenaScene.ts` | Charge les deux images, pilote le shader et la météo à chaque image. |
+| `src/components/GameArena.tsx` | Crée les canvas du jeu (décor, mannequin caché, Shigaraki, Moussa, météo, cinématique et interface) et le moteur (`StageEngine`) au montage, le détruit au démontage. Options d'un combat : pluie, pétales, adversaire Shigaraki, « Réduire les animations » suivant le système. Bouton « Passer » pendant les plans de la cinématique. |
+| `src/components/ArenaLoading.tsx` | L'écran de chargement du lab (VS, noms, astuces, jauge du vrai chargement), en CSS du site. Une fois tout chargé, il lance la partie : la cinématique démarre derrière lui, qui s'efface par-dessus. |
+| `src/data/arena.ts` | Ses textes : noms (« Mouss, combattant », « Shigaraki, le boss final ») et astuces. |
+| `../game/src/controls.ts` | Le clavier du joueur (`bindPlayerKeys`), testé : marche, double appui (dash, drive rush), accroupi, parade, saut, coups, boule de feu, attaque finale, Échap. Il n'écoute qu'une fois la partie lancée. |
+| `src/pages/Training.tsx` | La page : charge `GameArena` à la demande (`React.lazy`), plein écran (`useFullscreen` : bouton en bas au milieu de l'écran de jeu, touche F), aide des touches. |
+| `vite.config.ts` | Alias `@game`, et `gamePublic` : les images de `../game/public/` servies en développement et recopiées dans `dist/` au build, à côté de celles de `public/`. |
 
-- Le shader lit deux images : `stage.webp` et la carte `depth.png`. Dans la carte, le rouge donne la profondeur
-  (parallaxe), le vert délimite le ciel (nuages, halo de la lune, éclairs) et le bleu repère les écrans géants.
-- Les lanternes, les néons et le trajet du métro sont placés par leurs coordonnées dans l'image, en dur dans le
-  shader. Un autre décor demande de les repositionner et de redessiner la carte.
-- Ordre des plans : décor (0), reflet du personnage (1), ombre (2), images fantômes du dash (3), personnage (4),
-  météo (100).
-- Si le système demande de réduire les animations (`prefers-reduced-motion`), la caméra ne garde que le suivi du
-  pointeur, les éclairs et les parasites des écrans disparaissent, et la météo est allégée.
-- Sans WebGL, ou si `depth.png` ne se charge pas, la scène retombe sur l'ancien affichage : image fixe et ligne
-  de sol.
-- Phaser remet par défaut les textures d'un `Shader` en mode `REPEAT`, que WebGL 1 refuse pour une image dont les
-  côtés ne sont pas des puissances de deux. `STAGE_TEXTURE_DATA` force `CLAMP_TO_EDGE` ; sans lui le décor est
-  noir.
-
-Non repris de `lab/` : le carton de titre « Stage », le bouton pour rejouer l'intro et les cases
-Pluie / Pétales / Réduire les mouvements.
-
-## Personnage jouable
-
-Moussa vient lui aussi de `lab/`. Il n'y a ni planche de frames ni animation pré-rendue : vingt-cinq illustrations
-dans la même vue (trois quarts, tourné vers la droite) sont découpées en calques et animées en direct.
-
-Il se tient en garde, marche, dashe, s'accroupit, pare debout ou accroupi, saute sur place, en avant ou en
-arrière, et enchaîne trois coups de poing et un coup de pied. Il n'a pas d'adversaire : les coups et la parade ne touchent rien.
-
-| Fichier | Rôle |
-|---|---|
-| `src/game/hero/poseData.ts` | Calques, articulations et point d'appui de chaque pose. **Généré dans le lab**, ne pas modifier à la main. |
-| `src/game/hero/poseRig.ts` | Calcul des poses : respiration de la garde et des poses tenues, marche par cinématique inverse. Recopié tel quel du lab. |
-| `src/game/hero/heroState.ts` | État du personnage et tous ses réglages (durées, distances, minutage des coups). Sans Phaser, testé. |
-| `src/game/hero/HeroAtlases.ts` | Téléchargement des atlas et limite de ceux gardés en mémoire vidéo. |
-| `src/game/hero/HeroRig.ts` | Dessin : un objet Phaser par calque pour la garde et la marche, quelques images partagées pour les autres poses. |
-| `src/game/hero/shaders.ts` | Shader des rubans : déplacement nul à la racine, maximal à la pointe. |
-| `src/game/input.ts` | Clavier de l'arène. |
-
-### Commandes
-
-| Action | Clavier |
-|---|---|
-| Marcher | maintenir ← → ou Q D (A en QWERTY) |
-| Dasher | deux appuis sur la même direction en moins de 260 ms |
-| S'accroupir | maintenir ↓ ou S |
-| Parer | maintenir Espace |
-| Sauter | ↑ ou Z (W en QWERTY) ; avec ← ou → maintenu, saut arrière ou avant |
-| Attaquer | J : un appui pour le coup léger, puis un nouvel appui pendant chaque coup pour enchaîner le moyen, le fort et le coup de pied |
-| Plein écran | F, ou le bouton dans le coin de l'écran de jeu (géré par la page, pas par la scène) |
-
-Il n'y a plus de boutons de commande sous l'arène (retirés le 27 octobre) : l'arène se joue au clavier. Le plein
-écran met `.arena-frame__screen` en plein écran ; Phaser (mode FIT) y recale le canvas en 16:9. Le clavier est
-lu par la scène (`ArenaKeyboard`). Tant que l'arène
-est affichée, les touches de l'arène n'ont plus leur effet dans la page : les flèches haut et bas et Espace ne
-la font pas défiler. Deux exceptions : une saisie de texte, et Espace sur un bouton ou une case qui a le focus.
-
-### États
-
-- **Marche** : la garde et la marche sont séparées par une pose intermédiaire de 0,09 s. Le corps avance à la
-  vitesse exacte du pied posé, pour que les appuis ne patinent pas.
-- **Dash** : une pose fixe qui glisse sur une distance fixe, vite au départ puis en freinant (`DASH`). Deux
-  images fantômes de plus en plus transparentes la suivent ; elles disparaissent avec les animations réduites.
-- **Accroupi et parade** : maintenus. Une pose de passage s'affiche un instant entre la garde et l'accroupi, et
-  entre la garde et la parade debout ; la parade accroupie se prend et se quitte sans passage. Accroupi ou en
-  parade, le personnage ne se déplace pas. Ces poses tenues respirent d'un bloc.
-- **Saut** : depuis la garde ou la marche ; vertical, ou vers l'avant ou l'arrière si une direction est tenue
-  au moment de l'appui (`JUMP.forward`, `JUMP.back` : le corps avance à vitesse constante pendant le vol, sans
-  sortir du stage). Le lab penche aussi le corps dans le sens du saut ; le folio ne reprend pas cette
-  inclinaison, parce que `HeroRig.show` ne sait pas afficher un cisaillement. Quatre dessins (impulsion, montée, corps regroupé,
-  réception) ; la hauteur est calculée (`JUMP`) et le dessin est déformé en continu autour des pieds. Pendant le
-  vol, l'ombre rétrécit et le reflet s'éloigne des pieds en s'estompant.
-- **Coups de poing** : une seule touche. `PUNCHES` donne le minutage de chaque coup, repris d'un jeu de combat
-  à 60 images par seconde, et un dessin par phase. Un nouvel appui pendant le coup léger met le coup moyen en
-  attente, puis pendant le coup moyen le coup fort (un uppercut), puis pendant le fort le coup de pied haut, dernier
-  coup de l'enchaînement : chacun part à la fin des images actives, à la
-  place de la récupération. Un appui dans les `CHAIN_GRACE` secondes qui suivent le retour en garde poursuit
-  aussi l'enchaînement. Sans adversaire dans l'arène, l'enchaînement ne dépend pas de toucher, contrairement
-  au lab.
-
-Dash, saut et coup ne partent que de la garde ou de la marche.
-
-### Chargement et mémoire vidéo
-
-- **Assets** : vingt atlas dans `public/assets/fighters/moussa/poses/`, en WebP sans perte, environ 17 Mo au
-  total. Ils sont produits dans `lab/` par `lab/tools/prepare_poses.py`, à partir des illustrations de `art/` à
-  la racine du dépôt. Ne pas les recompresser avec perte.
-- **Ordre de chargement** : la garde, la pose intermédiaire et la marche d'abord (environ 2,9 Mo), après quoi
-  le personnage apparaît. Les autres poses arrivent ensuite en arrière-plan, action par action
-  (`ACTION_POSES` dans `ArenaScene.ts`). Une action n'est acceptée que lorsque toutes ses images sont arrivées.
-- **Mémoire vidéo** : un atlas y pèse 10 à 20 Mo une fois décompressé, et les garder tous (plus de 250 Mo) fait
-  perdre le contexte WebGL sur les appareils modestes. `HeroAtlases` n'ajoute une image au gestionnaire de
-  textures de Phaser qu'au moment de l'afficher, et en retire les moins récemment utilisées au-delà de six. La
-  garde et la marche restent toujours en mémoire : leurs rubans sont dessinés par des shaders qui gardent une
-  référence à la texture. La première image d'une pose pas encore affichée peut donc arriver avec un léger
-  retard.
-- **Images partagées** : c'est pour pouvoir retirer un atlas que les poses autres que la garde et la marche
-  n'ont pas leurs propres objets Phaser. Une image au repos reçoit la texture vide de Phaser, pour ne jamais
-  pointer vers un atlas retiré.
-
-### Dessin
-
-- **Alignement** : toutes les poses sont posées au même point du sol et suivent la caméra du décor.
-- **Échelle des poses** : les illustrations ne sont pas toutes dessinées à la même taille. `POSE_SCALE`, dans
-  `HeroRig.ts`, agrandit ou réduit une pose autour de ses pieds pour garder la taille de tête de la garde. À
-  reporter du lab pour chaque nouvelle image.
-- **Reflet et ombre** : le reflet est un second exemplaire du rig, retourné sous les pieds, écrasé de moitié et
-  à 20 % d'opacité. Là où deux calques se recouvrent, il est un peu plus dense : c'est une approximation de
-  `lab/`, qui rend d'abord le personnage dans une texture.
-- **Mipmaps** : `render.mipmapFilter` est activé dans `src/game/config.ts` pour les atlas. `RIBBON_TEXTURE_DATA`
-  doit garder le même filtrage, car le shader des rubans partage la texture avec les images.
-- **Animations réduites** : la respiration et la déformation du saut tombent à 35 % de leur amplitude.
-
-### Limites
-
-Reprises de `lab/` : les membres de la marche sont des pièces rigides (le genou marque un angle), les zones
-cachées sont des aplats, et en garde les jambes et les bras ne sont pas articulés. Rien ne bouge dans le dessin
-pendant un dash, un saut ou une pose tenue, rubans compris. Le premier des deux appuis d'un dash amorce
-brièvement la marche. Le retour du coup moyen pose le haut du corps sur les jambes de la garde : les jambes
-sautent en sortant de l'impact.
-
-Une animation continue n'utilise qu'un seul dessin : faire alterner plusieurs illustrations proches se voit
-comme une saccade. L'enchaînement de coups est l'exception assumée par le lab, parce que ses poses sont
-franchement différentes.
-
-État repris : `lab/` au commit `75c9232` (11 octobre 2026). Toute nouvelle pose doit garder la même vue et la
-même taille de tête, sinon le personnage saute au changement d'état.
-
-## Shigaraki dans l'arène
-
-Depuis le 27 octobre, l'adversaire se tient en garde face à Moussa, à sa place de départ du lab (`RIVAL_X`). Il
-ne se déplace pas, ne pare pas et n'attaque pas encore : c'est une cible.
-
-- **État** : `src/game/rival/rivalState.ts` (sans Phaser, testé) : garde, coup reçu (`hurt`) puis retour
-  (`hurtRecover`) pendant les durées de `HIT`, et une inclinaison en arrière qui revient comme un ressort amorti.
-  Poses, points d'appui et échelles repris de `RivalLayer` (`../lab/src/game/rival/RivalLayer.ts`).
-- **Dessin** : `ArenaScene.drawRival` place une image par pose sur le même plan du sol et avec la même caméra que
-  Moussa, avec son reflet et son ombre, et la respiration de la garde (étirement vertical). L'inclinaison est une
-  rotation autour des pieds. Ses trois images sont chargées avec le décor (`preload`) ; sans elles, l'arène reste
-  sans adversaire. Il est dessiné derrière Moussa.
-- **Contact** : `HeroState.wall` empêche Moussa de le traverser en marchant, en dashant ou en sautant
-  (`RIVAL_BODY.gap`). Pendant les images actives d'un coup (`HeroState.strike`), si le bout du coup atteint
-  `RIVAL_BODY.surface`, le coup touche une fois (`land`) : Shigaraki encaisse, le combat se fige un instant
-  (`stop` du coup, deux fois moins avec « Réduire les animations »), l'écran tremble (`SHAKE`, pas avec « Réduire
-  les animations ») et une étincelle jaillit au point d'impact (texture dessinée au démarrage, `SPARK`).
-- **Pas repris** : ses déplacements en lévitation, sa parade, ses téléportations et le changement de côté, ses
-  coups, l'attaque ultime, les barres de vie, le combo, le drive rush et le K.O. Dans le folio, l'enchaînement de
-  Moussa continue même quand un coup ne touche pas (dans le lab, il s'arrête).
-
-## Cinématique d'entrée
-
-À l'ouverture de l'arène, une cinématique présente Moussa puis son adversaire, avant « Face your destiny », « Round 1 » et « Fight! ». Elle est reprise du lab : `src/game/cinematic/cinematic.ts` est une copie adaptée de `../lab/src/game/cinematic/CinematicLayer.ts`, sans dépendance à Phaser, qui dessine en Canvas 2D (plans, caméra, pluie, pétales, lanternes, transitions, cartons, annonces). Les plans sont les WebP de `public/assets/cinematic/`, repris du lab.
-
-- **Dans la scène** : `ArenaScene` charge les plans, crée une `CanvasTexture` de la taille de la scène et une image par-dessus tout (`CINEMATIC_DEPTH`). À chaque image, la cinématique avance et se redessine dans cette texture ; il n'y a ni second canvas ni seconde boucle. Elle suit le temps réel même si l'affichage ralentit (pas plafonné à 0,05 s comme le combat).
-- **Commandes** : le personnage ne répond à rien avant le « Fight! » (`can` et `walkDirection`). Échap saute les plans ; recharger la page la rejoue.
-- **Textes** : dans `src/data/cinematic.ts`. Le carton de Moussa reprend le nom et le titre de `PROFILE` ; celui de l'adversaire, le nom et la devise de Shigaraki (`FIGHTERS.challenger`).
-- **Sans ses plans** (un fichier manquant), la cinématique ne joue pas et l'arène s'ouvre directement.
-- « Réduire les animations » fixe la caméra, remplace le pétale et la coupe en diagonale par des fondus et adoucit les éclairs.
+- **Ce que le site ne prend pas du lab** : ses touches et options d'essai (O, P, K, M, N, cases à cocher), le
+  mannequin, le contrôle de l'adversaire, le carton de titre « Stage ». Le lab garde sa propre lecture du clavier
+  (`../lab/src/App.tsx`).
+- **Taille** : le jeu tient en 16:9 dans l'écran de jeu (`.game-stage`), et le moteur dimensionne ses canvas sur
+  lui. En plein écran, il garde son 16:9, centré sur fond noir.
+- **Poids** : le code du jeu fait quelques centaines de Ko, mais ses images environ 114 Mo, toutes chargées avant
+  le combat. À compresser avant la mise en ligne.
+- **Tactile** : pas de commandes au doigt.
+- Le fonctionnement du jeu (caméra, personnages, coups, interface de combat, cinématique) est décrit dans
+  `../lab/docs/ARCHITECTURE.md`.
 
 ## Routage
 
