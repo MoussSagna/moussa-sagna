@@ -5,6 +5,7 @@ import { HeroLayer, PLACEMENT } from '../hero/HeroLayer'
 import type { Strike } from '../hero/HeroLayer'
 import { CANVAS } from '../hero/poseData'
 import type { Opponent } from '../opponent'
+import { RivalBrain } from '../rival/RivalBrain'
 import { RivalLayer } from '../rival/RivalLayer'
 import type { Camera, FrameInfo, StageOptions } from '../types'
 import { StageBackdrop } from './StageBackdrop'
@@ -113,6 +114,8 @@ export class StageEngine {
   private backdrop: StageBackdrop
   private dummy: DummyLayer
   private rival: RivalLayer
+  /** L'IA de l'adversaire, quand l'option `rivalAI` est active. */
+  private brain = new RivalBrain()
   private opponentCanvases: { dummy: HTMLCanvasElement; rival: HTMLCanvasElement }
   private hero: HeroLayer
   /** Arrêt sur image en cours : temps restant, et temps total passé à l'arrêt depuis le démarrage. */
@@ -228,6 +231,36 @@ export class StageEngine {
     if (!this.cinematic.locked && this.options.rivalControl === true) this.rival.teleport(direction * this.side)
   }
 
+  /** L'IA regarde le combat et pilote l'adversaire : marche, parade, coups (sens propres à l'adversaire). */
+  private driveRival(fight: FrameInfo, info: FrameInfo): void {
+    const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)
+    const ball = this.hero.fireballX
+    const surface = this.rival.x - this.rival.surface * pixel
+    const orders = this.brain.think(
+      {
+        space: (this.rival.x - this.hero.front(pixel)) / pixel,
+        fireball: ball === null || ball > surface ? null : (surface - ball) / pixel,
+        heroAttacking: this.hero.attacking,
+        heroStunned: this.hero.stunned,
+        heroBlocking: this.hero.blocking,
+        heroAirborne: this.hero.airborne,
+        over: this.koWait >= 0 || this.victoryTime >= 0 || this.hero.knockedOut || this.hero.exiting || this.rival.knockedDown || this.rival.ultimateActive,
+        free: this.rival.free,
+        attacking: this.rival.attacking,
+        connected: this.rival.connected,
+        superFull: this.hud.superLevel('rival') >= 1,
+      },
+      fight.delta,
+    )
+    this.rival.request = orders.walk
+    this.rival.blocking = orders.block
+    if (orders.action === 'attack') this.rival.attack()
+    else if (orders.action === 'special') this.rival.special()
+    else if (orders.action === 'ultimate') this.rival.ultimate()
+    else if (orders.action === 'dashIn') this.rival.teleport(-1)
+    else if (orders.action === 'dashOut') this.rival.teleport(1)
+  }
+
   /** 1 quand Moussa est à gauche, -1 quand les combattants ont changé de côté : convertit un sens à l'écran. */
   private get side(): number {
     return this.mirrored ? -1 : 1
@@ -259,6 +292,7 @@ export class StageEngine {
 
   /** Passe au round suivant : les deux combattants reviennent en garde à leur place de départ. */
   private nextRound(): void {
+    this.brain.reset()
     this.quake = -1
     this.victoryTime = -1
     this.focusTime = -1
@@ -578,11 +612,14 @@ export class StageEngine {
     this.hero.update(fight, locked ? 0 : this.walk * this.side, locked ? false : this.crouch, locked ? false : this.block)
     // contrôlé par le joueur, il marche et pare à la demande ; sinon il pare selon l'option et garde ses distances
     const controlled = this.options.rivalControl === true
-    this.rival.controlled = controlled && !locked
+    // l'IA le pilote avec les mêmes commandes que le joueur (le contrôle au clavier passe avant)
+    const ai = this.options.rivalAI === true && !controlled && this.options.opponent === 'rival' && !locked
+    this.rival.controlled = (controlled || ai) && !locked
     this.rival.request = this.rivalWalk * this.side
     this.rival.blocking = this.options.rivalBlocks === true || (controlled && !locked && this.rivalBlock)
+    if (ai) this.driveRival(fight, info)
     // il ne se déplace pas avant le « Fight », ni pendant la mise au point de la frappe au sol
-    this.rival.moves = this.options.rivalMoves !== false && !locked && !controlled
+    this.rival.moves = this.options.rivalMoves !== false && !locked && !controlled && !ai
     this.rival.heroX = this.hero.position
     // attaque finale de Moussa : sonné par la rafale, il reste figé dans le coup reçu jusqu'à la frappe de la paume
     this.rival.held = this.hero.holdingTarget

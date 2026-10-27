@@ -1198,6 +1198,26 @@ export class HeroLayer {
     return true
   }
 
+  /** Vrai pendant un de ses coups : enchaînement, boule de feu, drive rush, frappe au sol. */
+  get attacking(): boolean {
+    return this.pose === 'punch' || this.pose === 'special' || this.pose === 'rush' || this.pose === 'ground'
+  }
+
+  /** Vrai pendant un coup encaissé : il ne peut ni bouger ni parer. */
+  get stunned(): boolean {
+    return this.pose === 'hurt'
+  }
+
+  /** Vrai en parade, debout ou accroupi. */
+  get blocking(): boolean {
+    return this.pose === 'block' || this.pose === 'crouchBlock' || this.blockStun > 0
+  }
+
+  /** Position de sa boule de feu en vol (fraction de la largeur du stage), ou `null`. */
+  get fireballX(): number | null {
+    return this.fireball ? this.fireball.x : null
+  }
+
   /** Position du personnage, en fraction de la largeur de l'écran. */
   /**
    * Les combattants changent de côté : le moteur retourne leur affichage en miroir. Toutes les positions sont

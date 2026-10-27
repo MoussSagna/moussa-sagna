@@ -109,6 +109,11 @@ export class HudLayer {
     if (combo.over < 0) combo.over = 0
   }
 
+  /** Remplissage de la barre de super, de 0 à 1. */
+  superLevel(side: HudSide): number {
+    return this.sides[side].super
+  }
+
   /** Attaque ultime lancée : la barre de super se vide. */
   useSuper(side: HudSide): void {
     this.sides[side].super = 0

@@ -230,7 +230,7 @@ function App() {
             // le mannequin ne se contrôle pas : choisir le mannequin rend la main sur l'adversaire
             const dummy = options.opponent === 'rival'
             if (dummy) setRivalControl(false)
-            setOptions((current) => ({ ...current, opponent: dummy ? 'dummy' : 'rival', rivalControl: dummy ? false : current.rivalControl }))
+            setOptions((current) => ({ ...current, opponent: dummy ? 'dummy' : 'rival', rivalControl: dummy ? false : current.rivalControl, rivalAI: dummy ? false : current.rivalAI }))
           }}
         />
         <Toggle
@@ -238,8 +238,18 @@ function App() {
           checked={rivalControl}
           onChange={() => {
             // contrôler l'adversaire le fait apparaître à la place du mannequin
-            setOptions((current) => ({ ...current, opponent: rivalControl ? current.opponent : 'rival', rivalControl: !rivalControl }))
+            setOptions((current) => ({ ...current, opponent: rivalControl ? current.opponent : 'rival', rivalControl: !rivalControl, rivalAI: rivalControl ? current.rivalAI : false }))
             setRivalControl(!rivalControl)
+          }}
+        />
+        <Toggle
+          label="Shigaraki IA"
+          checked={options.rivalAI === true}
+          onChange={() => {
+            // l'IA le fait apparaître à la place du mannequin et rend la main sur lui
+            const on = options.rivalAI !== true
+            if (on) setRivalControl(false)
+            setOptions((current) => ({ ...current, rivalAI: on, opponent: on ? 'rival' : current.opponent, rivalControl: on ? false : current.rivalControl }))
           }}
         />
         <Toggle label="L'adversaire pare" checked={options.rivalBlocks === true} onChange={() => setOptions((current) => ({ ...current, rivalBlocks: !current.rivalBlocks }))} />

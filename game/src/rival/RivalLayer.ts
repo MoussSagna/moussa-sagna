@@ -660,6 +660,21 @@ export class RivalLayer implements Opponent {
     return guarded
   }
 
+  /** Vrai pendant un de ses coups, l'attaque ultime comprise. */
+  get attacking(): boolean {
+    return this.attackTime >= 0
+  }
+
+  /** Vrai quand le coup en cours a touché ou a été paré : le suivant de l'enchaînement peut partir. */
+  get connected(): boolean {
+    return this.attackTime >= 0 && this.landedStep !== null
+  }
+
+  /** Vrai quand il peut agir : en garde ou en lévitation, ni en plein coup, ni en téléportation, ni sonné. */
+  get free(): boolean {
+    return this.koTime < 0 && this.hopTime < 0 && this.attackTime < 0 && this.teleportTime < 0 && !this.away && (this.pose === 'guard' || this.pose === 'block' || isFloatPose(this.pose))
+  }
+
   /** Vrai tant qu'il est sonné par un coup (ou à terre) : il ne peut ni bouger ni parer. Le compteur de combo en dépend. */
   get stunned(): boolean {
     return this.pose === 'hurt' || this.pose === 'hurtRecover' || this.koTime >= 0
