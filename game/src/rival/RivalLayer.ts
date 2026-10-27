@@ -502,8 +502,13 @@ const BREATH = { amplitude: 0.007, period: 3.6 }
  * amorti. `lean` : pente de l'inclinaison pour un coup de pleine puissance (décalage horizontal par pixel de hauteur).
  */
 const HIT = { stun: 0.26, recover: 0.16, lean: 0.05, frequency: 2.6, damping: 11 }
-/** Coup paré : il garde sa pose et penche seulement, de cette pente pour un coup de pleine puissance. */
+/** Coup paré : il garde sa pose et penche, de cette pente pour un coup de pleine puissance. */
 const GUARDED_LEAN = 0.035
+/**
+ * Recul d'un coup paré : il glisse en arrière de `distance` (fraction de la largeur du stage, pour un coup de pleine
+ * puissance) en `seconds`, vite puis en freinant. Contre le bord, ce qu'il ne peut pas reculer revient à Moussa.
+ */
+const GUARD_PUSH = { distance: 0.03, seconds: 0.18 }
 const REFLECTION = { alpha: 0.2, squash: 0.5 }
 /** « Réduire les mouvements » : part de la respiration et du recul conservée. */
 const CALM_AMPLITUDE = 0.35
@@ -601,6 +606,9 @@ export class RivalLayer implements Opponent {
   private hurtTime = 0
   /** Inclinaison du corps après un coup (positive vers l'arrière) et sa vitesse. */
   private lean = 0
+  /** Recul d'un coup paré en cours, et la part de recul que le bord lui a refusée (reprise par `takeCornerPush`). */
+  private guardSlide: { from: number; distance: number; time: number } | null = null
+  private cornerPush = 0
   private velocity = 0
 
   constructor(canvas: HTMLCanvasElement) {
@@ -636,6 +644,12 @@ export class RivalLayer implements Opponent {
     const guarded = this.pose === 'block'
     this.lean = (guarded ? GUARDED_LEAN : HIT.lean) * (0.45 + 0.55 * power)
     this.velocity = 0
+    if (guarded) {
+      const distance = GUARD_PUSH.distance * (0.5 + 0.5 * power)
+      const room = Math.max(0, Math.min(distance, RANGE.maxX - this.x))
+      this.guardSlide = { from: this.x, distance: room, time: 0 }
+      this.cornerPush = distance - room
+    }
     if (!guarded) {
       this.pose = 'hurt'
       this.hurtTime = 0
@@ -912,6 +926,14 @@ export class RivalLayer implements Opponent {
     this.hopFrom = flip(this.hopFrom)
     this.koFrom = flip(this.koFrom)
     this.heroX = heroX
+    this.guardSlide = null
+  }
+
+  /** La part du recul de son dernier coup paré que le bord a bloquée, une seule fois : Moussa recule d'autant. */
+  takeCornerPush(): number {
+    const push = this.cornerPush
+    this.cornerPush = 0
+    return push
   }
 
   /** Repoussé de `distance` (Moussa lui est retombé dessus), sans dépasser le bord ; retourne la distance parcourue. */
@@ -1066,6 +1088,17 @@ export class RivalLayer implements Opponent {
         }
       } else {
         this.pose = this.moveStep().pose
+      }
+    }
+    // recul d'un coup paré : il part vite et freine ; une attaque ou une téléportation l'interrompt
+    if (this.guardSlide) {
+      const slide = this.guardSlide
+      if (this.attackTime >= 0 || this.teleportTime >= 0) this.guardSlide = null
+      else {
+        slide.time += frame.delta
+        const k = Math.min(1, slide.time / GUARD_PUSH.seconds)
+        this.x = Math.min(RANGE.maxX, slide.from + slide.distance * (1 - (1 - k) ** 3))
+        if (k >= 1) this.guardSlide = null
       }
     }
     // coup encaissé : le dessin du coup reçu, celui du retour, puis la garde

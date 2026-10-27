@@ -456,10 +456,11 @@ const FIREBALL_FADE_SECONDS = 8 * FIREBALL_FX.fade
  */
 const HURT = { stun: 0.24, recover: 0.13, push: 0, pushSeconds: 0.24, front: 200 }
 /**
- * Coup paré : le personnage reste en parade pendant `stun` secondes ; il ne recule pas non plus (`push` à zéro). `height` : hauteur
- * de l'étincelle sur ses avant-bras, debout et accroupi, en pixels de la toile.
+ * Coup paré : le personnage reste en parade pendant `stun` secondes et recule légèrement, de `push` (fraction de la
+ * largeur du stage, pour un coup de pleine puissance) en `pushSeconds`. `height` : hauteur de l'étincelle sur ses
+ * avant-bras, debout et accroupi, en pixels de la toile.
  */
-const GUARD_HIT = { stun: 0.2, push: 0, pushSeconds: 0.18, height: 1050, crouchHeight: 720 }
+const GUARD_HIT = { stun: 0.2, push: 0.03, pushSeconds: 0.18, height: 1050, crouchHeight: 720 }
 /** Couleurs des étincelles (bord, intermédiaire) : rouge et orangé pour un coup porté, bleu pour un coup paré. */
 const SPARK_COLORS = { hit: [[0.91, 0.15, 0.18], [1, 0.6, 0.25]], guard: [[0.2, 0.5, 1], [0.6, 0.85, 1]] }
 
@@ -1215,6 +1216,15 @@ export class HeroLayer {
     this.impacts = this.impacts.map((impact) => ({ ...impact, x: flip(impact.x) }))
     this.flurryFx = this.flurryFx.map((fx) => ({ ...fx, x: flip(fx.x) }))
     this.fireball = null
+  }
+
+  /**
+   * Son coup a été paré par un adversaire coincé contre le bord : c'est lui qui recule, de `distance` (fraction de
+   * la largeur du stage), du même glissement qu'un coup paré.
+   */
+  recoil(distance: number): void {
+    if (distance <= 0 || this.airborne || this.knockedOut) return
+    this.slide = { from: this.x, distance, time: 0, seconds: GUARD_HIT.pushSeconds }
   }
 
   /** Le place ailleurs sur le stage, poussé par l'adversaire qui passe dans son dos près du bord. */

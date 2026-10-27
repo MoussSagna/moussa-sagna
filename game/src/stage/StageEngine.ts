@@ -398,6 +398,8 @@ export class StageEngine {
       // combo : le coup touche alors qu'il est encore sonné par le précédent
       const stunned = rivalTarget && this.rival.stunned
       const guarded = target.hit(strike.power)
+      // paré par un adversaire coincé contre le bord : Moussa recule à sa place
+      if (guarded && rivalTarget) this.hero.recoil(this.rival.takeCornerPush())
       if (rivalTarget && this.koWait < 0) {
         if (guarded) this.hud.endCombo('hero')
         else {
