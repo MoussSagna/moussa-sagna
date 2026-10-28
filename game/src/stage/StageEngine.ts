@@ -453,6 +453,9 @@ export class StageEngine {
             return guarded
           }
           if (!this.hero.finishing) this.rivalKO()
+        } else if (strike.finisher && !guarded) {
+          // la paume ne le finit pas : il tombe, puis se relève
+          this.rival.knockDown()
         }
       }
       this.stop = strike.stop * (guarded ? 0.5 : 1) * (calm ? 0.5 : 1)
@@ -757,7 +760,7 @@ export class StageEngine {
     if (!stopped) this.resolveHits(info, calm)
     // le coup spécial de l'adversaire : forte secousse de l'écran à l'impact, comme la frappe au sol de Moussa
     if (this.rival.takeImpact()) this.shake = 2.2
-    // l'adversaire K.O. touche le sol
+    // l'adversaire touche le sol (K.O. ou chute)
     if (this.rival.takeKoLanding()) this.shake = Math.max(this.shake, 1.6)
     // un seul des deux est affiché
     this.opponentCanvases.dummy.style.visibility = target === this.dummy ? 'visible' : 'hidden'

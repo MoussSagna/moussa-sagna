@@ -92,6 +92,11 @@ const POSES = {
   ko3: { file: 'rival/ko-3.webp', ground: [480, 1478], scale: 1.6 },
   ko4: { file: 'rival/ko-4.webp', ground: [480, 1495], scale: 1.6 },
   ko5: { file: 'rival/ko-5.webp', ground: [505, 1490], scale: 1.55 },
+  // il se relève après une chute sans K.O. : à genoux, tête baissée, puis relevée, puis debout ; calés sous le milieu
+  // du corps (les deux premiers, en largeur, ont été réduits aux deux tiers pour tenir dans la toile)
+  getup1: { file: 'rival/getup-1.webp', ground: [464, 1510], scale: 1.25 },
+  getup2: { file: 'rival/getup-2.webp', ground: [420, 1517], scale: 1.25 },
+  getup3: { file: 'rival/getup-3.webp', ground: [355, 1514], scale: 0.8 },
   hop1: { file: 'rival/hop-1.webp', ground: [614, 1311], scale: 1.25 },
   hop2: { file: 'rival/hop-2.webp', ground: [618, 1314], scale: 1.25 },
   hop3: { file: 'rival/hop-3.webp', ground: [600, 1250], scale: 1.25 },
@@ -466,6 +471,19 @@ const KO_FALL = {
   height: 180,
   push: 0.1,
 }
+/**
+ * Chute sans K.O. (la paume de la frappe au sol de Moussa, quand elle ne le finit pas) : la même chute qu'au K.O.,
+ * il reste allongé `rest` secondes, puis se relève avec ces dessins et reprend sa garde. Il ne peut pas être touché
+ * avant d'être debout.
+ */
+const GETUP = {
+  rest: 0.45,
+  steps: [
+    { pose: 'getup1', seconds: 0.22 },
+    { pose: 'getup2', seconds: 0.2 },
+    { pose: 'getup3', seconds: 0.18 },
+  ] as { pose: RivalPose; seconds: number }[],
+}
 const KO_AIR_START = KO_FALL.steps[0].seconds
 const KO_AIR = KO_FALL.steps[1].seconds + KO_FALL.steps[2].seconds
 const KO_DOWN = KO_FALL.steps.slice(0, 4).reduce((sum, step) => sum + step.seconds, 0)
@@ -586,6 +604,8 @@ export class RivalLayer implements Opponent {
   private koTime = -1
   private koFrom = 0
   private koLanded = false
+  /** Vrai quand la chute en cours n'est pas un K.O. : il se relèvera (`GETUP`). */
+  private getsUp = false
   private hopFrom = 0
   /** Position de Moussa et taille d'un pixel de la toile au moment où il retombe sur lui. */
   private diveTarget: [number, number] = [0, 0]
@@ -695,6 +715,18 @@ export class RivalLayer implements Opponent {
   /** K.O. : plus de vie, il bascule en arrière et tombe au sol, où il reste jusqu'au round suivant. */
   knockOut(): void {
     if (this.koTime >= 0) return
+    this.getsUp = false
+    this.fall()
+  }
+
+  /** Chute sans K.O. : il tombe comme au K.O., reste un instant au sol, puis se relève (`GETUP`). */
+  knockDown(): void {
+    if (this.koTime >= 0) return
+    this.getsUp = true
+    this.fall()
+  }
+
+  private fall(): void {
     this.koTime = 0
     this.koFrom = this.x
     this.koLanded = false
@@ -728,6 +760,7 @@ export class RivalLayer implements Opponent {
     this.finished = false
     this.hopTime = -1
     this.koTime = -1
+    this.getsUp = false
     this.settle()
   }
 
@@ -1025,6 +1058,20 @@ export class RivalLayer implements Opponent {
       if (before < KO_DOWN && this.koTime >= KO_DOWN) this.koLanded = true
       const k = Math.min(1, this.koTime / KO_DOWN)
       this.x = Math.min(RANGE.maxX, this.koFrom + KO_FALL.push * k * (2 - k))
+      // chute sans K.O. : après un instant au sol, il se relève, puis reprend sa garde
+      if (this.getsUp && this.koTime >= KO_DOWN + GETUP.rest) {
+        let end = KO_DOWN + GETUP.rest
+        for (const step of GETUP.steps) {
+          end += step.seconds
+          this.pose = step.pose
+          if (this.koTime < end) return
+        }
+        this.koTime = -1
+        this.getsUp = false
+        this.pose = 'guard'
+        this.settle()
+        return
+      }
       let end = 0
       for (const step of KO_FALL.steps) {
         end += step.seconds
