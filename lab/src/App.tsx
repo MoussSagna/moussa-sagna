@@ -270,10 +270,10 @@ function App() {
         coup léger, puis d'autres pour enchaîner le coup moyen, le coup fort et le coup de pied (pendant un coup qui touche ou est paré, deux appuis vite vers l'avant lancent un drive rush, pour 2 blocs de drive, et{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">J</kbd> en pleine course enchaîne le coup suivant) ;{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">L</kbd> pour la boule de feu,{' '}
-        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">I</kbd> pour la frappe au sol,{' '}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">I</kbd> pour la frappe au sol (barre de super pleine),{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">P</kbd> pour finir le round,{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">O</kbd> pour perdre par K.O. ;{' '}
-        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">K</kbd> pour que le mannequin ou l'adversaire t'attaque, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">M</kbd> pour son coup spécial, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">N</kbd> pour son attaque ultime. {note}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">K</kbd> pour que le mannequin ou l'adversaire t'attaque, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">M</kbd> pour son coup spécial, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">N</kbd> pour son attaque ultime (sa barre de super pleine). {note}
       </p>
       {rivalControl && (
         <p className="m-0 text-[15px] text-line">

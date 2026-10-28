@@ -208,7 +208,8 @@ export class StageEngine {
   /** Fait attaquer celui qui fait face au personnage, pour tester les coups reçus et parés. */
   /** Attaque ultime de l'adversaire. */
   rivalUltimate(): void {
-    if (!this.cinematic.locked) this.rival.ultimate()
+    // seulement avec la barre de super pleine (elle se vide quand l'attaque part)
+    if (!this.cinematic.locked && this.hud.superFull('rival')) this.rival.ultimate()
   }
 
   /** Coup spécial de l'adversaire. */
@@ -248,7 +249,7 @@ export class StageEngine {
         free: this.rival.free,
         attacking: this.rival.attacking,
         connected: this.rival.connected,
-        superFull: this.hud.superLevel('rival') >= 1,
+        superFull: this.hud.superFull('rival'),
       },
       fight.delta,
     )
@@ -256,7 +257,7 @@ export class StageEngine {
     this.rival.blocking = orders.block
     if (orders.action === 'attack') this.rival.attack()
     else if (orders.action === 'special') this.rival.special()
-    else if (orders.action === 'ultimate') this.rival.ultimate()
+    else if (orders.action === 'ultimate') this.rivalUltimate()
     else if (orders.action === 'dashIn') this.rival.teleport(-1)
     else if (orders.action === 'dashOut') this.rival.teleport(1)
   }
@@ -314,7 +315,8 @@ export class StageEngine {
 
   /** Lance la seconde attaque spéciale du personnage, la frappe au sol. */
   groundSpecial(): void {
-    if (!this.cinematic.locked) this.hero.groundSpecial()
+    // l'attaque finale : seulement avec la barre de super pleine (elle se vide au plan de coupe)
+    if (!this.cinematic.locked && this.hud.superFull('hero')) this.hero.groundSpecial()
   }
 
   /** Lance un saut vertical du personnage. */

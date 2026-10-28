@@ -109,9 +109,9 @@ export class HudLayer {
     if (combo.over < 0) combo.over = 0
   }
 
-  /** Remplissage de la barre de super, de 0 à 1. */
-  superLevel(side: HudSide): number {
-    return this.sides[side].super
+  /** Vrai quand la barre de super est pleine : l'attaque ultime peut partir. */
+  superFull(side: HudSide): boolean {
+    return this.sides[side].super >= 1
   }
 
   /** Attaque ultime lancée : la barre de super se vide. */
