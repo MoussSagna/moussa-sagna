@@ -92,6 +92,11 @@ export class DummyLayer implements Opponent {
     return this.ready
   }
 
+  /** Vrai pendant son coup de tête. */
+  get attacking(): boolean {
+    return this.attackTime >= 0
+  }
+
   /** Encaisse un coup. `power` : de 0 (effleuré) à 1 (coup fort). Il ne pare jamais. */
   hit(power: number): boolean {
     this.hold = HIT.hold

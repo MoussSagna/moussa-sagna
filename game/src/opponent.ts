@@ -9,6 +9,8 @@ export interface Opponent {
   readonly surface: number
   /** Distance minimale entre son axe et le point d'appui du personnage, en pixels de la toile. */
   readonly gap: number
+  /** Vrai pendant une de ses attaques : tenir l'arrière fait alors parer le personnage. */
+  readonly attacking: boolean
   load(): Promise<boolean>
   /** Reçoit un coup. `power` : de 0 (effleuré) à 1 (coup fort). Retourne vrai s'il le pare. */
   hit(power: number): boolean

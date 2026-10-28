@@ -1600,7 +1600,8 @@ export class HeroLayer {
       if (!block || crouch) pass('blockStep')
       return
     }
-    if (this.pose === 'guard' && (crouch || block)) {
+    // en marchant aussi, sans repasser par la garde : la parade doit être prise tout de suite
+    if ((this.pose === 'guard' || this.pose === 'walk' || this.pose === 'step') && (crouch || block)) {
       pass(crouch ? 'crouchStep' : 'blockStep')
       return
     }

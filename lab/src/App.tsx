@@ -10,7 +10,6 @@ const KEYS: Record<string, number> = { arrowright: 1, d: 1, arrowleft: -1, q: -1
 /** Touches qui font s'accroupir tant qu'elles sont maintenues. */
 const CROUCH_KEYS = new Set(['arrowdown', 's'])
 /** Touches qui font parer tant qu'elles sont maintenues. */
-const BLOCK_KEYS = new Set([' '])
 /** Touches qui lancent un saut. Z et W couvrent les claviers AZERTY et QWERTY. */
 const JUMP_KEYS = new Set(['arrowup', 'z', 'w'])
 /** Touche d'attaque : un appui pour le coup léger, d'autres appuis pour enchaîner. */
@@ -31,7 +30,7 @@ const RIVAL_SPECIAL_KEYS = new Set(['m'])
 const RIVAL_ULTIMATE_KEYS = new Set(['n'])
 /**
  * Touches de l'adversaire, quand le joueur le contrôle : les flèches. Il regarde vers la gauche, donc ← le fait
- * avancer vers Moussa. ↓ le fait parer tant qu'elle est maintenue. Moussa garde alors Q D, S, Z et Espace.
+ * avancer vers Moussa. ↓ le fait parer tant qu'elle est maintenue. Moussa garde alors Q D (Q pour parer), S et Z.
  */
 const RIVAL_KEYS: Record<string, number> = { arrowleft: -1, arrowright: 1 }
 const RIVAL_BLOCK_KEYS = new Set(['arrowdown'])
@@ -55,7 +54,6 @@ function App() {
   }, [])
   const [walk, setWalk] = useState(0)
   const [crouch, setCrouch] = useState(false)
-  const [block, setBlock] = useState(false)
   const [jump, setJump] = useState(0)
   const [attack, setAttack] = useState(0)
   const [special, setSpecial] = useState(0)
@@ -107,15 +105,13 @@ function App() {
     const sync = () => {
       let direction = 0
       let down = false
-      let guard = false
+      // pas de touche de parade : on pare en tenant l'arrière quand l'adversaire attaque (le moteur s'en charge)
       for (const key of held) {
         if (CROUCH_KEYS.has(key)) down = true
-        else if (BLOCK_KEYS.has(key)) guard = true
         else direction = KEYS[key]
       }
       setWalk(direction)
       setCrouch(down)
-      setBlock(guard)
     }
     const down = (event: KeyboardEvent) => {
       // tant que l'écran de chargement est affiché, les touches sont à lui
@@ -152,7 +148,7 @@ function App() {
         syncRival()
         return
       }
-      const posture = CROUCH_KEYS.has(key) || BLOCK_KEYS.has(key)
+      const posture = CROUCH_KEYS.has(key)
       const jumping = JUMP_KEYS.has(key)
       const punching = ATTACK_KEYS.has(key) || SPECIAL_KEYS.has(key) || SPECIAL2_KEYS.has(key) || END_ROUND_KEYS.has(key) || KO_KEYS.has(key) || DUMMY_KEYS.has(key) || RIVAL_SPECIAL_KEYS.has(key) || RIVAL_ULTIMATE_KEYS.has(key)
       if ((!(key in KEYS) && !posture && !jumping && !punching) || event.ctrlKey || event.metaKey || event.altKey) return
@@ -209,7 +205,7 @@ function App() {
   return (
     <main className="mx-auto flex max-w-[1500px] flex-col gap-3.5 px-4 pt-4 pb-8">
       <h1 className="sr-only">Moussa Sagna, développeur frontend</h1>
-      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} block={block} rivalWalk={rivalWalk} rivalBlock={rivalBlock} rivalDash={rivalDash} dash={dash} jump={jump} attack={attack} special={special} special2={special2} endRound={endRound} knockOut={knockOut} dummyAttack={dummyAttack} rivalSpecial={rivalSpecial} rivalUltimate={rivalUltimate} onUnavailable={onUnavailable} onReady={onReady}>
+      <StageScreen options={options} introKey={introKey} walk={walk} crouch={crouch} rivalWalk={rivalWalk} rivalBlock={rivalBlock} rivalDash={rivalDash} dash={dash} jump={jump} attack={attack} special={special} special2={special2} endRound={endRound} knockOut={knockOut} dummyAttack={dummyAttack} rivalSpecial={rivalSpecial} rivalUltimate={rivalUltimate} onUnavailable={onUnavailable} onReady={onReady}>
         {!loadingGone && <LoadingScreen ready={loaded} onStart={onStart} onDone={onLoadingDone} />}
       </StageScreen>
 
@@ -262,8 +258,7 @@ function App() {
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Q</kbd>{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd> pour marcher, appuie deux fois vite pour un dash, maintiens{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↓</kbd> ou{' '}
-        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">S</kbd> pour t'accroupir,{' '}
-        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Espace</kbd> pour parer,{' '}
+        <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">S</kbd> pour t'accroupir, l'arrière quand l'adversaire attaque pour parer (avec le bas : parade accroupie),{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↑</kbd> ou{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Z</kbd> pour sauter (avec une direction tenue : saut avant ou arrière),{' '}
         <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">J</kbd> pour attaquer : un appui pour le
@@ -278,8 +273,7 @@ function App() {
       {rivalControl && (
         <p className="m-0 text-[15px] text-line">
           Tu contrôles l'adversaire avec les flèches : maintiens <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">←</kbd> pour avancer vers Moussa (deux appuis rapides : il se téléporte, dans son dos s'il est au contact),{' '}
-          <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">→</kbd> pour reculer (deux appuis rapides : il se téléporte en arrière) et <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↓</kbd> pour parer, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Entrée</kbd> pour frapper, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Maj</kbd> pour son coup spécial. Moussa se joue alors avec <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Q</kbd> <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">S</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Z</kbd>, 
-          <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Espace</kbd> et les touches d'attaque.
+          <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">→</kbd> pour reculer (deux appuis rapides : il se téléporte en arrière) et <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">↓</kbd> pour parer, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Entrée</kbd> pour frapper, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Maj</kbd> pour son coup spécial. Moussa se joue alors avec <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Q</kbd> <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">D</kbd> (<kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Q</kbd> tenu pour parer), <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">S</kbd>, <kbd className="border border-[#3a3145] bg-panel px-1.5 text-line">Z</kbd> et les touches d'attaque.
         </p>
       )}
     </main>

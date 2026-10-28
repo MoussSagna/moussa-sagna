@@ -8,7 +8,6 @@ function fakeTarget() {
   const target: PlayerTarget = {
     walk: 0,
     crouch: false,
-    block: false,
     dash: (direction) => calls.push(`dash ${direction}`),
     jump: () => calls.push('jump'),
     attack: () => calls.push('attack'),
@@ -61,17 +60,17 @@ describe('bindPlayerKeys', () => {
     unbind()
   })
 
-  it('tient la marche, l’accroupi et la parade tant que la touche est enfoncée', () => {
+  it('tient la marche et l’accroupi tant que la touche est enfoncée ; Espace ne pare plus', () => {
     const { target } = fakeTarget()
     unbind = bindPlayerKeys(target)
     expect(press('keydown', 'ArrowRight').defaultPrevented).toBe(true)
     expect(target.walk).toBe(1)
-    press('keydown', ' ')
-    expect(target.block).toBe(true)
     press('keyup', 'ArrowRight')
-    press('keyup', ' ')
     expect(target.walk).toBe(0)
-    expect(target.block).toBe(false)
+    press('keydown', 'ArrowLeft')
+    expect(target.walk).toBe(-1)
+    press('keyup', 'ArrowLeft')
+    expect(press('keydown', ' ').defaultPrevented).toBe(false)
     press('keydown', 's')
     expect(target.crouch).toBe(true)
   })

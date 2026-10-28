@@ -16,7 +16,6 @@ interface Props {
   /** Vrai tant que le personnage doit rester accroupi. */
   crouch: boolean
   /** Vrai tant que le personnage doit parer. */
-  block: boolean
   /** Adversaire contrôlé par le joueur : déplacement (-1 vers Moussa, 1 en s'éloignant, 0 à l'arrêt) et parade. */
   rivalWalk: number
   rivalBlock: boolean
@@ -50,7 +49,7 @@ interface Props {
 }
 
 /** L'écran du stage : décor animé, personnage en garde, météo et carton de titre. */
-export function StageScreen({ options, introKey, walk, crouch, block, rivalWalk, rivalBlock, rivalDash, dash, jump, attack, special, special2, knockOut, endRound, dummyAttack, rivalSpecial, rivalUltimate, onUnavailable, onReady, children }: Props) {
+export function StageScreen({ options, introKey, walk, crouch, rivalWalk, rivalBlock, rivalDash, dash, jump, attack, special, special2, knockOut, endRound, dummyAttack, rivalSpecial, rivalUltimate, onUnavailable, onReady, children }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLCanvasElement>(null)
   const dummy = useRef<HTMLCanvasElement>(null)
@@ -101,10 +100,6 @@ export function StageScreen({ options, introKey, walk, crouch, block, rivalWalk,
   useEffect(() => {
     if (engine.current) engine.current.crouch = crouch
   }, [crouch])
-
-  useEffect(() => {
-    if (engine.current) engine.current.block = block
-  }, [block])
 
   useEffect(() => {
     if (engine.current) engine.current.rivalWalk = rivalWalk

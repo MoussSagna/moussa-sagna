@@ -41,6 +41,12 @@ const CAMERA_MAX_SHIFT = CAMERA_MAX_PAN + PLACEMENT.depth * CAMERA.parallax
  * l'attaque ultime de l'adversaire (sa retombée en coup de poing, puis le coup de marteau) retirent `dive` et
  * `hammer`. Après un K.O. de l'adversaire, le round suivant commence au bout de `koSeconds`.
  */
+/**
+ * Parade en tenant l'arrière : distance (pixels de la toile, entre l'axe de l'adversaire et l'avant du corps de
+ * Moussa) sous laquelle une attaque de l'adversaire le fait parer au lieu de reculer. Un peu plus que sa plus longue
+ * portée (900), comme la parade de proximité de Street Fighter.
+ */
+const GUARD_RANGE = 1300
 const DAMAGE = { perPower: 0.05, dive: 0.08, hammer: 0.2, koSeconds: 3 }
 /**
  * K.O. sur la frappe de la paume de l'attaque finale de Moussa : le combat se fige `freeze` secondes sur l'impact, la
@@ -230,6 +236,14 @@ export class StageEngine {
   rivalDash(direction: number): void {
     // vers le personnage (à gauche à l'écran, à droite quand ils ont changé de côté) : dash avant ; sinon, dash arrière
     if (!this.cinematic.locked && this.options.rivalControl === true) this.rival.teleport(direction * this.side)
+  }
+
+  /** Vrai quand l'adversaire attaque assez près pour que tenir l'arrière fasse parer (`GUARD_RANGE`). */
+  private threatened(info: FrameInfo): boolean {
+    const target = this.opponent()
+    if (!target.attacking) return false
+    const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)
+    return (target.x - this.hero.front(pixel)) / pixel < GUARD_RANGE
   }
 
   /** L'IA regarde le combat et pilote l'adversaire : marche, parade, coups (sens propres à l'adversaire). */
@@ -616,7 +630,11 @@ export class StageEngine {
       this.frozen += delta * (1 - SUPER_KO.scale)
     }
     const fight: FrameInfo = { ...info, time: time - this.frozen, delta: stopped ? 0 : slowed ? delta * SUPER_KO.scale : delta }
-    this.hero.update(fight, locked ? 0 : this.walk * this.side, locked ? false : this.crouch, locked ? false : this.block)
+    // la parade, comme dans Street Fighter : tenir l'arrière quand l'adversaire attaque à proximité (accroupi avec
+    // le bas) ; le reste du temps, la même touche le fait reculer. `block` force la parade (essais)
+    const heroWalk = locked ? 0 : this.walk * this.side
+    const guarding = !locked && (this.block || (heroWalk < 0 && this.threatened(info)))
+    this.hero.update(fight, heroWalk, locked ? false : this.crouch, guarding)
     // contrôlé par le joueur, il marche et pare à la demande ; sinon il pare selon l'option et garde ses distances
     const controlled = this.options.rivalControl === true
     // l'IA le pilote avec les mêmes commandes que le joueur (le contrôle au clavier passe avant)

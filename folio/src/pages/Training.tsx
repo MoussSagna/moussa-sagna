@@ -71,7 +71,7 @@ export function Training() {
                 type="button"
                 className="arena-frame__fullscreen"
                 onClick={(event) => {
-                  // le bouton rend le focus : Espace doit parer, pas rappuyer sur le bouton
+                  // le bouton rend le focus : les touches du jeu ne doivent pas rappuyer sur le bouton
                   event.currentTarget.blur();
                   fullscreen.toggle();
                 }}
@@ -95,7 +95,7 @@ export function Training() {
           </figcaption>
           <p className="arena-hint">
             Maintiens <kbd>←</kbd> <kbd>→</kbd> ou <kbd>Q</kbd> <kbd>D</kbd> pour marcher, appuie deux fois vite pour un
-            dash. Maintiens <kbd>↓</kbd> ou <kbd>S</kbd> pour t’accroupir, <kbd>Espace</kbd> pour parer. <kbd>↑</kbd> ou{' '}
+            dash. Maintiens <kbd>↓</kbd> ou <kbd>S</kbd> pour t’accroupir. Pour parer, tiens l’arrière quand Shigaraki attaque (avec le bas : parade accroupie). <kbd>↑</kbd> ou{' '}
             <kbd>Z</kbd> pour sauter (avec <kbd>←</kbd> ou <kbd>→</kbd> maintenu : saut arrière ou avant), <kbd>J</kbd>{' '}
             pour attaquer : un appui pour le coup léger, puis un par coup pour enchaîner le moyen, le fort et le coup de
             pied. Pendant un coup qui touche, deux appuis vite vers l’avant lancent un drive rush (2 blocs de drive).{' '}
