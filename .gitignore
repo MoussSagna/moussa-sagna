@@ -29,3 +29,6 @@ __pycache__/
 # Références et livrables lourds, gardés en local hors du dépôt
 Tokyo_Underground_Documentation/
 references/
+
+# Cache de compilation TypeScript, recréé à chaque build
+*.tsbuildinfo
