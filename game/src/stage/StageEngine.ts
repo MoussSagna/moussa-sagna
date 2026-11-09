@@ -5,6 +5,7 @@ import { HeroLayer, PLACEMENT } from '../hero/HeroLayer'
 import type { Strike } from '../hero/HeroLayer'
 import { CANVAS } from '../hero/poseData'
 import type { Opponent } from '../opponent'
+import { RivalBrain } from '../rival/RivalBrain'
 import { RivalLayer } from '../rival/RivalLayer'
 import type { Camera, FrameInfo, StageOptions } from '../types'
 import { StageBackdrop } from './StageBackdrop'
@@ -40,6 +41,12 @@ const CAMERA_MAX_SHIFT = CAMERA_MAX_PAN + PLACEMENT.depth * CAMERA.parallax
  * l'attaque ultime de l'adversaire (sa retombée en coup de poing, puis le coup de marteau) retirent `dive` et
  * `hammer`. Après un K.O. de l'adversaire, le round suivant commence au bout de `koSeconds`.
  */
+/**
+ * Parade en tenant l'arrière : distance (pixels de la toile, entre l'axe de l'adversaire et l'avant du corps de
+ * Moussa) sous laquelle une attaque de l'adversaire le fait parer au lieu de reculer. Un peu plus que sa plus longue
+ * portée (900), comme la parade de proximité de Street Fighter.
+ */
+const GUARD_RANGE = 1300
 const DAMAGE = { perPower: 0.05, dive: 0.08, hammer: 0.2, koSeconds: 3 }
 /**
  * K.O. sur la frappe de la paume de l'attaque finale de Moussa : le combat se fige `freeze` secondes sur l'impact, la
@@ -113,6 +120,8 @@ export class StageEngine {
   private backdrop: StageBackdrop
   private dummy: DummyLayer
   private rival: RivalLayer
+  /** L'IA de l'adversaire, quand l'option `rivalAI` est active. */
+  private brain = new RivalBrain()
   private opponentCanvases: { dummy: HTMLCanvasElement; rival: HTMLCanvasElement }
   private hero: HeroLayer
   /** Arrêt sur image en cours : temps restant, et temps total passé à l'arrêt depuis le démarrage. */
@@ -205,7 +214,8 @@ export class StageEngine {
   /** Fait attaquer celui qui fait face au personnage, pour tester les coups reçus et parés. */
   /** Attaque ultime de l'adversaire. */
   rivalUltimate(): void {
-    if (!this.cinematic.locked) this.rival.ultimate()
+    // seulement avec la barre de super pleine (elle se vide quand l'attaque part)
+    if (!this.cinematic.locked && this.hud.superFull('rival')) this.rival.ultimate()
   }
 
   /** Coup spécial de l'adversaire. */
@@ -226,6 +236,44 @@ export class StageEngine {
   rivalDash(direction: number): void {
     // vers le personnage (à gauche à l'écran, à droite quand ils ont changé de côté) : dash avant ; sinon, dash arrière
     if (!this.cinematic.locked && this.options.rivalControl === true) this.rival.teleport(direction * this.side)
+  }
+
+  /** Vrai quand l'adversaire attaque assez près pour que tenir l'arrière fasse parer (`GUARD_RANGE`). */
+  private threatened(info: FrameInfo): boolean {
+    const target = this.opponent()
+    if (!target.attacking) return false
+    const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)
+    return (target.x - this.hero.front(pixel)) / pixel < GUARD_RANGE
+  }
+
+  /** L'IA regarde le combat et pilote l'adversaire : marche, parade, coups (sens propres à l'adversaire). */
+  private driveRival(fight: FrameInfo, info: FrameInfo): void {
+    const pixel = (PLACEMENT.scale / CANVAS[1]) * (info.height / info.width)
+    const ball = this.hero.fireballX
+    const surface = this.rival.x - this.rival.surface * pixel
+    const orders = this.brain.think(
+      {
+        space: (this.rival.x - this.hero.front(pixel)) / pixel,
+        fireball: ball === null || ball > surface ? null : (surface - ball) / pixel,
+        heroAttacking: this.hero.attacking,
+        heroStunned: this.hero.stunned,
+        heroBlocking: this.hero.blocking,
+        heroAirborne: this.hero.airborne,
+        over: this.koWait >= 0 || this.victoryTime >= 0 || this.hero.knockedOut || this.hero.exiting || this.rival.knockedDown || this.rival.ultimateActive,
+        free: this.rival.free,
+        attacking: this.rival.attacking,
+        connected: this.rival.connected,
+        superFull: this.hud.superFull('rival'),
+      },
+      fight.delta,
+    )
+    this.rival.request = orders.walk
+    this.rival.blocking = orders.block
+    if (orders.action === 'attack') this.rival.attack()
+    else if (orders.action === 'special') this.rival.special()
+    else if (orders.action === 'ultimate') this.rivalUltimate()
+    else if (orders.action === 'dashIn') this.rival.teleport(-1)
+    else if (orders.action === 'dashOut') this.rival.teleport(1)
   }
 
   /** 1 quand Moussa est à gauche, -1 quand les combattants ont changé de côté : convertit un sens à l'écran. */
@@ -259,6 +307,7 @@ export class StageEngine {
 
   /** Passe au round suivant : les deux combattants reviennent en garde à leur place de départ. */
   private nextRound(): void {
+    this.brain.reset()
     this.quake = -1
     this.victoryTime = -1
     this.focusTime = -1
@@ -280,7 +329,8 @@ export class StageEngine {
 
   /** Lance la seconde attaque spéciale du personnage, la frappe au sol. */
   groundSpecial(): void {
-    if (!this.cinematic.locked) this.hero.groundSpecial()
+    // l'attaque finale : seulement avec la barre de super pleine (elle se vide au plan de coupe)
+    if (!this.cinematic.locked && this.hud.superFull('hero')) this.hero.groundSpecial()
   }
 
   /** Lance un saut vertical du personnage. */
@@ -398,6 +448,8 @@ export class StageEngine {
       // combo : le coup touche alors qu'il est encore sonné par le précédent
       const stunned = rivalTarget && this.rival.stunned
       const guarded = target.hit(strike.power)
+      // paré par un adversaire coincé contre le bord : Moussa recule à sa place
+      if (guarded && rivalTarget) this.hero.recoil(this.rival.takeCornerPush())
       if (rivalTarget && this.koWait < 0) {
         if (guarded) this.hud.endCombo('hero')
         else {
@@ -417,6 +469,9 @@ export class StageEngine {
             return guarded
           }
           if (!this.hero.finishing) this.rivalKO()
+        } else if (strike.finisher && !guarded) {
+          // la paume ne le finit pas : il tombe, puis se relève
+          this.rival.knockDown()
         }
       }
       this.stop = strike.stop * (guarded ? 0.5 : 1) * (calm ? 0.5 : 1)
@@ -432,6 +487,8 @@ export class StageEngine {
     if (blow && !this.hero.exiting && !this.hero.knockedOut && this.hero.front(pixel) >= blow.x) {
       target.land()
       const guarded = this.hero.takeHit(blow, pixel)
+      // attaque ultime parée : le premier coup va au bout, puis elle ne se poursuit pas
+      if (guarded && this.rival.ultimateActive) this.rival.stopAfterHit()
       if (guarded) this.hud.block('hero', blow.power)
       else if (this.koWait < 0) {
         this.hud.damage('hero', blow.power * DAMAGE.perPower, blow.power)
@@ -573,14 +630,21 @@ export class StageEngine {
       this.frozen += delta * (1 - SUPER_KO.scale)
     }
     const fight: FrameInfo = { ...info, time: time - this.frozen, delta: stopped ? 0 : slowed ? delta * SUPER_KO.scale : delta }
-    this.hero.update(fight, locked ? 0 : this.walk * this.side, locked ? false : this.crouch, locked ? false : this.block)
+    // la parade, comme dans Street Fighter : tenir l'arrière quand l'adversaire attaque à proximité (accroupi avec
+    // le bas) ; le reste du temps, la même touche le fait reculer. `block` force la parade (essais)
+    const heroWalk = locked ? 0 : this.walk * this.side
+    const guarding = !locked && (this.block || (heroWalk < 0 && this.threatened(info)))
+    this.hero.update(fight, heroWalk, locked ? false : this.crouch, guarding)
     // contrôlé par le joueur, il marche et pare à la demande ; sinon il pare selon l'option et garde ses distances
     const controlled = this.options.rivalControl === true
-    this.rival.controlled = controlled && !locked
+    // l'IA le pilote avec les mêmes commandes que le joueur (le contrôle au clavier passe avant)
+    const ai = this.options.rivalAI === true && !controlled && this.options.opponent === 'rival' && !locked
+    this.rival.controlled = (controlled || ai) && !locked
     this.rival.request = this.rivalWalk * this.side
     this.rival.blocking = this.options.rivalBlocks === true || (controlled && !locked && this.rivalBlock)
+    if (ai) this.driveRival(fight, info)
     // il ne se déplace pas avant le « Fight », ni pendant la mise au point de la frappe au sol
-    this.rival.moves = this.options.rivalMoves !== false && !locked && !controlled
+    this.rival.moves = this.options.rivalMoves !== false && !locked && !controlled && !ai
     this.rival.heroX = this.hero.position
     // attaque finale de Moussa : sonné par la rafale, il reste figé dans le coup reçu jusqu'à la frappe de la paume
     this.rival.held = this.hero.holdingTarget
@@ -716,7 +780,7 @@ export class StageEngine {
     if (!stopped) this.resolveHits(info, calm)
     // le coup spécial de l'adversaire : forte secousse de l'écran à l'impact, comme la frappe au sol de Moussa
     if (this.rival.takeImpact()) this.shake = 2.2
-    // l'adversaire K.O. touche le sol
+    // l'adversaire touche le sol (K.O. ou chute)
     if (this.rival.takeKoLanding()) this.shake = Math.max(this.shake, 1.6)
     // un seul des deux est affiché
     this.opponentCanvases.dummy.style.visibility = target === this.dummy ? 'visible' : 'hidden'

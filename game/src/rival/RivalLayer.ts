@@ -92,6 +92,11 @@ const POSES = {
   ko3: { file: 'rival/ko-3.webp', ground: [480, 1478], scale: 1.6 },
   ko4: { file: 'rival/ko-4.webp', ground: [480, 1495], scale: 1.6 },
   ko5: { file: 'rival/ko-5.webp', ground: [505, 1490], scale: 1.55 },
+  // il se relève après une chute sans K.O. : à genoux, tête baissée, puis relevée, puis debout ; calés sous le milieu
+  // du corps (les deux premiers, en largeur, ont été réduits aux deux tiers pour tenir dans la toile)
+  getup1: { file: 'rival/getup-1.webp', ground: [464, 1510], scale: 1.25 },
+  getup2: { file: 'rival/getup-2.webp', ground: [420, 1517], scale: 1.25 },
+  getup3: { file: 'rival/getup-3.webp', ground: [355, 1514], scale: 0.8 },
   hop1: { file: 'rival/hop-1.webp', ground: [614, 1311], scale: 1.25 },
   hop2: { file: 'rival/hop-2.webp', ground: [618, 1314], scale: 1.25 },
   hop3: { file: 'rival/hop-3.webp', ground: [600, 1250], scale: 1.25 },
@@ -466,6 +471,19 @@ const KO_FALL = {
   height: 180,
   push: 0.1,
 }
+/**
+ * Chute sans K.O. (la paume de la frappe au sol de Moussa, quand elle ne le finit pas) : la même chute qu'au K.O.,
+ * il reste allongé `rest` secondes, puis se relève avec ces dessins et reprend sa garde. Il ne peut pas être touché
+ * avant d'être debout.
+ */
+const GETUP = {
+  rest: 0.45,
+  steps: [
+    { pose: 'getup1', seconds: 0.22 },
+    { pose: 'getup2', seconds: 0.2 },
+    { pose: 'getup3', seconds: 0.18 },
+  ] as { pose: RivalPose; seconds: number }[],
+}
 const KO_AIR_START = KO_FALL.steps[0].seconds
 const KO_AIR = KO_FALL.steps[1].seconds + KO_FALL.steps[2].seconds
 const KO_DOWN = KO_FALL.steps.slice(0, 4).reduce((sum, step) => sum + step.seconds, 0)
@@ -502,8 +520,18 @@ const BREATH = { amplitude: 0.007, period: 3.6 }
  * amorti. `lean` : pente de l'inclinaison pour un coup de pleine puissance (décalage horizontal par pixel de hauteur).
  */
 const HIT = { stun: 0.26, recover: 0.16, lean: 0.05, frequency: 2.6, damping: 11 }
-/** Coup paré : il garde sa pose et penche seulement, de cette pente pour un coup de pleine puissance. */
+/** Coup paré : il garde sa pose et penche, de cette pente pour un coup de pleine puissance. */
 const GUARDED_LEAN = 0.035
+/**
+ * Recul d'un coup paré : il glisse en arrière de `distance` (fraction de la largeur du stage, pour un coup de pleine
+ * puissance) en `seconds`, vite puis en freinant. Contre le bord, ce qu'il ne peut pas reculer revient à Moussa.
+ */
+const GUARD_PUSH = { distance: 0.01, seconds: 0.14 }
+/**
+ * Attaque ultime parée : après son uppercut, il reste figé dans ce dessin pendant `punish` secondes, sans pouvoir ni
+ * parer ni bouger, avant de revenir en garde. Moussa a le temps de le punir.
+ */
+const BLOCKED_ULTIMATE = { punish: 0.65 }
 const REFLECTION = { alpha: 0.2, squash: 0.5 }
 /** « Réduire les mouvements » : part de la respiration et du recul conservée. */
 const CALM_AMPLITUDE = 0.35
@@ -576,6 +604,8 @@ export class RivalLayer implements Opponent {
   private koTime = -1
   private koFrom = 0
   private koLanded = false
+  /** Vrai quand la chute en cours n'est pas un K.O. : il se relèvera (`GETUP`). */
+  private getsUp = false
   private hopFrom = 0
   /** Position de Moussa et taille d'un pixel de la toile au moment où il retombe sur lui. */
   private diveTarget: [number, number] = [0, 0]
@@ -601,6 +631,16 @@ export class RivalLayer implements Opponent {
   private hurtTime = 0
   /** Inclinaison du corps après un coup (positive vers l'arrière) et sa vitesse. */
   private lean = 0
+  /** Recul d'un coup paré en cours, et la part de recul que le bord lui a refusée (reprise par `takeCornerPush`). */
+  private guardSlide: { from: number; distance: number; time: number } | null = null
+  private cornerPush = 0
+  /**
+   * Fin anticipée du coup en cours (attaque ultime parée), en secondes depuis son début ; à partir de `stopHold`, il
+   * reste figé dans `stopPose`.
+   */
+  private stopAt = Infinity
+  private stopHold = Infinity
+  private stopPose: RivalPose = 'guard'
   private velocity = 0
 
   constructor(canvas: HTMLCanvasElement) {
@@ -636,6 +676,12 @@ export class RivalLayer implements Opponent {
     const guarded = this.pose === 'block'
     this.lean = (guarded ? GUARDED_LEAN : HIT.lean) * (0.45 + 0.55 * power)
     this.velocity = 0
+    if (guarded) {
+      const distance = GUARD_PUSH.distance * (0.5 + 0.5 * power)
+      const room = Math.max(0, Math.min(distance, RANGE.maxX - this.x))
+      this.guardSlide = { from: this.x, distance: room, time: 0 }
+      this.cornerPush = distance - room
+    }
     if (!guarded) {
       this.pose = 'hurt'
       this.hurtTime = 0
@@ -646,6 +692,21 @@ export class RivalLayer implements Opponent {
     return guarded
   }
 
+  /** Vrai pendant un de ses coups, l'attaque ultime comprise. */
+  get attacking(): boolean {
+    return this.attackTime >= 0
+  }
+
+  /** Vrai quand le coup en cours a touché ou a été paré : le suivant de l'enchaînement peut partir. */
+  get connected(): boolean {
+    return this.attackTime >= 0 && this.landedStep !== null
+  }
+
+  /** Vrai quand il peut agir : en garde ou en lévitation, ni en plein coup, ni en téléportation, ni sonné. */
+  get free(): boolean {
+    return this.koTime < 0 && this.hopTime < 0 && this.attackTime < 0 && this.teleportTime < 0 && !this.away && (this.pose === 'guard' || this.pose === 'block' || isFloatPose(this.pose))
+  }
+
   /** Vrai tant qu'il est sonné par un coup (ou à terre) : il ne peut ni bouger ni parer. Le compteur de combo en dépend. */
   get stunned(): boolean {
     return this.pose === 'hurt' || this.pose === 'hurtRecover' || this.koTime >= 0
@@ -654,6 +715,18 @@ export class RivalLayer implements Opponent {
   /** K.O. : plus de vie, il bascule en arrière et tombe au sol, où il reste jusqu'au round suivant. */
   knockOut(): void {
     if (this.koTime >= 0) return
+    this.getsUp = false
+    this.fall()
+  }
+
+  /** Chute sans K.O. : il tombe comme au K.O., reste un instant au sol, puis se relève (`GETUP`). */
+  knockDown(): void {
+    if (this.koTime >= 0) return
+    this.getsUp = true
+    this.fall()
+  }
+
+  private fall(): void {
     this.koTime = 0
     this.koFrom = this.x
     this.koLanded = false
@@ -687,6 +760,7 @@ export class RivalLayer implements Opponent {
     this.finished = false
     this.hopTime = -1
     this.koTime = -1
+    this.getsUp = false
     this.settle()
   }
 
@@ -833,6 +907,30 @@ export class RivalLayer implements Opponent {
     this.warped = false
     this.landedStep = null
     this.pose = MOVES[move].steps[0].pose
+    this.stopAt = Infinity
+    this.stopHold = Infinity
+  }
+
+  /**
+   * Son attaque ultime a été parée : elle ne se poursuit pas. Le coup en cours va au bout de ses images actives
+   * (l'uppercut entier), il reste figé dans le dernier dessin (`BLOCKED_ULTIMATE.punish`), punissable, puis revient
+   * en garde, sans l'envol ni la suite.
+   */
+  stopAfterHit(): void {
+    if (this.attackTime < 0) return
+    const steps = MOVES[this.move].steps
+    let end = 0
+    let index = 0
+    while (index < steps.length) {
+      end += steps[index].seconds
+      if (this.attackTime < end) break
+      index++
+    }
+    while (index + 1 < steps.length && steps[index + 1].active) end += steps[++index].seconds
+    if (end + BLOCKED_ULTIMATE.punish >= this.stopAt) return
+    this.stopHold = end
+    this.stopPose = steps[Math.min(index, steps.length - 1)].pose
+    this.stopAt = end + BLOCKED_ULTIMATE.punish
   }
 
   /** L'étape en cours du coup. */
@@ -912,6 +1010,14 @@ export class RivalLayer implements Opponent {
     this.hopFrom = flip(this.hopFrom)
     this.koFrom = flip(this.koFrom)
     this.heroX = heroX
+    this.guardSlide = null
+  }
+
+  /** La part du recul de son dernier coup paré que le bord a bloquée, une seule fois : Moussa recule d'autant. */
+  takeCornerPush(): number {
+    const push = this.cornerPush
+    this.cornerPush = 0
+    return push
   }
 
   /** Repoussé de `distance` (Moussa lui est retombé dessus), sans dépasser le bord ; retourne la distance parcourue. */
@@ -952,6 +1058,20 @@ export class RivalLayer implements Opponent {
       if (before < KO_DOWN && this.koTime >= KO_DOWN) this.koLanded = true
       const k = Math.min(1, this.koTime / KO_DOWN)
       this.x = Math.min(RANGE.maxX, this.koFrom + KO_FALL.push * k * (2 - k))
+      // chute sans K.O. : après un instant au sol, il se relève, puis reprend sa garde
+      if (this.getsUp && this.koTime >= KO_DOWN + GETUP.rest) {
+        let end = KO_DOWN + GETUP.rest
+        for (const step of GETUP.steps) {
+          end += step.seconds
+          this.pose = step.pose
+          if (this.koTime < end) return
+        }
+        this.koTime = -1
+        this.getsUp = false
+        this.pose = 'guard'
+        this.settle()
+        return
+      }
       let end = 0
       for (const step of KO_FALL.steps) {
         end += step.seconds
@@ -1046,7 +1166,13 @@ export class RivalLayer implements Opponent {
       const [min] = this.bounds(this.pixel(frame))
       const target = this.attackFrom - move.advance * (1 - (1 - k) ** 2)
       this.x = Math.max(Math.min(this.x, min), target)
-      if (this.ultimateQueued && this.move !== 'ultimate' && this.attackTime >= moveActiveEnd(move)) {
+      if (this.attackTime >= this.stopAt) {
+        // attaque parée : elle s'arrête là
+        this.attackTime = -1
+        this.stopAt = Infinity
+        this.stopHold = Infinity
+        this.pose = 'guard'
+      } else if (this.ultimateQueued && this.move !== 'ultimate' && this.attackTime >= moveActiveEnd(move)) {
         // l'attaque ultime annule la suite du coup en cours
         this.startUltimate()
       } else if (this.specialQueued && this.attackTime >= moveActiveEnd(move)) {
@@ -1065,7 +1191,19 @@ export class RivalLayer implements Opponent {
           this.pose = 'ultFly'
         }
       } else {
-        this.pose = this.moveStep().pose
+        // attaque parée : figé dans le dernier dessin de son coup, sans enchaîner la suite
+        this.pose = this.attackTime >= this.stopHold ? this.stopPose : this.moveStep().pose
+      }
+    }
+    // recul d'un coup paré : il part vite et freine ; une attaque ou une téléportation l'interrompt
+    if (this.guardSlide) {
+      const slide = this.guardSlide
+      if (this.attackTime >= 0 || this.teleportTime >= 0) this.guardSlide = null
+      else {
+        slide.time += frame.delta
+        const k = Math.min(1, slide.time / GUARD_PUSH.seconds)
+        this.x = Math.min(RANGE.maxX, slide.from + slide.distance * (1 - (1 - k) ** 3))
+        if (k >= 1) this.guardSlide = null
       }
     }
     // coup encaissé : le dessin du coup reçu, celui du retour, puis la garde

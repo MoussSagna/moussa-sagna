@@ -8,7 +8,6 @@
 export type PlayerKey =
   | { kind: 'walk'; direction: 1 | -1 }
   | { kind: 'crouch' }
-  | { kind: 'block' }
   | { kind: 'jump' }
   | { kind: 'attack' }
   | { kind: 'special' }
@@ -23,7 +22,6 @@ const KEYS: Record<string, PlayerKey> = {
   a: { kind: 'walk', direction: -1 },
   arrowdown: { kind: 'crouch' },
   s: { kind: 'crouch' },
-  ' ': { kind: 'block' },
   arrowup: { kind: 'jump' },
   z: { kind: 'jump' },
   w: { kind: 'jump' },
@@ -76,7 +74,6 @@ export class DoubleTap {
 export interface PlayerTarget {
   walk: number
   crouch: boolean
-  block: boolean
   dash(direction: number): void
   jump(): void
   attack(): void
@@ -86,7 +83,8 @@ export interface PlayerTarget {
 }
 
 /**
- * Branche le clavier sur le moteur. Les touches tenues (marche, accroupi, parade) sont recalculées à chaque appui
+ * Branche le clavier sur le moteur. Pas de touche de parade : on pare en tenant l'arrière quand l'adversaire attaque
+ * (le moteur s'en charge). Les touches tenues (marche, accroupi) sont recalculées à chaque appui
  * et relâchement ; les appuis (double appui du dash, saut, coups) appellent le moteur. Échap passe la cinématique.
  * `active` dit si le jeu écoute (faux pendant l'écran de chargement). Renvoie la fonction qui débranche tout.
  */
@@ -96,16 +94,13 @@ export function bindPlayerKeys(target: PlayerTarget, active: () => boolean = () 
   const sync = () => {
     let direction = 0
     let crouch = false
-    let block = false
     for (const key of held) {
       const command = KEYS[key]
       if (command?.kind === 'walk') direction = command.direction
       else if (command?.kind === 'crouch') crouch = true
-      else if (command?.kind === 'block') block = true
     }
     target.walk = direction
     target.crouch = crouch
-    target.block = block
   }
   const down = (event: KeyboardEvent) => {
     if (!active()) return
@@ -118,7 +113,7 @@ export function bindPlayerKeys(target: PlayerTarget, active: () => boolean = () 
     if (!command || leavesKeyAlone(event)) return
     // les flèches et Espace ne font plus défiler la page
     event.preventDefault()
-    if (command.kind === 'walk' || command.kind === 'crouch' || command.kind === 'block') {
+    if (command.kind === 'walk' || command.kind === 'crouch') {
       // l'heure de l'événement, pas celle de son traitement : le double appui reste détecté quand l'affichage rame
       if (command.kind === 'walk' && !event.repeat && taps.tap(command.direction, event.timeStamp)) target.dash(command.direction)
       held.add(key)

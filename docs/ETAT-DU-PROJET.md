@@ -38,7 +38,7 @@ Toute nouvelle pose demande aussi une échelle dans `POSE_SCALE` (`lab/src/game/
 
 ## Ce que fait le lab aujourd'hui
 
-Touches : flèches ou ZQSD (deux appuis vers l'avant pendant un coup qui touche ou est paré : drive rush, 2 blocs de drive), J attaque, L boule de feu, I attaque spéciale au sol, O K.O., P fin de round, K le mannequin attaque, Échap passe l'intro. Plus de boutons sous la scène. La case « Contrôler l'adversaire » donne les flèches à l'adversaire (← avance, deux appuis rapides vers Moussa le téléportent, dans son dos au corps à corps, → recule (deux appuis rapides : téléportation en arrière), ↓ pare, Entrée frappe) ; Moussa se joue alors avec Q D, S, Z, Espace et les touches d'attaque.
+Touches : flèches ou ZQSD (deux appuis vers l'avant pendant un coup qui touche ou est paré : drive rush, 2 blocs de drive), J attaque, L boule de feu, I attaque spéciale au sol (barre de super pleine), parade en tenant l'arrière quand l'adversaire attaque (avec le bas : parade accroupie), O K.O., P fin de round, K le mannequin attaque, Échap passe l'intro. Plus de boutons sous la scène. La case « Contrôler l'adversaire » donne les flèches à l'adversaire (← avance, deux appuis rapides vers Moussa le téléportent, dans son dos au corps à corps, → recule (deux appuis rapides : téléportation en arrière), ↓ pare, Entrée frappe) ; Moussa se joue alors avec Q D (Q tenu pour parer), S, Z et les touches d'attaque. La case « Shigaraki IA » le fait se battre seul.
 
 - Écran de chargement : Moussa face à Shigaraki (l'adversaire, nommé ainsi le 19 octobre), « VS », jauge du vrai chargement, puis la partie et la cinématique se lancent d'elles-mêmes.
 - Barres de vie, de super et de drive (quatre blocs), K.O. de l'adversaire quand sa vie tombe à zéro, puis victoire : animation de fin de round de Moussa avec un léger zoom, passage au noir, combattants replacés au centre et round suivant.
@@ -49,7 +49,13 @@ Touches : flèches ou ZQSD (deux appuis vers l'avant pendant un coup qui touche 
 - Cinématique d'entrée en six plans (Moussa puis l'adversaire), « Face your destiny », « Round 1 », « Fight! ».
 - Garde, marche, dashs, accroupi, parade, sauts (sur place, avant, arrière), assez hauts pour passer par-dessus Shigaraki (les combattants se retournent à l'atterrissage).
 - Enchaînement à une touche : léger (jab de boxeur en six dessins), moyen, fort (uppercut), coup de pied. L'enchaînement ne continue que si le coup touche ; l'attaque spéciale annule la récupération.
-- Boule de feu (shader).
+- Boule de feu dessinée (24 dessins, `fx/fireball-N.webp`, tirés de `art/fx-fireball.png` par `prepare_fx.py`) : naissance dans les mains, vol en boucle, dispersion à l'impact ; lueur au sol et éclair d'impact calculés.
+- Recul en parade : un coup paré fait glisser le défenseur en arrière (Moussa : `GUARD_HIT.push`, Shigaraki : `GUARD_PUSH`) ; coincé contre le bord, c'est l'attaquant qui recule.
+- Attaques spéciales parées : elles ne se poursuivent pas. La frappe au sol de Moussa s'arrête à la fin du premier coup de la rafale paré (`groundStopAt`) ; l'attaque ultime de Shigaraki va au bout de son uppercut paré, il y reste figé 0,65 s, punissable (`BLOCKED_ULTIMATE`), puis revient en garde, sans s'envoler (`stopAfterHit`).
+- Chute et relevé de Shigaraki : quand la paume de la frappe au sol de Moussa ne le finit pas, il tombe (les dessins du K.O.), reste un instant au sol, puis se relève (`art/rival-getup-1..3.png`, `GETUP`) et reprend sa garde. Ces trois dessins ont une armure plus rose et plus claire que la garde.
+- Attaques ultimes (frappe au sol de Moussa, attaque ultime de Shigaraki) : seulement avec la barre de super pleine (`HudLayer.superFull`), au clavier comme pour l'IA. La barre se vide quand l'attaque part.
+- Parade comme dans Street Fighter : plus de touche de parade (Espace ne pare plus). Tenir l'arrière fait parer quand l'adversaire attaque à moins de `GUARD_RANGE` (1300 pixels de la toile), et reculer le reste du temps ; avec le bas, parade accroupie. Depuis la marche, la parade est prise sans repasser par la garde. `StageEngine.block` force encore la parade (essais).
+- IA de Shigaraki (case « Shigaraki IA » du lab, option `rivalAI`, `game/src/rival/RivalBrain.ts`) : il avance, pare (par précaution, sous les coups de Moussa, contre la boule de feu après un temps de réaction), frappe au contact, place son coup spécial à mi-distance, se téléporte, enchaîne quand son coup touche et lance l'attaque ultime quand sa barre de super est pleine. Réglages dans `BRAIN`. Pas encore sur le site.
 - Attaque spéciale au sol (l'attaque finale) : mise au point figée avec zoom, ruée, rafale de dix coups au hasard, trois coups lourds qui font trembler l'écran, plan de coupe, charge, frappe de la paume, gros impact. Elle passe en combo (départ court, ruée qui s'arrête au contact, Shigaraki figé dans le coup reçu jusqu'à la paume) ; à bout de vie, Shigaraki encaisse jusqu'à la paume, qui le met K.O. de façon spectaculaire (arrêt, rayons, ondes de choc, « K.O. » géant, ralenti).
 - Mannequin et adversaire original : impacts, arrêt sur image, étincelles, secousse ; l'adversaire encaisse et peut parer.
 - Adversaire (nouveau modèle aux proportions de Moussa) : il se déplace en lévitation au ras du sol (un dessin par sens, une pose de passage, sans fondu), garde seul ses distances, ou se joue aux flèches. Dash avant et arrière en téléportation, à la manière de Doom ; au corps à corps, la téléportation le fait passer dans le dos de Moussa et les combattants changent de côté en restant face à face (affichage retourné en miroir, commandes dans le sens de l'écran).
@@ -57,7 +63,7 @@ Touches : flèches ou ZQSD (deux appuis vers l'avant pendant un coup qui touche 
   - enchaînement de cinq coups, qui n'avance que si le coup touche, annulable à tout moment par le coup spécial ;
   - coup spécial (coup de pied avec traînée d'énergie, explosion et secousse), et sa suite en coup de poing si l'on rappuie quand il touche ;
   - attaque ultime : mise au point sur lui pendant qu'il charge, téléportation devant Moussa, uppercut en deux coups (Moussa soulevé puis propulsé hors de l'écran), charge et envol à toute vitesse (traînée de super vitesse, impact au sol, forte secousse), Moussa retombe et rebondit, l'adversaire retombe sur lui d'un coup de poing, plan de coupe sur son gros plan (bande violette), coup de marteau à deux mains avec une immense colonne d'énergie au premier plan et une secousse verticale, puis bond en arrière pendant que Moussa se relève et reprend sa garde.
-- Coups reçus et parés par Moussa (sans recul).
+- Coups reçus et parés par Moussa (léger recul en parade).
 - Fin de round (il se baisse et disparaît dans la fumée) et K.O. (quatre dessins, « K.O. », round suivant).
 
 ## Le site et le jeu
@@ -68,13 +74,16 @@ Sur le site, le jeu tourne avec les options d'un combat (pluie, pétales, advers
 
 ## Limites connues et prochaines pistes
 
-- **Adversaire** : Il ne se téléporte et n'attaque seul que si un joueur le contrôle (ou avec les touches K, M, N). Son attaque ultime ne retire pas encore de vie : il n'y a pas de barres de vie. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié).
+- **Adversaire** : il se bat seul avec la case « Shigaraki IA » du lab, mais l'IA n'est pas encore branchée sur le site, où il garde seulement ses distances. Ressenti de l'IA, du recul en parade et de la parade en tenant l'arrière pas encore vérifié en jouant en temps réel. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié). Ses trois dessins de relevé ont une armure plus rose que sa garde : à régénérer si le changement de couleur gêne.
 - **Changement de côté** : l'adversaire passe dans le dos de Moussa en se téléportant, Moussa dans le sien en sautant par-dessus ; les combattants se retournent d'un coup, sans animation de demi-tour. Moussa a signalé un bug au passage dans le dos d'un saut, sans le décrire ; deux corrections ont été tentées (la seconde annulée à sa demande), à revoir avec lui.
 - **Coup moyen** : Moussa prépare un direct du bras arrière (planche de poses générée) ; idée retenue en attendant : ne générer que deux images clés et animer le reste dans le moteur.
 - **Après le K.O. spectaculaire** : le décor reste assombri pendant la chute au ralenti, et Moussa finit en partie par-dessus Shigaraki au sol.
 - **Poids du jeu sur le site** : les images du jeu pèsent environ 114 Mo (atlas en WebP sans perte) et sont toutes chargées avant le combat. Pour la mise en ligne, il faudra les compresser (WebP avec perte) et ne charger d'abord que ce qu'il faut pour commencer.
 - **Site sur téléphone** : pas de commandes tactiles, et le moteur empile plusieurs canvas WebGL : à essayer sur un vrai téléphone.
-- **K.O.** : pas d'animation pour se relever ; il réapparaît en garde.
+- **K.O. de Moussa** : pas d'animation pour se relever ; il réapparaît en garde.
+- **Pose de victoire de Moussa** : prompt donné le 27 octobre, image attendue ; à brancher sur le zoom de fin de round.
+- **Aperçu publié du site** : il s'affichait vide chez Moussa le 27 octobre (l'arène marchait en local) ; cause pas encore cherchée.
+- **Essais dans le lab** : les attaques ultimes demandent maintenant la barre de super pleine ; une case d'essai « Barre de super pleine » a été proposée, pas faite.
 - **Rafale de l'attaque spéciale** : le corps saute un peu d'un coup à l'autre, les dessins n'ont pas le même point d'appui.
 - **Logos des baskets** : effacés sur les nouvelles poses, mais quelques zones floues restent visibles de près ; pas encore effacé sur `hero-step.png`. À revoir avant la mise en ligne.
 - **Folio** : la structure du portfolio (menu, sections), le son, le mobile, la mise en ligne. Voir `lab/docs/ROADMAP.md` et `folio/docs/04-ROADMAP-ET-PERIMETRE.md`.

@@ -20,6 +20,8 @@ export interface StageOptions {
   rivalMoves?: boolean
   /** Vrai quand le joueur contrôle l'adversaire avec les flèches. */
   rivalControl?: boolean
+  /** Vrai quand l'adversaire se bat seul (`RivalBrain`) : il avance, pare, frappe. Le contrôle au clavier passe avant. */
+  rivalAI?: boolean
 }
 
 export interface FrameInfo {
