@@ -38,7 +38,7 @@ Toute nouvelle pose demande aussi une échelle dans `POSE_SCALE` (`lab/src/game/
 
 ## Ce que fait le lab aujourd'hui
 
-Touches : flèches ou ZQSD (deux appuis vers l'avant pendant un coup qui touche ou est paré : drive rush, 2 blocs de drive), J attaque, L boule de feu, I attaque spéciale au sol (barre de super pleine), parade en tenant l'arrière quand l'adversaire attaque (avec le bas : parade accroupie), O K.O., P fin de round, K le mannequin attaque, Échap passe l'intro. Plus de boutons sous la scène. La case « Contrôler l'adversaire » donne les flèches à l'adversaire (← avance, deux appuis rapides vers Moussa le téléportent, dans son dos au corps à corps, → recule (deux appuis rapides : téléportation en arrière), ↓ pare, Entrée frappe) ; Moussa se joue alors avec Q D, S, Z, Espace et les touches d'attaque.
+Touches : flèches ou ZQSD (deux appuis vers l'avant pendant un coup qui touche ou est paré : drive rush, 2 blocs de drive), J attaque, L boule de feu, I attaque spéciale au sol (barre de super pleine), parade en tenant l'arrière quand l'adversaire attaque (avec le bas : parade accroupie), O K.O., P fin de round, K le mannequin attaque, Échap passe l'intro. Plus de boutons sous la scène. La case « Contrôler l'adversaire » donne les flèches à l'adversaire (← avance, deux appuis rapides vers Moussa le téléportent, dans son dos au corps à corps, → recule (deux appuis rapides : téléportation en arrière), ↓ pare, Entrée frappe) ; Moussa se joue alors avec Q D (Q tenu pour parer), S, Z et les touches d'attaque. La case « Shigaraki IA » le fait se battre seul.
 
 - Écran de chargement : Moussa face à Shigaraki (l'adversaire, nommé ainsi le 19 octobre), « VS », jauge du vrai chargement, puis la partie et la cinématique se lancent d'elles-mêmes.
 - Barres de vie, de super et de drive (quatre blocs), K.O. de l'adversaire quand sa vie tombe à zéro, puis victoire : animation de fin de round de Moussa avec un léger zoom, passage au noir, combattants replacés au centre et round suivant.
@@ -63,7 +63,7 @@ Touches : flèches ou ZQSD (deux appuis vers l'avant pendant un coup qui touche 
   - enchaînement de cinq coups, qui n'avance que si le coup touche, annulable à tout moment par le coup spécial ;
   - coup spécial (coup de pied avec traînée d'énergie, explosion et secousse), et sa suite en coup de poing si l'on rappuie quand il touche ;
   - attaque ultime : mise au point sur lui pendant qu'il charge, téléportation devant Moussa, uppercut en deux coups (Moussa soulevé puis propulsé hors de l'écran), charge et envol à toute vitesse (traînée de super vitesse, impact au sol, forte secousse), Moussa retombe et rebondit, l'adversaire retombe sur lui d'un coup de poing, plan de coupe sur son gros plan (bande violette), coup de marteau à deux mains avec une immense colonne d'énergie au premier plan et une secousse verticale, puis bond en arrière pendant que Moussa se relève et reprend sa garde.
-- Coups reçus et parés par Moussa (sans recul).
+- Coups reçus et parés par Moussa (léger recul en parade).
 - Fin de round (il se baisse et disparaît dans la fumée) et K.O. (quatre dessins, « K.O. », round suivant).
 
 ## Le site et le jeu
@@ -74,13 +74,16 @@ Sur le site, le jeu tourne avec les options d'un combat (pluie, pétales, advers
 
 ## Limites connues et prochaines pistes
 
-- **Adversaire** : Il ne se téléporte et n'attaque seul que si un joueur le contrôle (ou avec les touches K, M, N). Son attaque ultime ne retire pas encore de vie : il n'y a pas de barres de vie. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié).
+- **Adversaire** : il se bat seul avec la case « Shigaraki IA » du lab, mais l'IA n'est pas encore branchée sur le site, où il garde seulement ses distances. Ressenti de l'IA, du recul en parade et de la parade en tenant l'arrière pas encore vérifié en jouant en temps réel. En reculant par téléportation, les traits de vitesse du dessin partent dans le sens du déplacement (il faudrait un dessin dédié). Ses trois dessins de relevé ont une armure plus rose que sa garde : à régénérer si le changement de couleur gêne.
 - **Changement de côté** : l'adversaire passe dans le dos de Moussa en se téléportant, Moussa dans le sien en sautant par-dessus ; les combattants se retournent d'un coup, sans animation de demi-tour. Moussa a signalé un bug au passage dans le dos d'un saut, sans le décrire ; deux corrections ont été tentées (la seconde annulée à sa demande), à revoir avec lui.
 - **Coup moyen** : Moussa prépare un direct du bras arrière (planche de poses générée) ; idée retenue en attendant : ne générer que deux images clés et animer le reste dans le moteur.
 - **Après le K.O. spectaculaire** : le décor reste assombri pendant la chute au ralenti, et Moussa finit en partie par-dessus Shigaraki au sol.
 - **Poids du jeu sur le site** : les images du jeu pèsent environ 114 Mo (atlas en WebP sans perte) et sont toutes chargées avant le combat. Pour la mise en ligne, il faudra les compresser (WebP avec perte) et ne charger d'abord que ce qu'il faut pour commencer.
 - **Site sur téléphone** : pas de commandes tactiles, et le moteur empile plusieurs canvas WebGL : à essayer sur un vrai téléphone.
-- **K.O.** : pas d'animation pour se relever ; il réapparaît en garde.
+- **K.O. de Moussa** : pas d'animation pour se relever ; il réapparaît en garde.
+- **Pose de victoire de Moussa** : prompt donné le 27 octobre, image attendue ; à brancher sur le zoom de fin de round.
+- **Aperçu publié du site** : il s'affichait vide chez Moussa le 27 octobre (l'arène marchait en local) ; cause pas encore cherchée.
+- **Essais dans le lab** : les attaques ultimes demandent maintenant la barre de super pleine ; une case d'essai « Barre de super pleine » a été proposée, pas faite.
 - **Rafale de l'attaque spéciale** : le corps saute un peu d'un coup à l'autre, les dessins n'ont pas le même point d'appui.
 - **Logos des baskets** : effacés sur les nouvelles poses, mais quelques zones floues restent visibles de près ; pas encore effacé sur `hero-step.png`. À revoir avant la mise en ligne.
 - **Folio** : la structure du portfolio (menu, sections), le son, le mobile, la mise en ligne. Voir `lab/docs/ROADMAP.md` et `folio/docs/04-ROADMAP-ET-PERIMETRE.md`.
