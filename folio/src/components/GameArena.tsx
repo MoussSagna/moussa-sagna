@@ -41,7 +41,8 @@ export default function GameArena() {
     });
     // « Réduire les animations » du système suit ses changements pendant la partie
     const query = window.matchMedia(reducedMotion);
-    instance.options = { rain: true, petals: true, calm: query.matches, opponent: 'rival' };
+    // Shigaraki se bat seul (RivalBrain) : il avance, pare, frappe et lance son attaque ultime barre pleine
+    instance.options = { rain: true, petals: true, calm: query.matches, opponent: 'rival', rivalAI: true };
     const onMotion = (event: MediaQueryListEvent) => {
       instance.options = { ...instance.options, calm: event.matches };
     };

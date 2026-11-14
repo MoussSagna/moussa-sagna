@@ -58,7 +58,7 @@ export function Training() {
         <PageHead
           eyebrow="Arène · Mode entraînement"
           title="Premiers pas dans l’arène"
-          lead="Une cinématique présente Moussa et Shigaraki, puis le combat commence, rendu en temps réel ci-dessous et jouable au clavier, en plein écran si tu veux. Enchaîne les coups, annule-les en drive rush, place l’attaque finale en plein combo, et mets Shigaraki K.O."
+          lead="Une cinématique présente Moussa et Shigaraki, puis le combat commence, rendu en temps réel ci-dessous et jouable au clavier, en plein écran si tu veux. Shigaraki se bat seul : il avance, pare, frappe et punit. Enchaîne les coups, annule-les en drive rush, place l’attaque finale en plein combo, et mets Shigaraki K.O."
         />
 
         <figure className="arena-frame rise" style={{ animationDelay: '240ms' }}>
